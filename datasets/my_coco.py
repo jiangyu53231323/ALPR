@@ -97,12 +97,12 @@ class COCO(data.Dataset):
         # 读取图片
         image = cv2.imread(img_path)[:, :, ::-1]  # BGR to RGB
         # 调整图片大小并填充，返回调整后的图片和缩小的比例
-        image, scale = resize_and_padding(image, self.img_size['w'])
+        image, scale, bboxes, segmentation = resize_and_padding(image, self.img_size['h'], bboxes, segmentation)
 
         flipped = False  # 翻转
         # 标签同步缩放
-        bboxes = bboxes / scale
-        segmentation = segmentation / scale
+        # bboxes = bboxes / scale
+        # segmentation = segmentation / scale
         image, bbs, kpsoi = image_affine(image, bboxes, segmentation)
         # ---------------------------------------------------------------------------------
         image = image.astype(np.float32) / 255.

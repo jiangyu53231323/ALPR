@@ -7,28 +7,37 @@ from imgaug.augmentables.bbs import BoundingBox, BoundingBoxesOnImage
 from imgaug.augmentables.kps import Keypoint, KeypointsOnImage
 
 
-def resize_and_padding(image, size):
+def resize_and_padding(image, size, bboxes, segmentation):
     # ------图像resize------
     height, width = image.shape[0], image.shape[1]  # 获取原始图片尺寸
     center = np.array([width / 2., height / 2.], dtype=np.float32)  # center of image
     scale = max(height, width) * 1.0  # 长边计算缩放比例
     scale = scale / size
-    new_height = round(height / scale)
-    new_width = round(width / scale)
+    new_height = math.ceil(height / scale)
+    new_width = math.ceil(width / scale)
     image = cv2.resize(image, (new_width, new_height))
-    # 判断resize后的图片能否被4整除，如果不能则要进行填充
+    # 判断resize后的图片能否被32整除，如果不能则要进行填充
     padding_h, padding_w = 0, 0
-    if new_height % 4 != 0:
-        padding_h = new_height % 4
-    if new_width % 4 != 0:
-        padding_w = new_width % 4
+    if new_height % 32 != 0:
+        padding_h = 32 - (new_height % 32)
+    if new_width % 32 != 0:
+        padding_w = 32 - (new_width % 32)
     new_image = np.zeros((new_height + padding_h, new_width + padding_w, 3), dtype=np.uint8)
     new_image[padding_h // 2:padding_h // 2 + new_height, padding_w // 2:padding_w // 2 + new_width] = image
     new_image[0:padding_h // 2, :, :] = 128
     new_image[:, 0:padding_w // 2, :] = 128
     new_image[padding_h // 2 + new_height:, :, :] = 128
     new_image[:, padding_w // 2 + new_width:, :] = 128
-    return new_image, scale
+    # 标签同步缩放
+    bboxes = bboxes / scale
+    segmentation = segmentation / scale
+    bboxes = np.array([bboxes[0] + (padding_w // 2), bboxes[1] + (padding_h // 2), bboxes[2] + (padding_w // 2),
+              bboxes[3] + (padding_h // 2), ])
+    segmentation = np.array([segmentation[0] + (padding_w // 2), segmentation[1] + (padding_h // 2),
+                    segmentation[2] + (padding_w // 2), segmentation[3] + (padding_h // 2),
+                    segmentation[4] + (padding_w // 2), segmentation[5] + (padding_h // 2),
+                    segmentation[6] + (padding_w // 2), segmentation[7] + (padding_h // 2), ])
+    return new_image, scale, bboxes, segmentation
 
 
 def image_affine(image, bboxes, segmentation):
