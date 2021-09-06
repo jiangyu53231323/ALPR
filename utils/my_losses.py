@@ -30,7 +30,7 @@ def _neg_loss_slow(preds, targets):
 
 
 # heatmap loss
-def _neg_loss(preds, targets):
+def _heatmap_loss(preds, targets):
     ''' Modified focal loss. Exactly the same as CornerNet.
         Runs faster and costs a little bit more memory
         Arguments:
@@ -40,7 +40,7 @@ def _neg_loss(preds, targets):
     # gt()大于  ne()不等于  lt()小于  eq()等于
     pos_inds = targets.eq(1).float()  # heatmap 为 1 的部分是正样本
     neg_inds = targets.lt(1).float()  # 其他部分为负样本
-    # pow() 方法返回 xy（x的y次方） 的值
+    # pow(x,y) 方法返回 x^y（x的y次方） 的值
     neg_weights = torch.pow(1 - targets, 4)  # 对应 (1-Yxyc)^4
 
     loss = 0
@@ -62,7 +62,7 @@ def _neg_loss(preds, targets):
     return loss / len(preds)  #
 
 
-def _reg_loss(regs, gt_regs, mask):
+def _corner_loss(regs, gt_regs, mask):
     # expand_as 将输入tensor的维度扩展为与指定tensor相同的size
     mask = mask[:, :, None].expand_as(gt_regs).float()
     loss = sum(F.l1_loss(r * mask, gt_regs * mask, reduction='sum') / (mask.sum() + 1e-4) for r in regs)

@@ -62,19 +62,20 @@ def image_affine(image, bboxes, segmentation):
     return image_aug, bbs_aug, kpsoi_aug
 
 
-def draw_heatmap_gaussian(heatmap, kpsoi_aug, scale):
-    center_x = math.ceil((kpsoi_aug[0].x + kpsoi_aug[1].x + kpsoi_aug[2].x + kpsoi_aug[3].x) / 4.0)
-    center_y = math.ceil((kpsoi_aug[0].y + kpsoi_aug[1].y + kpsoi_aug[2].y + kpsoi_aug[3].y) / 4.0)
+def draw_heatmap_gaussian(heatmap, kpsoi_aug, scale, down_ratio):
+    # 计算缩小down_ratio后的车牌中心点坐标
+    center_x = math.ceil((kpsoi_aug[0].x + kpsoi_aug[1].x + kpsoi_aug[2].x + kpsoi_aug[3].x) / (4.0 * down_ratio))
+    center_y = math.ceil((kpsoi_aug[0].y + kpsoi_aug[1].y + kpsoi_aug[2].y + kpsoi_aug[3].y) / (4.0 * down_ratio))
     center = [center_x, center_y]
     # 寻找四边形的几何属性（倾斜角度、长边、短边）
-    x1 = kpsoi_aug[0].x
-    y1 = kpsoi_aug[0].y
-    x2 = kpsoi_aug[1].x
-    y2 = kpsoi_aug[1].y
-    x3 = kpsoi_aug[2].x
-    y3 = kpsoi_aug[2].y
-    x4 = kpsoi_aug[3].x
-    y4 = kpsoi_aug[3].y
+    x1 = kpsoi_aug[0].x / down_ratio
+    y1 = kpsoi_aug[0].y / down_ratio
+    x2 = kpsoi_aug[1].x / down_ratio
+    y2 = kpsoi_aug[1].y / down_ratio
+    x3 = kpsoi_aug[2].x / down_ratio
+    y3 = kpsoi_aug[2].y / down_ratio
+    x4 = kpsoi_aug[3].x / down_ratio
+    y4 = kpsoi_aug[3].y / down_ratio
     # 长、短边长
     l1 = math.sqrt(pow((x4 - x1), 2) + pow((y4 - y1), 2))
     l2 = math.sqrt(pow((x3 - x2), 2) + pow((y3 - y2), 2))
@@ -88,8 +89,8 @@ def draw_heatmap_gaussian(heatmap, kpsoi_aug, scale):
     angle = (angle2 + angle1) / 2
     # 高斯分布概率
     # 对边界进行约束，防止越界
-    left, right = math.ceil(min(x1, x2)), round(max(x3, x4))
-    top, bottom = math.ceil(min(y1, y4)), round(max(y2, y3))
+    left, right = math.ceil(min(x1, x2)), math.ceil(max(x3, x4))
+    top, bottom = math.ceil(min(y1, y4)), math.ceil(max(y2, y3))
     x, y = np.ogrid[left - center_x:right - center_x + 1, top - center_y:bottom - center_y + 1]
     # 旋转矩阵
     rotation_matrix = np.array([[math.cos(angle), -(math.sin(angle))], [math.sin(angle), math.cos(angle)]])
@@ -114,18 +115,18 @@ def draw_heatmap_gaussian(heatmap, kpsoi_aug, scale):
     return heatmap, masked_gaussian, center
 
 
-def draw_corner_gaussian(corner, kpsoi_aug, masked_gaussian):
-    x1 = kpsoi_aug[0].x
-    y1 = kpsoi_aug[0].y
-    x2 = kpsoi_aug[1].x
-    y2 = kpsoi_aug[1].y
-    x3 = kpsoi_aug[2].x
-    y3 = kpsoi_aug[2].y
-    x4 = kpsoi_aug[3].x
-    y4 = kpsoi_aug[3].y
+def draw_corner_gaussian(corner, kpsoi_aug, masked_gaussian, down_ratio):
+    x1 = kpsoi_aug[0].x / down_ratio
+    y1 = kpsoi_aug[0].y / down_ratio
+    x2 = kpsoi_aug[1].x / down_ratio
+    y2 = kpsoi_aug[1].y / down_ratio
+    x3 = kpsoi_aug[2].x / down_ratio
+    y3 = kpsoi_aug[2].y / down_ratio
+    x4 = kpsoi_aug[3].x / down_ratio
+    y4 = kpsoi_aug[3].y / down_ratio
     # 对边界进行约束，防止越界
-    left, right = round(min(x1, x2)), round(max(x3, x4))
-    top, bottom = round(min(y1, y4)), round(max(y2, y3))
+    left, right = math.ceil(min(x1, x2)), math.ceil(max(x3, x4))
+    top, bottom = math.ceil(min(y1, y4)), math.ceil(max(y2, y3))
     # 在高斯分布上标注角点坐标
     masked_corner = corner[top:bottom + 1, left:right + 1]
     center_x = math.ceil((kpsoi_aug[0].x + kpsoi_aug[1].x + kpsoi_aug[2].x + kpsoi_aug[3].x) / 4.0)
@@ -138,7 +139,7 @@ def draw_corner_gaussian(corner, kpsoi_aug, masked_gaussian):
         for j in range(masked_corner.shape[1]):
             masked_corner[i][j] = [j + left - x1, i + top - y1, j + left - x2, -(i + top - y2), -(j + left - x3),
                                    -(i + top - y3), -(j + left - x4), i + top - y4]
-    masked_corner = masked_corner/16
+    masked_corner = masked_corner / 16  # 16是一个放大系数，可以让网络预测的值保持在一个比较小的范围
     masked_gaussian[masked_gaussian != 0] = 1
     masked_gaussian = np.expand_dims(masked_gaussian, axis=-1)
     masked_corner = masked_corner * masked_gaussian

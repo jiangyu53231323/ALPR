@@ -9,7 +9,7 @@ def _gather_feature(feat, ind, mask=None):
     # ind : [bs, index, c]
     ind = ind.unsqueeze(2).expand(ind.size(0), ind.size(1), dim)
     # 沿给定轴dim，将输入索引张量index指定位置的值进行聚合 torch.gather(input, dim, index, out=None)
-    feat = feat.gather(1, ind)  # 按照 dim=1 获取 ind
+    feat = feat.gather(1, ind)  # 按照 dim=1 获取 ind 对应的feat值
     if mask is not None:
         mask = mask.unsqueeze(2).expand_as(feat)
         feat = feat[mask]

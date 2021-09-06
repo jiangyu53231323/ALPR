@@ -11,7 +11,7 @@ import torch.nn as nn
 import torch.utils.data
 import torch.distributed as dist
 
-from datasets.coco import COCO, COCO_eval
+from datasets.my_coco import COCO, COCO_eval
 from datasets.yolo import YOLO, YOLO_eval
 
 from nets.hourglass import get_hourglass
@@ -19,7 +19,7 @@ from nets.resdcn import get_pose_net
 
 from utils.utils import _tranpose_and_gather_feature, load_model
 from utils.image import transform_preds
-from utils.losses import _neg_loss, _reg_loss
+from utils.my_losses import _heatmap_loss, _corner_loss
 from utils.summary import create_summary, create_logger, create_saver, DisablePrint
 from utils.post_process import ctdet_decode
 
@@ -31,11 +31,11 @@ parser.add_argument('--local_rank', type=int, default=0)
 parser.add_argument('--dist', action='store_true')  # 多GPU
 
 parser.add_argument('--root_dir', type=str, default='./')
-parser.add_argument('--data_dir', type=str, default='F:/code_download/data')
+parser.add_argument('--data_dir', type=str, default='F:/code_download')
 parser.add_argument('--log_name', type=str, default='pascal_resdcn_18_384_dp')
 parser.add_argument('--pretrain_name', type=str, default='pretrain')
 
-parser.add_argument('--dataset', type=str, default='pascal', choices=['coco', 'pascal'])
+parser.add_argument('--dataset', type=str, default='coco', choices=['coco', 'yolo'])
 parser.add_argument('--arch', type=str, default='resdcn_18')
 
 parser.add_argument('--img_size', type=int, default=384)
@@ -74,7 +74,7 @@ def main():
     saver = create_saver(cfg.local_rank, save_dir=cfg.ckpt_dir)
     logger = create_logger(cfg.local_rank, save_dir=cfg.log_dir)
     summary_writer = create_summary(cfg.local_rank, log_dir=cfg.log_dir)
-    print = logger.info()
+    print = logger.info
     print(cfg)
 
     torch.manual_seed(317)  # 设置随机数种子
@@ -165,15 +165,14 @@ def main():
 
             '''------------------------------------------------------------'''
             # 得到 heat map, reg, wh 三个变量
-            hmap, corner = zip(*outputs)
+            hmap, corner, wh = zip(*outputs)
             # regs = [_tranpose_and_gather_feature(r, batch['inds']) for r in regs]
             # w_h_ = [_tranpose_and_gather_feature(r, batch['inds']) for r in w_h_]
             # 分别计算 loss
-            hmap_loss = _neg_loss(hmap, batch['hmap'])
-            reg_loss = _reg_loss(regs, batch['regs'], batch['ind_masks'])
-            w_h_loss = _reg_loss(w_h_, batch['w_h_'], batch['ind_masks'])
+            hmap_loss = _heatmap_loss(hmap, batch['hmap'])
+            corner_loss = _corner_loss(corner, batch['regs'], batch['ind_masks'])
             # 进行 loss 加权，得到最终 loss
-            loss = hmap_loss + 1 * reg_loss + 0.1 * w_h_loss
+            loss = hmap_loss + 1 * corner_loss
 
             optimizer.zero_grad()
             loss.backward()
@@ -183,14 +182,14 @@ def main():
                 duration = time.perf_counter() - tic
                 tic = time.perf_counter()
                 print('[%d/%d-%d/%d] ' % (epoch, cfg.num_epochs, batch_idx, len(train_loader)) +
-                      ' hmap_loss= %.5f reg_loss= %.5f w_h_loss= %.5f' %
-                      (hmap_loss.item(), reg_loss.item(), w_h_loss.item()) +
+                      ' hmap_loss= %.5f reg_loss= %.5f ' %
+                      (hmap_loss.item(), corner_loss.item()) +
                       ' (%d samples/sec)' % (cfg.batch_size * cfg.log_interval / duration))
 
                 step = len(train_loader) * epoch + batch_idx
                 summary_writer.add_scalar('hmap_loss', hmap_loss.item(), step)
-                summary_writer.add_scalar('reg_loss', reg_loss.item(), step)
-                summary_writer.add_scalar('w_h_loss', w_h_loss.item(), step)
+                summary_writer.add_scalar('corner_loss', corner_loss.item(), step)
+
         return
 
     def val_map(epoch):

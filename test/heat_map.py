@@ -154,8 +154,8 @@ print(angle / math.pi * 180)
 '''
 # 高斯分布概率
 # 对边界进行约束，防止越界
-left, right = math.ceil(min(x1, x2)), round(max(x3, x4))  # 向上取整
-top, bottom = math.ceil(min(y1, y4)), round(max(y2, y3))
+left, right = math.ceil(min(x1, x2)), math.ceil(max(x3, x4))  # 向上取整
+top, bottom = math.ceil(min(y1, y4)), math.ceil(max(y2, y3))
 # m = int((l_side - 1.) / 2)
 # n = int((s_side - 1.) / 2)
 # x, y = np.ogrid[-m:m + 1, -n:n + 1]

@@ -21,7 +21,7 @@ COCO_IDS = [1]
 # 数据集的平均值和方差
 COCO_MEAN = [0.40789654, 0.44719302, 0.47026115]
 COCO_STD = [0.28863828, 0.27408164, 0.27809835]
-# 作用未知
+# 作用未知，在仿射变换中使用
 COCO_EIGEN_VALUES = [0.2141788, 0.01817699, 0.00341571]
 COCO_EIGEN_VECTORS = [[-0.58752847, -0.69563484, 0.41340352],
                       [-0.5832747, 0.00994535, -0.81221408],
@@ -95,7 +95,7 @@ class COCO(data.Dataset):
             labels = np.array([[0]])
         bboxes[2:] += bboxes[:2]  # xywh to xyxy
         # 读取图片
-        image = cv2.imread(img_path).transpose(2, 0, 1)  # from [H, W, C] to [C, H, W]
+        image = cv2.imread(img_path)[:, :, ::-1]  # BGR to RGB
         # 调整图片大小并填充，返回调整后的图片和缩小的比例
         image, scale = resize_and_padding(image, self.img_size['w'])
 
@@ -108,26 +108,30 @@ class COCO(data.Dataset):
         image = image.astype(np.float32) / 255.
         image -= self.mean
         image /= self.std
-        # img = img.transpose(2, 0, 1)  # from [H, W, C] to [C, H, W]
+        image = image.transpose(2, 0, 1)  # from [H, W, C] to [C, H, W]
 
+        fmap_h = image.shape[1]
+        fmap_w = image.shape[2]
         # heatmap
-        heatmap = np.zeros((self.num_classes, math.ceil(self.fmap_size['h'] / self.down_ratio),
-                            math.ceil(self.fmap_size['w'] / self.down_ratio)), dtype=np.float32)
+        heatmap = np.zeros((self.num_classes, math.ceil(fmap_h / self.down_ratio),
+                            math.ceil(fmap_w / self.down_ratio)), dtype=np.float32)
         # 角点坐标
-        corner = np.zeros((self.max_objs, math.ceil(self.fmap_size['h'] / self.down_ratio),
-                           math.ceil(self.fmap_size['w'] / self.down_ratio), 8), dtype=np.float32)
-        ind_masks = np.zeros((self.max_objs,), dtype=np.uint8)
+        corner = np.zeros((self.max_objs, math.ceil(fmap_h / self.down_ratio),
+                           math.ceil(fmap_w / self.down_ratio), 8), dtype=np.float32)
         # 目标中心点在特征图上的序号，行优先排列
         inds = np.zeros((self.max_objs,), dtype=np.int64)
-
-        heatmap, masked_gaussian, center = draw_heatmap_gaussian(heatmap[0], kpsoi / self.down_ratio,
-                                                                 self.gaussian_scale)
-        corner = draw_corner_gaussian(corner[0], kpsoi / self.down_ratio, masked_gaussian)
+        # inds_masks标记inds中的元素是否有目标，如inds中有[x,0,0,0] inds_masks[1,0,0,0] 则说明只有x位置是存在目标的，0位置是无目标的初始元素
+        # 在这里是单目标检测，情况会简单很多
+        ind_masks = np.zeros((self.max_objs,), dtype=np.uint8)
+        # 将高斯分布画到heatmap上
+        heatmap, masked_gaussian, center = draw_heatmap_gaussian(heatmap[0], kpsoi, self.gaussian_scale,
+                                                                 self.down_ratio)
+        corner = draw_corner_gaussian(corner[0], kpsoi, masked_gaussian, self.down_ratio)
         # inds保存heatmap中目标点的索引，也就是正样本的位置索引
-        inds[0] = center[1] * self.fmap_size['w'] + center[0]
+        inds[0] = center[1] * heatmap.shape[1] + center[0]
         ind_masks[0] = 1
 
-        return {'image': image, 'hmap': heatmap, 'corner': corner, 'inds': inds, 'ind_masks': ind_masks, 's': scale,
+        return {'image': image, 'hmap': heatmap, 'corner': corner, 'inds': inds, 'ind_masks': ind_masks, 'scale': scale,
                 'img_id': img_id}
 
     def __len__(self):
