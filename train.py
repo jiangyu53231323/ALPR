@@ -165,9 +165,11 @@ def main():
 
             '''------------------------------------------------------------'''
             # 得到 heat map, reg, wh 三个变量
-            hmap, corner, wh = zip(*outputs)
+            hmap, corner = zip(*outputs)
             # regs = [_tranpose_and_gather_feature(r, batch['inds']) for r in regs]
             # w_h_ = [_tranpose_and_gather_feature(r, batch['inds']) for r in w_h_]
+            hmap = [h.permute(0, 2, 3, 1).contiguous() for h in hmap]  # from [bs c h w] to [bs, h, w, c]
+            corner = [c.permute(0, 2, 3, 1).contiguous() for c in corner]  # from [bs c h w] to [bs, h, w, c]
             # 分别计算 loss
             hmap_loss = _heatmap_loss(hmap, batch['hmap'])
             corner_loss = _corner_loss(corner, batch['regs'], batch['ind_masks'])

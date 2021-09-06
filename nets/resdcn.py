@@ -141,19 +141,19 @@ class PoseResNet(nn.Module):
             # regression layers  长宽、偏移回归
             self.regs = nn.Sequential(nn.Conv2d(64, head_conv, kernel_size=3, padding=1, bias=True),
                                       nn.ReLU(inplace=True),
-                                      nn.Conv2d(head_conv, 2, kernel_size=1, bias=True))
-            self.w_h_ = nn.Sequential(nn.Conv2d(64, head_conv, kernel_size=3, padding=1, bias=True),
-                                      nn.ReLU(inplace=True),
-                                      nn.Conv2d(head_conv, 2, kernel_size=1, bias=True))
+                                      nn.Conv2d(head_conv, 8, kernel_size=1, bias=True))
+            # self.w_h_ = nn.Sequential(nn.Conv2d(64, head_conv, kernel_size=3, padding=1, bias=True),
+            #                           nn.ReLU(inplace=True),
+            #                           nn.Conv2d(head_conv, 2, kernel_size=1, bias=True))
         else:
             # heatmap layers
             self.hmap = nn.Conv2d(64, num_classes, kernel_size=1, bias=True)
             # regression layers
-            self.regs = nn.Conv2d(64, 2, kernel_size=1, bias=True)
-            self.w_h_ = nn.Conv2d(64, 2, kernel_size=1, bias=True)
+            self.regs = nn.Conv2d(64, 8, kernel_size=1, bias=True)
+            # self.w_h_ = nn.Conv2d(64, 2, kernel_size=1, bias=True)
 
         fill_fc_weights(self.regs)
-        fill_fc_weights(self.w_h_)
+        # fill_fc_weights(self.w_h_)
 
     # 创建普通卷积层
     def _make_layer(self, block, planes, blocks, stride=1):
@@ -241,7 +241,7 @@ class PoseResNet(nn.Module):
         x = self.layer4(x)
 
         x = self.deconv_layers(x)
-        out = [[self.hmap(x), self.regs(x), self.w_h_(x)]]
+        out = [[self.hmap(x), self.regs(x)]]
         return out
 
     # 初始化权重
