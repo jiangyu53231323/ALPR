@@ -65,5 +65,5 @@ def _heatmap_loss(preds, targets):
 def _corner_loss(regs, gt_regs, mask):
     # expand_as 将输入tensor的维度扩展为与指定tensor相同的size
     mask = mask[:, :, None].expand_as(gt_regs).float()
-    loss = sum(F.l1_loss(r * mask, gt_regs * mask, reduction='sum') / (mask.sum() + 1e-4) for r in regs)
+    loss = sum(F.l1_loss(r * mask, gt_regs, reduction='sum') / (mask.sum() + 1e-4) for r in regs)
     return loss / len(regs)

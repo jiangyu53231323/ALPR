@@ -32,11 +32,11 @@ def resize_and_padding(image, size, bboxes, segmentation):
     bboxes = bboxes / scale
     segmentation = segmentation / scale
     bboxes = np.array([bboxes[0] + (padding_w // 2), bboxes[1] + (padding_h // 2), bboxes[2] + (padding_w // 2),
-              bboxes[3] + (padding_h // 2), ])
+                       bboxes[3] + (padding_h // 2), ])
     segmentation = np.array([segmentation[0] + (padding_w // 2), segmentation[1] + (padding_h // 2),
-                    segmentation[2] + (padding_w // 2), segmentation[3] + (padding_h // 2),
-                    segmentation[4] + (padding_w // 2), segmentation[5] + (padding_h // 2),
-                    segmentation[6] + (padding_w // 2), segmentation[7] + (padding_h // 2), ])
+                             segmentation[2] + (padding_w // 2), segmentation[3] + (padding_h // 2),
+                             segmentation[4] + (padding_w // 2), segmentation[5] + (padding_h // 2),
+                             segmentation[6] + (padding_w // 2), segmentation[7] + (padding_h // 2), ])
     return new_image, scale, bboxes, segmentation
 
 
@@ -137,20 +137,28 @@ def draw_corner_gaussian(corner, kpsoi_aug, masked_gaussian, down_ratio):
     left, right = math.ceil(min(x1, x2)), math.ceil(max(x3, x4))
     top, bottom = math.ceil(min(y1, y4)), math.ceil(max(y2, y3))
     # 在高斯分布上标注角点坐标
-    masked_corner = corner[top:bottom + 1, left:right + 1]
+    masked_corner = corner[:, top:bottom + 1, left:right + 1]
     center_x = math.ceil((kpsoi_aug[0].x + kpsoi_aug[1].x + kpsoi_aug[2].x + kpsoi_aug[3].x) / 4.0)
     center_y = math.ceil((kpsoi_aug[0].y + kpsoi_aug[1].y + kpsoi_aug[2].y + kpsoi_aug[3].y) / 4.0)
     # 在蒙版上定位中心点
     corner_center_x = center_x - left
     corner_center_y = center_y - top
 
-    for i in range(masked_corner.shape[0]):
-        for j in range(masked_corner.shape[1]):
-            masked_corner[i][j] = [j + left - x1, i + top - y1, j + left - x2, -(i + top - y2), -(j + left - x3),
-                                   -(i + top - y3), -(j + left - x4), i + top - y4]
+    for i in range(masked_corner.shape[1]):
+        for j in range(masked_corner.shape[2]):
+            # masked_corner[i][j] = [j + left - x1, i + top - y1, j + left - x2, -(i + top - y2), -(j + left - x3),
+            #                        -(i + top - y3), -(j + left - x4), i + top - y4]
+            masked_corner[0][i][j] = j + left - x1
+            masked_corner[1][i][j] = i + top - y1
+            masked_corner[2][i][j] = j + left - x2
+            masked_corner[3][i][j] = -(i + top - y2)
+            masked_corner[4][i][j] = -(j + left - x3)
+            masked_corner[5][i][j] = -(i + top - y3)
+            masked_corner[6][i][j] = -(j + left - x4)
+            masked_corner[7][i][j] = i + top - y4
     masked_corner = masked_corner / 16  # 16是一个放大系数，可以让网络预测的值保持在一个比较小的范围
     masked_gaussian[masked_gaussian != 0] = 1
-    masked_gaussian = np.expand_dims(masked_gaussian, axis=-1)
+    masked_gaussian = np.expand_dims(masked_gaussian, axis=0)
     masked_corner = masked_corner * masked_gaussian
     return corner
 

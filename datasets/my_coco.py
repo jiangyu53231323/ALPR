@@ -117,7 +117,7 @@ class COCO(data.Dataset):
                             math.ceil(fmap_w / self.down_ratio)), dtype=np.float32)
         '''
         corner是四个角点的标注，按照【max_objs,h,w,8】格式，则网络输出与之无法对应，因为网络输出的格式为【c,8,h,w】，
-        这时max_objs就是一个多余的维度，建议去掉。
+        这时max_objs就是一个多余的维度，所以需要去掉。
         对于同类多目标的角点标注，可以将每个物体的标注依次覆盖到【c,8,h,w】上，先将大目标画到corner，再将小目标画上去，
         这样做的好处是如果物体间有重合的地方，则能够保留较小目标的全部特征。
         '''
@@ -135,7 +135,7 @@ class COCO(data.Dataset):
         # 将高斯分布画到heatmap上
         masked_gaussian, center = draw_heatmap_gaussian(heatmap[0], kpsoi, self.gaussian_scale,
                                                         self.down_ratio)
-        draw_corner_gaussian(corner[0], kpsoi, masked_gaussian, self.down_ratio)
+        draw_corner_gaussian(corner, kpsoi, masked_gaussian, self.down_ratio)
         # inds保存heatmap中目标点的索引，也就是正样本的位置索引
         inds[0] = center[1] * heatmap.shape[1] + center[0]
         ind_masks[0] = 1
