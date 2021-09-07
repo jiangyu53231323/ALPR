@@ -121,7 +121,7 @@ def draw_heatmap_gaussian(heatmap, kpsoi_aug, scale, down_ratio):
         # 即同一种类型的框会在一个 heatmap 某一个类别通道上面上面不断添加。
         # 最终通过函数总体的 for 循环，相当于不断将目标画到 heatmap
         np.maximum(masked_heatmap, masked_gaussian * 1, out=masked_heatmap)
-    return heatmap, masked_gaussian, center
+    return masked_gaussian, center
 
 
 def draw_corner_gaussian(corner, kpsoi_aug, masked_gaussian, down_ratio):

@@ -115,18 +115,27 @@ class COCO(data.Dataset):
         # heatmap
         heatmap = np.zeros((self.num_classes, math.ceil(fmap_h / self.down_ratio),
                             math.ceil(fmap_w / self.down_ratio)), dtype=np.float32)
+        '''
+        corner是四个角点的标注，按照【max_objs,h,w,8】格式，则网络输出与之无法对应，因为网络输出的格式为【c,8,h,w】，
+        这时max_objs就是一个多余的维度，建议去掉。
+        对于同类多目标的角点标注，可以将每个物体的标注依次覆盖到【c,8,h,w】上，先将大目标画到corner，再将小目标画上去，
+        这样做的好处是如果物体间有重合的地方，则能够保留较小目标的全部特征。
+        '''
         # 角点坐标
-        corner = np.zeros((self.max_objs, math.ceil(fmap_h / self.down_ratio),
-                           math.ceil(fmap_w / self.down_ratio), 8), dtype=np.float32)
+        # corner = np.zeros((self.max_objs, math.ceil(fmap_h / self.down_ratio),
+        #                    math.ceil(fmap_w / self.down_ratio), 8), dtype=np.float32)
+        corner = np.zeros((8, math.ceil(fmap_h / self.down_ratio), math.ceil(fmap_w / self.down_ratio)),
+                          dtype=np.float32)
+
         # 目标中心点在特征图上的序号，行优先排列
         inds = np.zeros((self.max_objs,), dtype=np.int64)
         # inds_masks标记inds中的元素是否有目标，如inds中有[x,0,0,0] inds_masks[1,0,0,0] 则说明只有x位置是存在目标的，0位置是无目标的初始元素
         # 在这里是单目标检测，情况会简单很多
         ind_masks = np.zeros((self.max_objs,), dtype=np.uint8)
         # 将高斯分布画到heatmap上
-        heatmap, masked_gaussian, center = draw_heatmap_gaussian(heatmap[0], kpsoi, self.gaussian_scale,
-                                                                 self.down_ratio)
-        corner = draw_corner_gaussian(corner[0], kpsoi, masked_gaussian, self.down_ratio)
+        masked_gaussian, center = draw_heatmap_gaussian(heatmap[0], kpsoi, self.gaussian_scale,
+                                                        self.down_ratio)
+        draw_corner_gaussian(corner[0], kpsoi, masked_gaussian, self.down_ratio)
         # inds保存heatmap中目标点的索引，也就是正样本的位置索引
         inds[0] = center[1] * heatmap.shape[1] + center[0]
         ind_masks[0] = 1
