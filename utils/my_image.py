@@ -1,6 +1,7 @@
 import math
 import numpy as np
 import cv2
+import copy
 import random
 from imgaug import augmenters as iaa
 from imgaug.augmentables.bbs import BoundingBox, BoundingBoxesOnImage
@@ -71,7 +72,7 @@ def image_affine(image, bboxes, segmentation):
     return image_aug, bbs_aug, kpsoi_aug
 
 
-def draw_heatmap_gaussian(heatmap, kpsoi_aug, scale, down_ratio):
+def draw_heatmap_gaussian(heatmap, masks, kpsoi_aug, scale, down_ratio):
     # 计算缩小down_ratio后的车牌中心点坐标
     center_x = math.ceil((kpsoi_aug[0].x + kpsoi_aug[1].x + kpsoi_aug[2].x + kpsoi_aug[3].x) / (4.0 * down_ratio))
     center_y = math.ceil((kpsoi_aug[0].y + kpsoi_aug[1].y + kpsoi_aug[2].y + kpsoi_aug[3].y) / (4.0 * down_ratio))
@@ -115,12 +116,15 @@ def draw_heatmap_gaussian(heatmap, kpsoi_aug, scale, down_ratio):
     h[h < 0.01] = 0
 
     masked_heatmap = heatmap[top:bottom + 1, left:right + 1]
+    mask = masks[top:bottom + 1, left:right + 1]
     masked_gaussian = h.T
     if min(masked_gaussian.shape) > 0 and min(masked_heatmap.shape) > 0:  # TODO debug
         # 将高斯分布覆盖到 heatmap 上，相当于不断的在 heatmap 基础上添加关键点的高斯，
         # 即同一种类型的框会在一个 heatmap 某一个类别通道上面上面不断添加。
         # 最终通过函数总体的 for 循环，相当于不断将目标画到 heatmap
         np.maximum(masked_heatmap, masked_gaussian * 1, out=masked_heatmap)
+        masked_gaussian[masked_gaussian != 0] = 1
+        np.maximum(mask, masked_gaussian * 1, out=mask)
     return masked_gaussian, center
 
 
@@ -137,7 +141,9 @@ def draw_corner_gaussian(corner, kpsoi_aug, masked_gaussian, down_ratio):
     left, right = math.ceil(min(x1, x2)), math.ceil(max(x3, x4))
     top, bottom = math.ceil(min(y1, y4)), math.ceil(max(y2, y3))
     # 在高斯分布上标注角点坐标
-    masked_corner = corner[:, top:bottom + 1, left:right + 1]
+    corner_mask = corner[:, top:bottom + 1, left:right + 1]
+    corner_mask[:, :, :] = -1e4
+    masked_corner = copy.deepcopy(corner_mask)  # masked_corner深拷贝corner_mask
     center_x = math.ceil((kpsoi_aug[0].x + kpsoi_aug[1].x + kpsoi_aug[2].x + kpsoi_aug[3].x) / 4.0)
     center_y = math.ceil((kpsoi_aug[0].y + kpsoi_aug[1].y + kpsoi_aug[2].y + kpsoi_aug[3].y) / 4.0)
     # 在蒙版上定位中心点
@@ -156,10 +162,12 @@ def draw_corner_gaussian(corner, kpsoi_aug, masked_gaussian, down_ratio):
             masked_corner[5][i][j] = -(i + top - y3)
             masked_corner[6][i][j] = -(j + left - x4)
             masked_corner[7][i][j] = i + top - y4
-    masked_corner = masked_corner / 16  # 16是一个放大系数，可以让网络预测的值保持在一个比较小的范围
     masked_gaussian[masked_gaussian != 0] = 1
     masked_gaussian = np.expand_dims(masked_gaussian, axis=0)
-    masked_corner = masked_corner * masked_gaussian
+    masked_corner = masked_corner * masked_gaussian / 16  # 16是一个放大系数，可以让网络预测的值保持在一个比较小的范围
+    if min(masked_gaussian.shape) > 0 and min(masked_corner.shape) > 0:  # TODO debug
+        # corner_mask = corner_mask * masked_corner
+        np.maximum(corner_mask, masked_corner, out=corner_mask)
     return corner
 
 

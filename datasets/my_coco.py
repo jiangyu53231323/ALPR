@@ -126,14 +126,15 @@ class COCO(data.Dataset):
         #                    math.ceil(fmap_w / self.down_ratio), 8), dtype=np.float32)
         corner = np.zeros((8, math.ceil(fmap_h / self.down_ratio), math.ceil(fmap_w / self.down_ratio)),
                           dtype=np.float32)
-
+        corner_mask = np.zeros((math.ceil(fmap_h / self.down_ratio), math.ceil(fmap_w / self.down_ratio)),
+                               dtype=np.float32)
         # 目标中心点在特征图上的序号，行优先排列
         inds = np.zeros((self.max_objs,), dtype=np.int64)
         # inds_masks标记inds中的元素是否有目标，如inds中有[x,0,0,0] inds_masks[1,0,0,0] 则说明只有x位置是存在目标的，0位置是无目标的初始元素
         # 在这里是单目标检测，情况会简单很多
         ind_masks = np.zeros((self.max_objs,), dtype=np.uint8)
         # 将高斯分布画到heatmap上
-        masked_gaussian, center = draw_heatmap_gaussian(heatmap[0], kpsoi, self.gaussian_scale,
+        masked_gaussian, center = draw_heatmap_gaussian(heatmap[0], corner_mask, kpsoi, self.gaussian_scale,
                                                         self.down_ratio)
         draw_corner_gaussian(corner, kpsoi, masked_gaussian, self.down_ratio)
         # inds保存heatmap中目标点的索引，也就是正样本的位置索引
@@ -141,7 +142,7 @@ class COCO(data.Dataset):
         ind_masks[0] = 1
 
         return {'image': image, 'hmap': heatmap, 'corner': corner, 'inds': inds, 'ind_masks': ind_masks, 'scale': scale,
-                'img_id': img_id}
+                'img_id': img_id, 'corner_mask': corner_mask}
 
     def __len__(self):
         return self.num_samples

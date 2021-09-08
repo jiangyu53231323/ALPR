@@ -64,6 +64,13 @@ def _heatmap_loss(preds, targets):
 
 def _corner_loss(regs, gt_regs, mask):
     # expand_as 将输入tensor的维度扩展为与指定tensor相同的size
-    mask = mask[:, :, None].expand_as(gt_regs).float()
-    loss = sum(F.l1_loss(r * mask, gt_regs, reduction='sum') / (mask.sum() + 1e-4) for r in regs)
+    # mask = mask[:, :, None].expand_as(gt_regs).float()
+    '''
+    将高斯分布内的像素点都参与到loss计算中，会导致corner_loss变得异常的大，如能达到25959。
+    还是需要gaussian_mask来对loss大小进行限制，可以计算mask中的参加计算的像素点有多少，再将总的loss值除以总共的像素点数。
+    regs[b,c,h,w]
+    gt_regs[b,c,h,w]
+    mask[b,c,h,w]
+    '''
+    loss = sum(F.l1_loss(r, gt_regs, reduction='sum') / (1 + 1e-4) for r in regs)
     return loss / len(regs)

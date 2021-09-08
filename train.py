@@ -170,7 +170,7 @@ def main():
             # corner = [c.permute(0, 2, 3, 1).contiguous() for c in corner]  # from [bs c h w] to [bs, h, w, c]
             # 分别计算 loss
             hmap_loss = _heatmap_loss(hmap, batch['hmap'])
-            corner_loss = _corner_loss(corner, batch['corner'], batch['ind_masks'])
+            corner_loss = _corner_loss(corner, batch['corner'])
             # 进行 loss 加权，得到最终 loss
             loss = hmap_loss + 1 * corner_loss
 
