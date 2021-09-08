@@ -170,7 +170,7 @@ def main():
             # corner = [c.permute(0, 2, 3, 1).contiguous() for c in corner]  # from [bs c h w] to [bs, h, w, c]
             # 分别计算 loss
             hmap_loss = _heatmap_loss(hmap, batch['hmap'])
-            corner_loss = _corner_loss(corner, batch['corner'])
+            corner_loss = _corner_loss(corner, batch['corner'], batch['corner_mask'])
             # 进行 loss 加权，得到最终 loss
             loss = hmap_loss + 1 * corner_loss
 
@@ -182,7 +182,7 @@ def main():
                 duration = time.perf_counter() - tic
                 tic = time.perf_counter()
                 print('[%d/%d-%d/%d] ' % (epoch, cfg.num_epochs, batch_idx, len(train_loader)) +
-                      ' hmap_loss= %.5f reg_loss= %.5f ' %
+                      ' hmap_loss= %.5f corner_loss= %.5f ' %
                       (hmap_loss.item(), corner_loss.item()) +
                       ' (%d samples/sec)' % (cfg.batch_size * cfg.log_interval / duration))
 
