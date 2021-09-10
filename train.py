@@ -208,20 +208,11 @@ def main():
                     inputs[scale]['image'] = inputs[scale]['image'].to(cfg.device)
                     output = model(inputs[scale]['image'])[-1]
                     # 对检测结果进行后处理
-                    dets = ctdet_decode(*output, K=cfg.test_topk)
+                    dets = ctdet_decode(*output, K=cfg.test_topk)  # 表示列表元素作为多个元素传入
                     dets = dets.detach().cpu().numpy().reshape(1, -1, dets.shape[2])[0]
 
                     top_preds = {}
-                    # x1,y1坐标做仿射变换
-                    dets[:, :2] = transform_preds(dets[:, 0:2],
-                                                  inputs[scale]['center'],
-                                                  inputs[scale]['scale'],
-                                                  (inputs[scale]['fmap_w'], inputs[scale]['fmap_h']))
-                    # x2,y2坐标做仿射变换
-                    dets[:, 2:4] = transform_preds(dets[:, 2:4],
-                                                   inputs[scale]['center'],
-                                                   inputs[scale]['scale'],
-                                                   (inputs[scale]['fmap_w'], inputs[scale]['fmap_h']))
+
                     # 合并同类
                     clses = dets[:, -1]
                     for j in range(val_dataset.num_classes):
@@ -233,6 +224,7 @@ def main():
 
                 bbox_and_scores = {j: np.concatenate([d[j] for d in detections], axis=0)
                                    for j in range(1, val_dataset.num_classes + 1)}
+                # hstack为横向上的拼接，等效与沿第二轴的串联
                 scores = np.hstack([bbox_and_scores[j][:, 4] for j in range(1, val_dataset.num_classes + 1)])
                 if len(scores) > max_per_image:
                     kth = len(scores) - max_per_image

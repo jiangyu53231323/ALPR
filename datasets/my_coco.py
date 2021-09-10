@@ -89,7 +89,6 @@ class COCO(data.Dataset):
         labels = np.array([self.cat_ids[anno['category_id']] for anno in annotations])
         bboxes = np.array([anno['bbox'] for anno in annotations], dtype=np.float32).squeeze()  # 降维
         segmentation = np.array([anno['segmentation'] for anno in annotations], dtype=np.float32).squeeze()  # 降维
-
         if len(bboxes) == 0:
             bboxes = np.array([[0., 0., 0., 0.]], dtype=np.float32)
             labels = np.array([[0]])
@@ -156,30 +155,48 @@ class COCO_eval(COCO):
         self.fix_size = fix_size
 
     def __getitem__(self, index):
+        # 根据index得到image对应的id，再由id得到图片文件名，拼接成路径
         img_id = self.images[index]
         img_path = os.path.join(self.img_dir, self.coco.loadImgs(ids=[img_id])[0]['file_name'])
-        image = cv2.imread(img_path)
+        # 根据image id 获取 annotion id
+        ann_ids = self.coco.getAnnIds(imgIds=[img_id])
+        annotations = self.coco.loadAnns(ids=ann_ids)
+
+        labels = np.array([self.cat_ids[anno['category_id']] for anno in annotations])
+        bboxes = np.array([anno['bbox'] for anno in annotations], dtype=np.float32).squeeze()  # 降维
+        segmentation = np.array([anno['segmentation'] for anno in annotations], dtype=np.float32).squeeze()  # 降维
+        if len(bboxes) == 0:
+            bboxes = np.array([[0., 0., 0., 0.]], dtype=np.float32)
+            labels = np.array([[0]])
+        bboxes[2:] += bboxes[:2]  # xywh to xyxy
+
+        image = cv2.imread(img_path)[:, :, ::-1]  # BGR to RGB
         height, width = image.shape[0:2]
 
         out = {}
         for scale in self.test_scales:
             new_height = int(height * scale)
             new_width = int(width * scale)
+            new_bboxes = bboxes * scale
+            new_segmentation = segmentation * scale
 
             if self.fix_size:
-                img_height, img_width = self.img_size['h'], self.img_size['w']
+                # img_height, img_width = self.img_size['h'], self.img_size['w']
                 center = np.array([new_width / 2., new_height / 2.], dtype=np.float32)
-                scaled_size = max(height, width) * 1.0
-                scaled_size = np.array([scaled_size, scaled_size], dtype=np.float32)
+                # scaled_size = max(height, width) * 1.0
+                # scaled_size = np.array([scaled_size, scaled_size], dtype=np.float32)
             else:
-                img_height = (new_height | self.padding) + 1
-                img_width = (new_width | self.padding) + 1
+                # img_height = (new_height | self.padding) + 1
+                # img_width = (new_width | self.padding) + 1
                 center = np.array([new_width // 2, new_height // 2], dtype=np.float32)
-                scaled_size = np.array([img_width, img_height], dtype=np.float32)
+                # scaled_size = np.array([img_width, img_height], dtype=np.float32)
 
-            img = cv2.resize(image, (new_width, new_height))
-            trans_img = get_affine_transform(center, scaled_size, 0, [img_width, img_height])
-            img = cv2.warpAffine(img, trans_img, (img_width, img_height))
+            img, img_scale, new_bboxes, new_segmentation = cv2.resize(image, max(new_width, new_height), new_bboxes,
+                                                                      new_segmentation)
+            img_height = img.shape[0]
+            img_width = img.shape[1]
+            # trans_img = get_affine_transform(center, scaled_size, 0, [img_width, img_height])
+            # img = cv2.warpAffine(img, trans_img, (img_width, img_height))
 
             img = img.astype(np.float32) / 255.
             img -= self.mean
@@ -191,9 +208,10 @@ class COCO_eval(COCO):
 
             out[scale] = {'image': img,
                           'center': center,
-                          'scale': scaled_size,
                           'fmap_h': img_height // self.down_ratio,
-                          'fmap_w': img_width // self.down_ratio}
+                          'fmap_w': img_width // self.down_ratio,
+                          'bboxes': new_bboxes,
+                          'segmentation': new_segmentation}
 
         return img_id, out
 

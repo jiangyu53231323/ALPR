@@ -18,6 +18,7 @@ def _topk(scores, K=40):
     batch, cat, height, width = scores.size()
     # to shape: [batch , class, h * w] 分类别，每个 class channel 统计最大值
     # topk_scores 和 topk_inds 分别是前 K 个 score 和对应的 下标序号
+    # 此时的topk_scores为[batch,class,K]  topk_inds为[batch,class,K]
     topk_scores, topk_inds = torch.topk(scores.view(batch, cat, -1), K)
 
     topk_inds = topk_inds % (height * width)
@@ -35,42 +36,46 @@ def _topk(scores, K=40):
     return topk_score, topk_inds, topk_clses, topk_ys, topk_xs
 
 
-def ctdet_decode(hmap, regs, w_h_, K=100):
+def ctdet_decode(hmap, cors, K=100):
     '''
     hmap 提取中心点位置为 xs,ys
-    regs 保存的是偏置，需要加在 xs,ys 上，代表精确的中心位置
-    w_h_ 保存的是对应目标的宽和高
+    cors 保存的是角点，是相对于中心点的坐标
     '''
     batch, cat, height, width = hmap.shape
     hmap = torch.sigmoid(hmap)
 
-    # if flip test
-    if batch > 1:  # batch > 1 代表使用了翻转
-        hmap = (hmap[0:1] + flip_tensor(hmap[1:2])) / 2
-        w_h_ = (w_h_[0:1] + flip_tensor(w_h_[1:2])) / 2
-        regs = regs[0:1]
-
-    batch = 1
     # 这里的 nms 和带 anchor 的目标检测方法中的不一样，这里使用的是 3x3 的 maxpool 筛选
     hmap = _nms(hmap)  # perform nms on heatmaps
     # 找到前 K 个极大值点代表存在目标
     scores, inds, clses, ys, xs = _topk(hmap, K=K)
     # 找到前K个极大值点对应的偏置值
-    regs = _tranpose_and_gather_feature(regs, inds)
-    regs = regs.view(batch, K, 2)
-    # 中心点坐标 = 中心点像素位置 + 偏移
-    xs = xs.view(batch, K, 1) + regs[:, :, 0:1]
-    ys = ys.view(batch, K, 1) + regs[:, :, 1:2]
-    # 找到前K个极大值点对应的宽高
-    w_h_ = _tranpose_and_gather_feature(w_h_, inds)
-    w_h_ = w_h_.view(batch, K, 2)
+    cors = _tranpose_and_gather_feature(cors, inds)
+    cors = cors.view(batch, K, 8)
 
-    clses = clses.view(batch, K, 1).float()
-    scores = scores.view(batch, K, 1)
+    # 四个角点的坐标
+    x1 = xs.view(batch, K, 1) - cors[:, :, 0:1]
+    y1 = ys.view(batch, K, 1) - cors[:, :, 1:2]
+    x2 = xs.view(batch, K, 1) - cors[:, :, 2:3]
+    y2 = ys.view(batch, K, 1) + cors[:, :, 3:4]
+    x3 = xs.view(batch, K, 1) + cors[:, :, 4:5]
+    y3 = ys.view(batch, K, 1) + cors[:, :, 5:6]
+    x4 = xs.view(batch, K, 1) + cors[:, :, 6:7]
+    y4 = ys.view(batch, K, 1) - cors[:, :, 7:8]
+
+    # # 中心点坐标 = 中心点像素位置 + 偏移
+    # xs = xs.view(batch, K, 1) + regs[:, :, 0:1]
+    # ys = ys.view(batch, K, 1) + regs[:, :, 1:2]
+    # # 找到前K个极大值点对应的宽高
+    # w_h_ = _tranpose_and_gather_feature(w_h_, inds)
+    # w_h_ = w_h_.view(batch, K, 2)
+
+    clses = clses.view(batch, K, 1).float()  # [batch,k,1]
+    scores = scores.view(batch, K, 1)  # [batch,k,1]
     # xs,ys 是中心坐标，w_h_[...,0:1] 是 w,1:2 是 h
-    bboxes = torch.cat([xs - w_h_[..., 0:1] / 2,
-                        ys - w_h_[..., 1:2] / 2,
-                        xs + w_h_[..., 0:1] / 2,
-                        ys + w_h_[..., 1:2] / 2], dim=2)
-    detections = torch.cat([bboxes, scores, clses], dim=2)
+    # bboxes = torch.cat([xs - w_h_[..., 0:1] / 2,
+    #                     ys - w_h_[..., 1:2] / 2,
+    #                     xs + w_h_[..., 0:1] / 2,
+    #                     ys + w_h_[..., 1:2] / 2], dim=2)
+    corners = torch.cat([x1, y1, x2, y2, x3, y3, x4, y4], dim=2)
+    detections = torch.cat([corners, scores, clses], dim=2)  # detections[batch, K, corners+scores+clses]
     return detections

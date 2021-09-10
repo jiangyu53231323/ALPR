@@ -99,6 +99,7 @@ def fill_up_weights(up):
     for c in range(1, w.size(0)):
         w[c, 0, :, :] = w[0, 0, :, :]
 
+
 # 填充回归预测的卷积 weight
 def fill_fc_weights(layers):
     for m in layers.modules():
@@ -138,22 +139,23 @@ class PoseResNet(nn.Module):
                                       nn.ReLU(inplace=True),
                                       nn.Conv2d(head_conv, num_classes, kernel_size=1, bias=True))
             self.hmap[-1].bias.data.fill_(-2.19)
-            # regression layers  长宽、偏移回归
-            self.regs = nn.Sequential(nn.Conv2d(64, head_conv, kernel_size=3, padding=1, bias=True),
+            # regression layers  角点、长宽
+            self.cors = nn.Sequential(nn.Conv2d(64, head_conv, kernel_size=3, padding=1, bias=True),
                                       nn.ReLU(inplace=True),
                                       nn.Conv2d(head_conv, 8, kernel_size=1, bias=True))
-            # self.w_h_ = nn.Sequential(nn.Conv2d(64, head_conv, kernel_size=3, padding=1, bias=True),
-            #                           nn.ReLU(inplace=True),
-            #                           nn.Conv2d(head_conv, 2, kernel_size=1, bias=True))
+            self.w_h_ = nn.Sequential(nn.Conv2d(64, head_conv, kernel_size=3, padding=1, bias=True),
+                                      nn.ReLU(inplace=True),
+                                      nn.Conv2d(head_conv, 2, kernel_size=1, bias=True))
         else:
             # heatmap layers
             self.hmap = nn.Conv2d(64, num_classes, kernel_size=1, bias=True)
-            # regression layers
-            self.regs = nn.Conv2d(64, 8, kernel_size=1, bias=True)
-            # self.w_h_ = nn.Conv2d(64, 2, kernel_size=1, bias=True)
+            # corners layers
+            self.cors = nn.Conv2d(64, 8, kernel_size=1, bias=True)
+            # bboxes layers
+            self.w_h_ = nn.Conv2d(64, 2, kernel_size=1, bias=True)
 
-        fill_fc_weights(self.regs)
-        # fill_fc_weights(self.w_h_)
+        fill_fc_weights(self.cors)
+        fill_fc_weights(self.w_h_)
 
     # 创建普通卷积层
     def _make_layer(self, block, planes, blocks, stride=1):
@@ -167,7 +169,7 @@ class PoseResNet(nn.Module):
         self.inplanes = planes * block.expansion
         for i in range(1, blocks):
             layers.append(block(self.inplanes, planes))
-        return nn.Sequential(*layers)  #表示列表元素作为多个元素传入
+        return nn.Sequential(*layers)  # 表示列表元素作为多个元素传入
 
     def _get_deconv_cfg(self, deconv_kernel, index):
         if deconv_kernel == 4:
@@ -241,7 +243,7 @@ class PoseResNet(nn.Module):
         x = self.layer4(x)
 
         x = self.deconv_layers(x)
-        out = [[self.hmap(x), self.regs(x)]]
+        out = [[self.hmap(x), self.cors(x)], self.w_h_(x)]
         return out
 
     # 初始化权重
