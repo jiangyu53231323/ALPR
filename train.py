@@ -171,9 +171,9 @@ def main():
             # 分别计算 loss
             hmap_loss = _heatmap_loss(hmap, batch['hmap'])
             corner_loss = _corner_loss(corner, batch['corner'], batch['hmap'])
-            w_h_loss = _w_h_loss(w_h_, batch['w_h_', batch['hmap']])
+            w_h_loss = _w_h_loss(w_h_, batch['w_h_'], batch['hmap'])
             # 进行 loss 加权，得到最终 loss
-            loss = hmap_loss + 1 * corner_loss
+            loss = hmap_loss + 1 * corner_loss + 1 * w_h_loss
 
             optimizer.zero_grad()
             loss.backward()
@@ -183,13 +183,14 @@ def main():
                 duration = time.perf_counter() - tic
                 tic = time.perf_counter()
                 print('[%d/%d-%d/%d] ' % (epoch, cfg.num_epochs, batch_idx, len(train_loader)) +
-                      ' hmap_loss= %.5f corner_loss= %.5f ' %
-                      (hmap_loss.item(), corner_loss.item()) +
+                      ' hmap_loss= %.5f corner_loss= %.5f w_h_loss= %.5f' %
+                      (hmap_loss.item(), corner_loss.item(), w_h_loss.item()) +
                       ' (%d samples/sec)' % (cfg.batch_size * cfg.log_interval / duration))
 
                 step = len(train_loader) * epoch + batch_idx
                 summary_writer.add_scalar('hmap_loss', hmap_loss.item(), step)
                 summary_writer.add_scalar('corner_loss', corner_loss.item(), step)
+                summary_writer.add_scalar('w_h_loss', w_h_loss.item(), step)
 
         return
 
@@ -201,10 +202,11 @@ def main():
 
         results = {}
         with torch.no_grad():  # 不跟踪梯度，减少内存占用
-            for inputs in val_loader:
-                img_id, inputs = inputs[0]
+            for img_id, inputs in enumerate(val_loader):
+                # img_id, inputs = inputs[0]
 
                 detections = []
+                # 不同的图片缩放比例
                 for scale in inputs:
                     inputs[scale]['image'] = inputs[scale]['image'].to(cfg.device)
                     output = model(inputs[scale]['image'])[-1]
@@ -213,7 +215,6 @@ def main():
                     dets = dets.detach().cpu().numpy().reshape(1, -1, dets.shape[2])[0]
 
                     top_preds = {}
-
                     # 合并同类
                     clses = dets[:, -1]
                     for j in range(val_dataset.num_classes):
@@ -226,7 +227,7 @@ def main():
                 bbox_and_scores = {j: np.concatenate([d[j] for d in detections], axis=0)
                                    for j in range(1, val_dataset.num_classes + 1)}
                 # hstack为横向上的拼接，等效与沿第二轴的串联
-                scores = np.hstack([bbox_and_scores[j][:, 4] for j in range(1, val_dataset.num_classes + 1)])
+                scores = np.hstack([bbox_and_scores[j][:, 12] for j in range(1, val_dataset.num_classes + 1)])
                 if len(scores) > max_per_image:
                     kth = len(scores) - max_per_image
                     thresh = np.partition(scores, kth)[kth]

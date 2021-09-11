@@ -243,7 +243,7 @@ class PoseResNet(nn.Module):
         x = self.layer4(x)
 
         x = self.deconv_layers(x)
-        out = [[self.hmap(x), self.cors(x)], self.w_h_(x)]
+        out = [[self.hmap(x), self.cors(x), self.w_h_(x)]]
         return out
 
     # 初始化权重

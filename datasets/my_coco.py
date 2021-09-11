@@ -112,7 +112,7 @@ class COCO(data.Dataset):
         fmap_h = image.shape[1]
         fmap_w = image.shape[2]
         # heatmap
-        heatmap = np.zeros((self.num_classes, math.ceil(fmap_h / self.down_ratio),
+        heat_map = np.zeros((self.num_classes, math.ceil(fmap_h / self.down_ratio),
                             math.ceil(fmap_w / self.down_ratio)), dtype=np.float32)
         '''
         corner是四个角点的标注，按照【max_objs,h,w,8】格式，则网络输出与之无法对应，因为网络输出的格式为【c,8,h,w】，
@@ -123,9 +123,9 @@ class COCO(data.Dataset):
         # 角点坐标
         # corner = np.zeros((self.max_objs, math.ceil(fmap_h / self.down_ratio),
         #                    math.ceil(fmap_w / self.down_ratio), 8), dtype=np.float32)
-        corner = np.zeros((8, math.ceil(fmap_h / self.down_ratio), math.ceil(fmap_w / self.down_ratio)),
+        corner_map = np.zeros((8, math.ceil(fmap_h / self.down_ratio), math.ceil(fmap_w / self.down_ratio)),
                           dtype=np.float32)
-        w_h_ = np.zeros((4, math.ceil(fmap_h / self.down_ratio), math.ceil(fmap_w / self.down_ratio)),
+        bboxes_map = np.zeros((4, math.ceil(fmap_h / self.down_ratio), math.ceil(fmap_w / self.down_ratio)),
                         dtype=np.float32)
 
         # 目标中心点在特征图上的序号，行优先排列
@@ -134,15 +134,15 @@ class COCO(data.Dataset):
         # 在这里是单目标检测，情况会简单很多
         ind_masks = np.zeros((self.max_objs,), dtype=np.uint8)
         # 将高斯分布画到heatmap上
-        masked_gaussian, center = draw_heatmap_gaussian(heatmap[0], kpsoi, self.gaussian_scale,
+        masked_gaussian, center = draw_heatmap_gaussian(heat_map[0], kpsoi, self.gaussian_scale,
                                                         self.down_ratio)
-        draw_corner_gaussian(corner, kpsoi, masked_gaussian, self.down_ratio)
-        draw_w_h_gaussian(w_h_, bbs, kpsoi, masked_gaussian, self.down_ratio)
+        draw_corner_gaussian(corner_map, kpsoi, masked_gaussian, self.down_ratio)
+        draw_w_h_gaussian(bboxes_map, bbs, kpsoi, masked_gaussian, self.down_ratio)
         # inds保存heatmap中目标点的索引，也就是正样本的位置索引
-        inds[0] = center[1] * heatmap.shape[1] + center[0]
+        inds[0] = center[1] * heat_map.shape[1] + center[0]
         ind_masks[0] = 1
 
-        return {'image': image, 'hmap': heatmap, 'corner': corner, 'w_h_': w_h_, 'inds': inds, 'ind_masks': ind_masks,
+        return {'image': image, 'hmap': heat_map, 'corner': corner_map, 'bboxes': bboxes_map, 'inds': inds, 'ind_masks': ind_masks,
                 'scale': scale, 'img_id': img_id, }
 
     def __len__(self):
@@ -193,8 +193,8 @@ class COCO_eval(COCO):
                 center = np.array([new_width // 2, new_height // 2], dtype=np.float32)
                 # scaled_size = np.array([img_width, img_height], dtype=np.float32)
 
-            img, img_scale, new_bboxes, new_segmentation = cv2.resize(image, max(new_width, new_height), new_bboxes,
-                                                                      new_segmentation)
+            img, img_scale, new_bboxes, new_segmentation = resize_and_padding(image, max(new_width, new_height),
+                                                                              new_bboxes, new_segmentation)
             img_height = img.shape[0]
             img_width = img.shape[1]
             # trans_img = get_affine_transform(center, scaled_size, 0, [img_width, img_height])

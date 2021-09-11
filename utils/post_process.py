@@ -36,7 +36,7 @@ def _topk(scores, K=40):
     return topk_score, topk_inds, topk_clses, topk_ys, topk_xs
 
 
-def ctdet_decode(hmap, cors, K=100):
+def ctdet_decode(hmap, cors, bbs, K=100):
     '''
     hmap 提取中心点位置为 xs,ys
     cors 保存的是角点，是相对于中心点的坐标
@@ -62,6 +62,12 @@ def ctdet_decode(hmap, cors, K=100):
     x4 = xs.view(batch, K, 1) + cors[:, :, 6:7]
     y4 = ys.view(batch, K, 1) - cors[:, :, 7:8]
 
+    # bboxes坐标
+    bx1 = xs.view(batch, K, 1) - bbs[:, :, 0:1]
+    by1 = ys.view(batch, K, 1) - bbs[:, :, 1:2]
+    bx2 = xs.view(batch, K, 1) + bbs[:, :, 2:3]
+    by2 = ys.view(batch, K, 1) + bbs[:, :, 3:4]
+
     # # 中心点坐标 = 中心点像素位置 + 偏移
     # xs = xs.view(batch, K, 1) + regs[:, :, 0:1]
     # ys = ys.view(batch, K, 1) + regs[:, :, 1:2]
@@ -77,5 +83,7 @@ def ctdet_decode(hmap, cors, K=100):
     #                     xs + w_h_[..., 0:1] / 2,
     #                     ys + w_h_[..., 1:2] / 2], dim=2)
     corners = torch.cat([x1, y1, x2, y2, x3, y3, x4, y4], dim=2)
-    detections = torch.cat([corners, scores, clses], dim=2)  # detections[batch, K, corners+scores+clses]
+    bboxes = torch.cat([bx1, by1, bx2, by2], dim=2)
+
+    detections = torch.cat([corners, bboxes, scores, clses], dim=2)  # detections[batch, K, corners+scores+clses]
     return detections

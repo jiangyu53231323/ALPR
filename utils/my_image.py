@@ -171,7 +171,7 @@ def draw_corner_gaussian(corner, kpsoi_aug, masked_gaussian, down_ratio):
     return corner
 
 
-def draw_w_h_gaussian(w_h_, bbs, kpsoi_aug, masked_gaussian, down_ratio):
+def draw_bboxes_gaussian(bboxes_map, bbs, kpsoi_aug, masked_gaussian, down_ratio):
     x1 = kpsoi_aug[0].x / down_ratio
     y1 = kpsoi_aug[0].y / down_ratio
     x2 = kpsoi_aug[1].x / down_ratio
@@ -191,9 +191,9 @@ def draw_w_h_gaussian(w_h_, bbs, kpsoi_aug, masked_gaussian, down_ratio):
     h2 = bbs[0].y2 / down_ratio
 
     # 在高斯分布上标注角点坐标
-    w_h_mask = w_h_[:, top:bottom + 1, left:right + 1]
-    masked_w_h_ = copy.deepcopy(w_h_mask)  # masked_corner深拷贝corner_mask
-    w_h_mask[:, :, :] = -1e4
+    bboxes_mask = bboxes_map[:, top:bottom + 1, left:right + 1]
+    masked_w_h_ = copy.deepcopy(bboxes_mask)  # masked_corner深拷贝corner_mask
+    bboxes_mask[:, :, :] = -1e4
 
     center_x = math.ceil((kpsoi_aug[0].x + kpsoi_aug[1].x + kpsoi_aug[2].x + kpsoi_aug[3].x) / 4.0)
     center_y = math.ceil((kpsoi_aug[0].y + kpsoi_aug[1].y + kpsoi_aug[2].y + kpsoi_aug[3].y) / 4.0)
@@ -211,8 +211,8 @@ def draw_w_h_gaussian(w_h_, bbs, kpsoi_aug, masked_gaussian, down_ratio):
     masked_corner = masked_w_h_ * masked_gaussian / 16  # 16是一个放大系数，可以让网络预测的值保持在一个比较小的范围
     if min(masked_gaussian.shape) > 0 and min(masked_corner.shape) > 0:  # TODO debug
         # corner_mask = corner_mask * masked_corner
-        np.maximum(w_h_mask, masked_corner, out=w_h_mask)
-    return w_h_
+        np.maximum(bboxes_mask, masked_corner, out=bboxes_mask)
+    return bboxes_map
 
 
 def flip(img):
