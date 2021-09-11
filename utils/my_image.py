@@ -124,8 +124,9 @@ def draw_heatmap_gaussian(heatmap, kpsoi_aug, scale, down_ratio):
         # 即同一种类型的框会在一个 heatmap 某一个类别通道上面上面不断添加。
         # 最终通过函数总体的 for 循环，相当于不断将目标画到 heatmap
         np.maximum(masked_heatmap, masked_gaussian * 1, out=masked_heatmap)
-        masked_gaussian[masked_gaussian != 0] = 1
         # np.maximum(mask, masked_gaussian * 1, out=mask)
+    masked_gaussian[masked_gaussian != 0] = 1
+    masked_gaussian = np.expand_dims(masked_gaussian, axis=0)
     return masked_gaussian, center
 
 
@@ -143,8 +144,8 @@ def draw_corner_gaussian(corner, kpsoi_aug, masked_gaussian, down_ratio):
     top, bottom = math.ceil(min(y1, y4)), math.ceil(max(y2, y3))
     # 在高斯分布上标注角点坐标
     corner_mask = corner[:, top:bottom + 1, left:right + 1]
-    corner_mask[:, :, :] = -1e4
     masked_corner = copy.deepcopy(corner_mask)  # masked_corner深拷贝corner_mask
+    corner_mask[:, :, :] = -1e4
     center_x = math.ceil((kpsoi_aug[0].x + kpsoi_aug[1].x + kpsoi_aug[2].x + kpsoi_aug[3].x) / 4.0)
     center_y = math.ceil((kpsoi_aug[0].y + kpsoi_aug[1].y + kpsoi_aug[2].y + kpsoi_aug[3].y) / 4.0)
     # 在蒙版上定位中心点
@@ -163,8 +164,6 @@ def draw_corner_gaussian(corner, kpsoi_aug, masked_gaussian, down_ratio):
             masked_corner[5][i][j] = -(i + top - y3)
             masked_corner[6][i][j] = -(j + left - x4)
             masked_corner[7][i][j] = i + top - y4
-    masked_gaussian[masked_gaussian != 0] = 1
-    masked_gaussian = np.expand_dims(masked_gaussian, axis=0)
     masked_corner = masked_corner * masked_gaussian / 16  # 16是一个放大系数，可以让网络预测的值保持在一个比较小的范围
     if min(masked_gaussian.shape) > 0 and min(masked_corner.shape) > 0:  # TODO debug
         # corner_mask = corner_mask * masked_corner
@@ -185,15 +184,16 @@ def draw_w_h_gaussian(w_h_, bbs, kpsoi_aug, masked_gaussian, down_ratio):
     left, right = math.ceil(min(x1, x2)), math.ceil(max(x3, x4))
     top, bottom = math.ceil(min(y1, y4)), math.ceil(max(y2, y3))
 
-    w1 = bbs[0].x / down_ratio
-    h1 = bbs[0].y / down_ratio
-    w2 = bbs[1].x / down_ratio
-    h2 = bbs[1].y / down_ratio
+    # w1,h1 是左上角坐标，w2,h2是右下角坐标
+    w1 = bbs[0].x1 / down_ratio
+    h1 = bbs[0].y1 / down_ratio
+    w2 = bbs[0].x2 / down_ratio
+    h2 = bbs[0].y2 / down_ratio
 
     # 在高斯分布上标注角点坐标
     w_h_mask = w_h_[:, top:bottom + 1, left:right + 1]
-    w_h_mask[:, :, :] = -1e4
     masked_w_h_ = copy.deepcopy(w_h_mask)  # masked_corner深拷贝corner_mask
+    w_h_mask[:, :, :] = -1e4
 
     center_x = math.ceil((kpsoi_aug[0].x + kpsoi_aug[1].x + kpsoi_aug[2].x + kpsoi_aug[3].x) / 4.0)
     center_y = math.ceil((kpsoi_aug[0].y + kpsoi_aug[1].y + kpsoi_aug[2].y + kpsoi_aug[3].y) / 4.0)
@@ -203,15 +203,11 @@ def draw_w_h_gaussian(w_h_, bbs, kpsoi_aug, masked_gaussian, down_ratio):
 
     for i in range(masked_w_h_.shape[1]):
         for j in range(masked_w_h_.shape[2]):
-            # masked_corner[i][j] = [j + left - x1, i + top - y1, j + left - x2, -(i + top - y2), -(j + left - x3),
-            #                        -(i + top - y3), -(j + left - x4), i + top - y4]
             masked_w_h_[0][i][j] = j + left - w1
             masked_w_h_[1][i][j] = i + top - h1
             masked_w_h_[2][i][j] = -(j + left - w2)
             masked_w_h_[3][i][j] = -(i + top - h2)
 
-    masked_gaussian[masked_gaussian != 0] = 1
-    masked_gaussian = np.expand_dims(masked_gaussian, axis=0)
     masked_corner = masked_w_h_ * masked_gaussian / 16  # 16是一个放大系数，可以让网络预测的值保持在一个比较小的范围
     if min(masked_gaussian.shape) > 0 and min(masked_corner.shape) > 0:  # TODO debug
         # corner_mask = corner_mask * masked_corner

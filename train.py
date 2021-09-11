@@ -19,7 +19,7 @@ from nets.resdcn import get_pose_net
 
 from utils.utils import _tranpose_and_gather_feature, load_model
 from utils.image import transform_preds
-from utils.my_losses import _heatmap_loss, _corner_loss
+from utils.my_losses import _heatmap_loss, _corner_loss, _w_h_loss
 from utils.summary import create_summary, create_logger, create_saver, DisablePrint
 from utils.post_process import ctdet_decode
 
@@ -165,12 +165,13 @@ def main():
 
             '''------------------------------------------------------------'''
             # 得到 heat map, reg, wh 三个变量
-            hmap, corner = zip(*outputs)
+            hmap, corner, w_h_ = zip(*outputs)
             # hmap = [h.permute(0, 2, 3, 1).contiguous() for h in hmap]  # from [bs c h w] to [bs, h, w, c]
             # corner = [c.permute(0, 2, 3, 1).contiguous() for c in corner]  # from [bs c h w] to [bs, h, w, c]
             # 分别计算 loss
             hmap_loss = _heatmap_loss(hmap, batch['hmap'])
-            corner_loss = _corner_loss(corner, batch['corner'], batch['corner_mask'])
+            corner_loss = _corner_loss(corner, batch['corner'], batch['hmap'])
+            w_h_loss = _w_h_loss(w_h_, batch['w_h_', batch['hmap']])
             # 进行 loss 加权，得到最终 loss
             loss = hmap_loss + 1 * corner_loss
 

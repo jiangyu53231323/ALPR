@@ -72,7 +72,25 @@ def _corner_loss(regs, gt_regs, mask):
     gt_regs[b,c,h,w]
     mask[b,c,h,w]
     '''
+    mask[mask != 0] = 1
     loss = sum(F.l1_loss(r, gt_regs, reduction='sum') / (mask.sum() + 1e-4) for r in regs)
     s = mask.sum()
     l = sum(F.l1_loss(r, gt_regs, reduction='sum') / (1 + 1e-4) for r in regs)
     return loss / len(regs)
+
+
+def _w_h_loss(regs, gt_regs, mask):
+    # expand_as 将输入tensor的维度扩展为与指定tensor相同的size
+    # mask = mask[:, :, None].expand_as(gt_regs).float()
+    '''
+    同_corner_loss，此方法计算预测的左右边距和上下边距
+    regs[b,c,h,w]
+    gt_regs[b,c,h,w]
+    mask[b,c,h,w]
+    '''
+    mask[mask != 0] = 1
+    loss = sum(F.l1_loss(r, gt_regs, reduction='sum') / (mask.sum() + 1e-4) for r in regs)
+    s = mask.sum()
+    l = sum(F.l1_loss(r, gt_regs, reduction='sum') / (1 + 1e-4) for r in regs)
+    return loss / len(regs)
+

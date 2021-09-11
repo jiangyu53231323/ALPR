@@ -29,7 +29,7 @@ print(segmentation)
 
 image = cv.imread(img_path)[:, :, ::-1]
 
-image, scale = resize_and_padding(image, 256)
+image, scale, bboxes, segmentation = resize_and_padding(image, 256, bboxes, segmentation)
 
 ia.imshow(image)
 
@@ -63,10 +63,10 @@ ia.imshow(image)
 if len(bboxes) == 0:
     bboxes = np.array([[0., 0., 0., 0.]], dtype=np.float32)
     labels = np.array([[0]])
-bboxes[2:] += bboxes[:2]  # xywh to xyxy
+# bboxes[2:] += bboxes[:2]  # xywh to xyxy
 # 标签同步缩放
-bboxes = bboxes / scale
-segmentation = segmentation / scale
+# bboxes = bboxes / scale
+# segmentation = segmentation / scale
 
 bbs = BoundingBoxesOnImage([
     BoundingBox(x1=bboxes[0], y1=bboxes[1], x2=bboxes[2], y2=bboxes[3])
@@ -209,7 +209,7 @@ for i in range(masked_corner.shape[0]):
     for j in range(masked_corner.shape[1]):
         masked_corner[i][j] = [j + left - x1, i + top - y1, j + left - x2, -(i + top - y2), -(j + left - x3),
                                -(i + top - y3), -(j + left - x4), i + top - y4]
-masked_corner = masked_corner/16
+masked_corner = masked_corner / 16
 masks = masked_gaussian
 masks[masks != 0] = 1
 masks = np.expand_dims(masks, axis=-1)

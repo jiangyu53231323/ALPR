@@ -137,13 +137,13 @@ class COCO(data.Dataset):
         masked_gaussian, center = draw_heatmap_gaussian(heatmap[0], kpsoi, self.gaussian_scale,
                                                         self.down_ratio)
         draw_corner_gaussian(corner, kpsoi, masked_gaussian, self.down_ratio)
-        draw_w_h_gaussian(w_h_, bbs, masked_gaussian, self.down_ratio)
+        draw_w_h_gaussian(w_h_, bbs, kpsoi, masked_gaussian, self.down_ratio)
         # inds保存heatmap中目标点的索引，也就是正样本的位置索引
         inds[0] = center[1] * heatmap.shape[1] + center[0]
         ind_masks[0] = 1
 
-        return {'image': image, 'hmap': heatmap, 'corner': corner, 'inds': inds, 'ind_masks': ind_masks, 'scale': scale,
-                'img_id': img_id, 'corner_mask': corner_mask}
+        return {'image': image, 'hmap': heatmap, 'corner': corner, 'w_h_': w_h_, 'inds': inds, 'ind_masks': ind_masks,
+                'scale': scale, 'img_id': img_id, }
 
     def __len__(self):
         return self.num_samples
