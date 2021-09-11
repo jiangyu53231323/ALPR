@@ -41,6 +41,7 @@ def resize_and_padding(image, size, bboxes, segmentation):
     return new_image, scale, bboxes, segmentation
 
 
+# 仿射+透视变换
 def image_affine(image, bboxes, segmentation):
     bbs = BoundingBoxesOnImage([
         BoundingBox(x1=bboxes[0], y1=bboxes[1], x2=bboxes[2], y2=bboxes[3])
@@ -72,7 +73,7 @@ def image_affine(image, bboxes, segmentation):
     return image_aug, bbs_aug, kpsoi_aug
 
 
-def draw_heatmap_gaussian(heatmap, masks, kpsoi_aug, scale, down_ratio):
+def draw_heatmap_gaussian(heatmap, kpsoi_aug, scale, down_ratio):
     # 计算缩小down_ratio后的车牌中心点坐标
     center_x = math.ceil((kpsoi_aug[0].x + kpsoi_aug[1].x + kpsoi_aug[2].x + kpsoi_aug[3].x) / (4.0 * down_ratio))
     center_y = math.ceil((kpsoi_aug[0].y + kpsoi_aug[1].y + kpsoi_aug[2].y + kpsoi_aug[3].y) / (4.0 * down_ratio))
@@ -116,7 +117,7 @@ def draw_heatmap_gaussian(heatmap, masks, kpsoi_aug, scale, down_ratio):
     h[h < 0.01] = 0
 
     masked_heatmap = heatmap[top:bottom + 1, left:right + 1]
-    mask = masks[top:bottom + 1, left:right + 1]
+    # mask = masks[top:bottom + 1, left:right + 1]
     masked_gaussian = h.T
     if min(masked_gaussian.shape) > 0 and min(masked_heatmap.shape) > 0:  # TODO debug
         # 将高斯分布覆盖到 heatmap 上，相当于不断的在 heatmap 基础上添加关键点的高斯，
@@ -124,7 +125,7 @@ def draw_heatmap_gaussian(heatmap, masks, kpsoi_aug, scale, down_ratio):
         # 最终通过函数总体的 for 循环，相当于不断将目标画到 heatmap
         np.maximum(masked_heatmap, masked_gaussian * 1, out=masked_heatmap)
         masked_gaussian[masked_gaussian != 0] = 1
-        np.maximum(mask, masked_gaussian * 1, out=mask)
+        # np.maximum(mask, masked_gaussian * 1, out=mask)
     return masked_gaussian, center
 
 
@@ -169,6 +170,53 @@ def draw_corner_gaussian(corner, kpsoi_aug, masked_gaussian, down_ratio):
         # corner_mask = corner_mask * masked_corner
         np.maximum(corner_mask, masked_corner, out=corner_mask)
     return corner
+
+
+def draw_w_h_gaussian(w_h_, bbs, kpsoi_aug, masked_gaussian, down_ratio):
+    x1 = kpsoi_aug[0].x / down_ratio
+    y1 = kpsoi_aug[0].y / down_ratio
+    x2 = kpsoi_aug[1].x / down_ratio
+    y2 = kpsoi_aug[1].y / down_ratio
+    x3 = kpsoi_aug[2].x / down_ratio
+    y3 = kpsoi_aug[2].y / down_ratio
+    x4 = kpsoi_aug[3].x / down_ratio
+    y4 = kpsoi_aug[3].y / down_ratio
+    # 对边界进行约束，防止越界
+    left, right = math.ceil(min(x1, x2)), math.ceil(max(x3, x4))
+    top, bottom = math.ceil(min(y1, y4)), math.ceil(max(y2, y3))
+
+    w1 = bbs[0].x / down_ratio
+    h1 = bbs[0].y / down_ratio
+    w2 = bbs[1].x / down_ratio
+    h2 = bbs[1].y / down_ratio
+
+    # 在高斯分布上标注角点坐标
+    w_h_mask = w_h_[:, top:bottom + 1, left:right + 1]
+    w_h_mask[:, :, :] = -1e4
+    masked_w_h_ = copy.deepcopy(w_h_mask)  # masked_corner深拷贝corner_mask
+
+    center_x = math.ceil((kpsoi_aug[0].x + kpsoi_aug[1].x + kpsoi_aug[2].x + kpsoi_aug[3].x) / 4.0)
+    center_y = math.ceil((kpsoi_aug[0].y + kpsoi_aug[1].y + kpsoi_aug[2].y + kpsoi_aug[3].y) / 4.0)
+    # 在蒙版上定位中心点
+    corner_center_x = center_x - left
+    corner_center_y = center_y - top
+
+    for i in range(masked_w_h_.shape[1]):
+        for j in range(masked_w_h_.shape[2]):
+            # masked_corner[i][j] = [j + left - x1, i + top - y1, j + left - x2, -(i + top - y2), -(j + left - x3),
+            #                        -(i + top - y3), -(j + left - x4), i + top - y4]
+            masked_w_h_[0][i][j] = j + left - w1
+            masked_w_h_[1][i][j] = i + top - h1
+            masked_w_h_[2][i][j] = -(j + left - w2)
+            masked_w_h_[3][i][j] = -(i + top - h2)
+
+    masked_gaussian[masked_gaussian != 0] = 1
+    masked_gaussian = np.expand_dims(masked_gaussian, axis=0)
+    masked_corner = masked_w_h_ * masked_gaussian / 16  # 16是一个放大系数，可以让网络预测的值保持在一个比较小的范围
+    if min(masked_gaussian.shape) > 0 and min(masked_corner.shape) > 0:  # TODO debug
+        # corner_mask = corner_mask * masked_corner
+        np.maximum(w_h_mask, masked_corner, out=w_h_mask)
+    return w_h_
 
 
 def flip(img):

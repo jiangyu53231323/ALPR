@@ -14,7 +14,8 @@ from imgaug import augmenters as iaa
 
 from utils.image import get_border, get_affine_transform, affine_transform, color_aug
 from utils.image import draw_umich_gaussian, gaussian_radius
-from utils.my_image import resize_and_padding, image_affine, draw_heatmap_gaussian, draw_corner_gaussian
+from utils.my_image import resize_and_padding, image_affine, draw_heatmap_gaussian, draw_corner_gaussian, \
+    draw_w_h_gaussian
 
 COCO_NAMES = ['__background__', 'License Plate']
 COCO_IDS = [1]
@@ -99,9 +100,8 @@ class COCO(data.Dataset):
         image, scale, bboxes, segmentation = resize_and_padding(image, self.img_size['h'], bboxes, segmentation)
 
         flipped = False  # 翻转
-        # 标签同步缩放
-        # bboxes = bboxes / scale
-        # segmentation = segmentation / scale
+
+        # 随机 仿射+透视 变换
         image, bbs, kpsoi = image_affine(image, bboxes, segmentation)
         # ---------------------------------------------------------------------------------
         image = image.astype(np.float32) / 255.
@@ -125,17 +125,19 @@ class COCO(data.Dataset):
         #                    math.ceil(fmap_w / self.down_ratio), 8), dtype=np.float32)
         corner = np.zeros((8, math.ceil(fmap_h / self.down_ratio), math.ceil(fmap_w / self.down_ratio)),
                           dtype=np.float32)
-        corner_mask = np.zeros((math.ceil(fmap_h / self.down_ratio), math.ceil(fmap_w / self.down_ratio)),
-                               dtype=np.float32)
+        w_h_ = np.zeros((4, math.ceil(fmap_h / self.down_ratio), math.ceil(fmap_w / self.down_ratio)),
+                        dtype=np.float32)
+
         # 目标中心点在特征图上的序号，行优先排列
         inds = np.zeros((self.max_objs,), dtype=np.int64)
         # inds_masks标记inds中的元素是否有目标，如inds中有[x,0,0,0] inds_masks[1,0,0,0] 则说明只有x位置是存在目标的，0位置是无目标的初始元素
         # 在这里是单目标检测，情况会简单很多
         ind_masks = np.zeros((self.max_objs,), dtype=np.uint8)
         # 将高斯分布画到heatmap上
-        masked_gaussian, center = draw_heatmap_gaussian(heatmap[0], corner_mask, kpsoi, self.gaussian_scale,
+        masked_gaussian, center = draw_heatmap_gaussian(heatmap[0], kpsoi, self.gaussian_scale,
                                                         self.down_ratio)
         draw_corner_gaussian(corner, kpsoi, masked_gaussian, self.down_ratio)
+        draw_w_h_gaussian(w_h_, bbs, masked_gaussian, self.down_ratio)
         # inds保存heatmap中目标点的索引，也就是正样本的位置索引
         inds[0] = center[1] * heatmap.shape[1] + center[0]
         ind_masks[0] = 1

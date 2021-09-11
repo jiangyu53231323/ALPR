@@ -145,14 +145,14 @@ class PoseResNet(nn.Module):
                                       nn.Conv2d(head_conv, 8, kernel_size=1, bias=True))
             self.w_h_ = nn.Sequential(nn.Conv2d(64, head_conv, kernel_size=3, padding=1, bias=True),
                                       nn.ReLU(inplace=True),
-                                      nn.Conv2d(head_conv, 2, kernel_size=1, bias=True))
+                                      nn.Conv2d(head_conv, 4, kernel_size=1, bias=True))
         else:
             # heatmap layers
             self.hmap = nn.Conv2d(64, num_classes, kernel_size=1, bias=True)
             # corners layers
             self.cors = nn.Conv2d(64, 8, kernel_size=1, bias=True)
             # bboxes layers
-            self.w_h_ = nn.Conv2d(64, 2, kernel_size=1, bias=True)
+            self.w_h_ = nn.Conv2d(64, 4, kernel_size=1, bias=True)
 
         fill_fc_weights(self.cors)
         fill_fc_weights(self.w_h_)
