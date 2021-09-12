@@ -171,7 +171,7 @@ def main():
             # 分别计算 loss
             hmap_loss = _heatmap_loss(hmap, batch['hmap'])
             corner_loss = _corner_loss(corner, batch['corner'], batch['hmap'])
-            w_h_loss = _w_h_loss(w_h_, batch['w_h_'], batch['hmap'])
+            w_h_loss = _w_h_loss(w_h_, batch['bboxes'], batch['hmap'])
             # 进行 loss 加权，得到最终 loss
             loss = hmap_loss + 1 * corner_loss + 1 * w_h_loss
 
@@ -202,9 +202,8 @@ def main():
 
         results = {}
         with torch.no_grad():  # 不跟踪梯度，减少内存占用
-            for img_id, inputs in enumerate(val_loader):
-                # img_id, inputs = inputs[0]
-
+            for inputs in val_loader:
+                img_id, inputs = inputs[0]
                 detections = []
                 # 不同的图片缩放比例
                 for scale in inputs:
@@ -219,7 +218,7 @@ def main():
                     clses = dets[:, -1]
                     for j in range(val_dataset.num_classes):
                         inds = (clses == j)
-                        top_preds[j + 1] = dets[inds, :5].astype(np.float32)
+                        top_preds[j + 1] = dets[inds, 8:13].astype(np.float32)  # 提取bboxes和scores
                         top_preds[j + 1][:, :4] /= scale  # 恢复缩放
 
                     detections.append(top_preds)
@@ -227,7 +226,7 @@ def main():
                 bbox_and_scores = {j: np.concatenate([d[j] for d in detections], axis=0)
                                    for j in range(1, val_dataset.num_classes + 1)}
                 # hstack为横向上的拼接，等效与沿第二轴的串联
-                scores = np.hstack([bbox_and_scores[j][:, 12] for j in range(1, val_dataset.num_classes + 1)])
+                scores = np.hstack([bbox_and_scores[j][:, 4] for j in range(1, val_dataset.num_classes + 1)])
                 if len(scores) > max_per_image:
                     kth = len(scores) - max_per_image
                     thresh = np.partition(scores, kth)[kth]

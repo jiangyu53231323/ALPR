@@ -15,7 +15,7 @@ from imgaug import augmenters as iaa
 from utils.image import get_border, get_affine_transform, affine_transform, color_aug
 from utils.image import draw_umich_gaussian, gaussian_radius
 from utils.my_image import resize_and_padding, image_affine, draw_heatmap_gaussian, draw_corner_gaussian, \
-    draw_w_h_gaussian
+    draw_bboxes_gaussian
 
 COCO_NAMES = ['__background__', 'License Plate']
 COCO_IDS = [1]
@@ -137,7 +137,7 @@ class COCO(data.Dataset):
         masked_gaussian, center = draw_heatmap_gaussian(heat_map[0], kpsoi, self.gaussian_scale,
                                                         self.down_ratio)
         draw_corner_gaussian(corner_map, kpsoi, masked_gaussian, self.down_ratio)
-        draw_w_h_gaussian(bboxes_map, bbs, kpsoi, masked_gaussian, self.down_ratio)
+        draw_bboxes_gaussian(bboxes_map, bbs, kpsoi, masked_gaussian, self.down_ratio)
         # inds保存heatmap中目标点的索引，也就是正样本的位置索引
         inds[0] = center[1] * heat_map.shape[1] + center[0]
         ind_masks[0] = 1

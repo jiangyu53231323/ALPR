@@ -51,22 +51,24 @@ def ctdet_decode(hmap, cors, bbs, K=100):
     # 找到前K个极大值点对应的偏置值
     cors = _tranpose_and_gather_feature(cors, inds)
     cors = cors.view(batch, K, 8)
+    bbs = _tranpose_and_gather_feature(bbs, inds)
+    bbs = bbs.view(batch, K, 4)
 
     # 四个角点的坐标
-    x1 = xs.view(batch, K, 1) - cors[:, :, 0:1]
-    y1 = ys.view(batch, K, 1) - cors[:, :, 1:2]
-    x2 = xs.view(batch, K, 1) - cors[:, :, 2:3]
-    y2 = ys.view(batch, K, 1) + cors[:, :, 3:4]
-    x3 = xs.view(batch, K, 1) + cors[:, :, 4:5]
-    y3 = ys.view(batch, K, 1) + cors[:, :, 5:6]
-    x4 = xs.view(batch, K, 1) + cors[:, :, 6:7]
-    y4 = ys.view(batch, K, 1) - cors[:, :, 7:8]
+    x1 = xs.view(batch, K, 1) - (cors[:, :, 0:1] * 16)
+    y1 = ys.view(batch, K, 1) - (cors[:, :, 1:2] * 16)
+    x2 = xs.view(batch, K, 1) - (cors[:, :, 2:3] * 16)
+    y2 = ys.view(batch, K, 1) + (cors[:, :, 3:4] * 16)
+    x3 = xs.view(batch, K, 1) + (cors[:, :, 4:5] * 16)
+    y3 = ys.view(batch, K, 1) + (cors[:, :, 5:6] * 16)
+    x4 = xs.view(batch, K, 1) + (cors[:, :, 6:7] * 16)
+    y4 = ys.view(batch, K, 1) - (cors[:, :, 7:8] * 16)
 
     # bboxes坐标
-    bx1 = xs.view(batch, K, 1) - bbs[:, :, 0:1]
-    by1 = ys.view(batch, K, 1) - bbs[:, :, 1:2]
-    bx2 = xs.view(batch, K, 1) + bbs[:, :, 2:3]
-    by2 = ys.view(batch, K, 1) + bbs[:, :, 3:4]
+    bx1 = xs.view(batch, K, 1) - (bbs[:, :, 0:1] * 16)
+    by1 = ys.view(batch, K, 1) - (bbs[:, :, 1:2] * 16)
+    bx2 = xs.view(batch, K, 1) + (bbs[:, :, 2:3] * 16)
+    by2 = ys.view(batch, K, 1) + (bbs[:, :, 3:4] * 16)
 
     # # 中心点坐标 = 中心点像素位置 + 偏移
     # xs = xs.view(batch, K, 1) + regs[:, :, 0:1]
