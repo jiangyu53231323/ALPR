@@ -49,7 +49,7 @@ parser.add_argument('--num_epochs', type=int, default=20)
 parser.add_argument('--test_topk', type=int, default=100)
 
 parser.add_argument('--log_interval', type=int, default=1000)
-parser.add_argument('--val_interval', type=int, default=1)
+parser.add_argument('--val_interval', type=int, default=2)
 parser.add_argument('--num_workers', type=int, default=4)
 
 cfg = parser.parse_args()
@@ -152,6 +152,7 @@ def main():
     def train(epoch):
         print('\n Epoch: %d' % epoch)
         model.train()
+        print('\n learning rate: %f' % optimizer.param_groups[0]['lr'])
         # perf_counter() 返回性能计数器的值（以分秒为单位），即具有最高可用分辨率的时钟，以测量短持续时间。
         # 返回值的参考点未定义，因此只有连续调用结果之间的差异有效
         tic = time.perf_counter()
