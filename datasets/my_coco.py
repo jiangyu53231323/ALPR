@@ -19,7 +19,7 @@ from utils.my_image import resize_and_padding, image_affine, draw_heatmap_gaussi
 
 COCO_NAMES = ['__background__', 'License Plate']
 COCO_IDS = [1]
-# 数据集的平均值和方差
+# 数据集的平均值和标准差
 COCO_MEAN = [0.40789654, 0.44719302, 0.47026115]
 COCO_STD = [0.28863828, 0.27408164, 0.27809835]
 # 作用未知，在仿射变换中使用
