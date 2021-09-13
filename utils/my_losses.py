@@ -73,7 +73,7 @@ def _corner_loss(regs, gt_regs, mask):
     mask[b,c,h,w]
     '''
     mask[mask != 0] = 1
-    loss = sum(F.l1_loss(r, gt_regs, reduction='sum') / (mask.sum() + 1e-4) for r in regs)
+    loss = sum(F.l1_loss(r * mask, gt_regs, reduction='sum') / (mask.sum() + 1e-4) for r in regs)
     s = mask.sum()
     l = sum(F.l1_loss(r, gt_regs, reduction='sum') / (1 + 1e-4) for r in regs)
     return loss / len(regs)
@@ -89,7 +89,7 @@ def _w_h_loss(regs, gt_regs, mask):
     mask[b,c,h,w]
     '''
     mask[mask != 0] = 1
-    loss = sum(F.l1_loss(r, gt_regs, reduction='sum') / (mask.sum() + 1e-4) for r in regs)
+    loss = sum(F.l1_loss(r * mask, gt_regs, reduction='sum') / (mask.sum() + 1e-4) for r in regs)
     s = mask.sum()
     l = sum(F.l1_loss(r, gt_regs, reduction='sum') / (1 + 1e-4) for r in regs)
     return loss / len(regs)

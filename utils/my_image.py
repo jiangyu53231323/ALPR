@@ -119,10 +119,12 @@ def draw_heatmap_gaussian(heatmap, kpsoi_aug, scale, down_ratio):
     masked_heatmap = heatmap[top:bottom + 1, left:right + 1]
     # mask = masks[top:bottom + 1, left:right + 1]
     masked_gaussian = h.T
+
     if min(masked_gaussian.shape) > 0 and min(masked_heatmap.shape) > 0:  # TODO debug
         # 将高斯分布覆盖到 heatmap 上，相当于不断的在 heatmap 基础上添加关键点的高斯，
         # 即同一种类型的框会在一个 heatmap 某一个类别通道上面上面不断添加。
         # 最终通过函数总体的 for 循环，相当于不断将目标画到 heatmap
+        masked_gaussian = masked_gaussian[0:masked_heatmap.shape[0], 0:masked_heatmap.shape[1]]  # 数据对齐
         np.maximum(masked_heatmap, masked_gaussian * 1, out=masked_heatmap)
         # np.maximum(mask, masked_gaussian * 1, out=mask)
     masked_gaussian[masked_gaussian != 0] = 1

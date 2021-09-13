@@ -42,13 +42,13 @@ parser.add_argument('--img_size', type=int, default=384)
 parser.add_argument('--split_ratio', type=float, default=1.0)
 
 parser.add_argument('--lr', type=float, default=1.25e-4)
-parser.add_argument('--lr_step', type=str, default='45,90')
-parser.add_argument('--batch_size', type=int, default=2)
-parser.add_argument('--num_epochs', type=int, default=170)
+parser.add_argument('--lr_step', type=str, default='5,10,15')
+parser.add_argument('--batch_size', type=int, default=8)
+parser.add_argument('--num_epochs', type=int, default=20)
 
 parser.add_argument('--test_topk', type=int, default=100)
 
-parser.add_argument('--log_interval', type=int, default=1)
+parser.add_argument('--log_interval', type=int, default=1000)
 parser.add_argument('--val_interval', type=int, default=1)
 parser.add_argument('--num_workers', type=int, default=4)
 
