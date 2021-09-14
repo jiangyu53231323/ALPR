@@ -1,3 +1,4 @@
+import copy
 import os
 import cv2
 import json
@@ -113,7 +114,7 @@ class COCO(data.Dataset):
         fmap_w = image.shape[2]
         # heatmap
         heat_map = np.zeros((self.num_classes, math.ceil(fmap_h / self.down_ratio),
-                            math.ceil(fmap_w / self.down_ratio)), dtype=np.float32)
+                             math.ceil(fmap_w / self.down_ratio)), dtype=np.float32)
         '''
         corner是四个角点的标注，按照【max_objs,h,w,8】格式，则网络输出与之无法对应，因为网络输出的格式为【c,8,h,w】，
         这时max_objs就是一个多余的维度，所以需要去掉。
@@ -124,9 +125,9 @@ class COCO(data.Dataset):
         # corner = np.zeros((self.max_objs, math.ceil(fmap_h / self.down_ratio),
         #                    math.ceil(fmap_w / self.down_ratio), 8), dtype=np.float32)
         corner_map = np.zeros((8, math.ceil(fmap_h / self.down_ratio), math.ceil(fmap_w / self.down_ratio)),
-                          dtype=np.float32)
+                              dtype=np.float32)
         bboxes_map = np.zeros((4, math.ceil(fmap_h / self.down_ratio), math.ceil(fmap_w / self.down_ratio)),
-                        dtype=np.float32)
+                              dtype=np.float32)
 
         # 目标中心点在特征图上的序号，行优先排列
         inds = np.zeros((self.max_objs,), dtype=np.int64)
@@ -142,15 +143,26 @@ class COCO(data.Dataset):
         inds[0] = center[1] * heat_map.shape[1] + center[0]
         ind_masks[0] = 1
 
-        return {'image': image, 'hmap': heat_map, 'corner': corner_map, 'bboxes': bboxes_map, 'inds': inds, 'ind_masks': ind_masks,
-                'scale': scale, 'img_id': img_id, }
+        # 设置角点和边界框loss计算的的mask
+        reg_mask = copy.deepcopy(heat_map)
+        reg_mask[reg_mask != 0] = 1
+        corner_mask = np.zeros((8, math.ceil(fmap_h / self.down_ratio), math.ceil(fmap_w / self.down_ratio)), dtype=np.float32)
+        bboxes_mask = np.zeros((4, math.ceil(fmap_h / self.down_ratio), math.ceil(fmap_w / self.down_ratio)), dtype=np.float32)
+        for ind in range(8):
+            corner_mask[ind] = reg_mask[0]
+        for ind in range(4):
+            bboxes_mask[ind] = reg_mask[0]
+
+        return {'image': image, 'hmap': heat_map, 'corner': corner_map, 'bboxes': bboxes_map, 'inds': inds,
+                'ind_masks': ind_masks, 'scale': scale, 'img_id': img_id, 'corner_mask': corner_mask,
+                'bboxes_mask': bboxes_mask}
 
     def __len__(self):
         return self.num_samples
 
 
 class COCO_eval(COCO):
-    def __init__(self, data_dir, split, test_scales=(1,), test_flip=False, fix_size=False, **kwargs):
+    def __init__(self, data_dir, split, test_scales=(1,), test_flip=False, fix_size=True, **kwargs):
         super(COCO_eval, self).__init__(data_dir, split)
         self.test_flip = test_flip  #
         self.test_scales = test_scales
@@ -183,17 +195,17 @@ class COCO_eval(COCO):
             new_segmentation = segmentation * scale
 
             if self.fix_size:
-                # img_height, img_width = self.img_size['h'], self.img_size['w']
-                center = np.array([new_width / 2., new_height / 2.], dtype=np.float32)
+                img_height, img_width = self.img_size['h'], self.img_size['w']
+                # center = np.array([new_width / 2., new_height / 2.], dtype=np.float32)
                 # scaled_size = max(height, width) * 1.0
                 # scaled_size = np.array([scaled_size, scaled_size], dtype=np.float32)
             else:
-                # img_height = (new_height | self.padding) + 1
-                # img_width = (new_width | self.padding) + 1
-                center = np.array([new_width // 2, new_height // 2], dtype=np.float32)
+                img_height = (new_height | self.padding) + 1
+                img_width = (new_width | self.padding) + 1
+                # center = np.array([new_width // 2, new_height // 2], dtype=np.float32)
                 # scaled_size = np.array([img_width, img_height], dtype=np.float32)
 
-            img, img_scale, new_bboxes, new_segmentation = resize_and_padding(image, max(new_width, new_height),
+            img, img_scale, new_bboxes, new_segmentation = resize_and_padding(image, max(img_height, img_width),
                                                                               new_bboxes, new_segmentation)
             img_height = img.shape[0]
             img_width = img.shape[1]
@@ -209,7 +221,6 @@ class COCO_eval(COCO):
                 img = np.concatenate((img, img[:, :, :, ::-1].copy()), axis=0)
 
             out[scale] = {'image': img,
-                          'center': center,
                           'fmap_h': img_height // self.down_ratio,
                           'fmap_w': img_width // self.down_ratio,
                           'bboxes': new_bboxes,

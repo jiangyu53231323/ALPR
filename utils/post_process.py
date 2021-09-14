@@ -54,7 +54,7 @@ def ctdet_decode(hmap, cors, bbs, K=100):
     bbs = _tranpose_and_gather_feature(bbs, inds)
     bbs = bbs.view(batch, K, 4)
 
-    # 四个角点的坐标
+    # 四个角点的坐标，16是相对坐标缩放的系数，在 draw_corner_gaussian 中有相同数值使用
     x1 = xs.view(batch, K, 1) - (cors[:, :, 0:1] * 16)
     y1 = ys.view(batch, K, 1) - (cors[:, :, 1:2] * 16)
     x2 = xs.view(batch, K, 1) - (cors[:, :, 2:3] * 16)

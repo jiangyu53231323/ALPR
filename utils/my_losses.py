@@ -1,3 +1,5 @@
+import copy
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -72,11 +74,9 @@ def _corner_loss(regs, gt_regs, mask):
     gt_regs[b,c,h,w]
     mask[b,c,h,w]
     '''
-    mask[mask != 0] = 1
-    loss = sum(F.l1_loss(r * mask, gt_regs, reduction='sum') / (mask.sum() + 1e-4) for r in regs)
-    # s = mask.sum()
-    # l = sum(F.l1_loss(r, gt_regs, reduction='sum') / (1 + 1e-4) for r in regs)
-    return loss / len(regs)
+    reg = regs[0] * mask
+    loss = F.l1_loss(reg, gt_regs, reduction='sum') / (mask.sum() + 1e-4)
+    return loss
 
 
 def _w_h_loss(regs, gt_regs, mask):
@@ -88,9 +88,6 @@ def _w_h_loss(regs, gt_regs, mask):
     gt_regs[b,c,h,w]
     mask[b,c,h,w]
     '''
-    mask[mask != 0] = 1
-    loss = sum(F.l1_loss(r * mask, gt_regs, reduction='sum') / (mask.sum() + 1e-4) for r in regs)
-    # s = mask.sum()
-    # l = sum(F.l1_loss(r, gt_regs, reduction='sum') / (1 + 1e-4) for r in regs)
-    return loss / len(regs)
-
+    reg = regs[0] * mask
+    loss = F.l1_loss(reg, gt_regs, reduction='sum') / (mask.sum() + 1e-4)
+    return loss

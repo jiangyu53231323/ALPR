@@ -1,3 +1,4 @@
+import copy
 import os
 import sys
 import time
@@ -31,7 +32,7 @@ parser.add_argument('--local_rank', type=int, default=0)
 parser.add_argument('--dist', action='store_true')  # 多GPU
 
 parser.add_argument('--root_dir', type=str, default='./')
-parser.add_argument('--data_dir', type=str, default='F:/code_download')
+parser.add_argument('--data_dir', type=str, default='C:/data')
 parser.add_argument('--log_name', type=str, default='pascal_resdcn_18_384_dp')
 parser.add_argument('--pretrain_name', type=str, default='pretrain')
 
@@ -42,14 +43,14 @@ parser.add_argument('--img_size', type=int, default=384)
 parser.add_argument('--split_ratio', type=float, default=1.0)
 
 parser.add_argument('--lr', type=float, default=1.25e-4)
-parser.add_argument('--lr_step', type=str, default='5,10,15')
+parser.add_argument('--lr_step', type=str, default='2,6,10')
 parser.add_argument('--batch_size', type=int, default=8)
 parser.add_argument('--num_epochs', type=int, default=20)
 
-parser.add_argument('--test_topk', type=int, default=100)
+parser.add_argument('--test_topk', type=int, default=10)
 
 parser.add_argument('--log_interval', type=int, default=1000)
-parser.add_argument('--val_interval', type=int, default=2)
+parser.add_argument('--val_interval', type=int, default=1)
 parser.add_argument('--num_workers', type=int, default=4)
 
 cfg = parser.parse_args()
@@ -152,7 +153,7 @@ def main():
     def train(epoch):
         print('\n Epoch: %d' % epoch)
         model.train()
-        print('\n learning rate: %f' % optimizer.param_groups[0]['lr'])
+        print(' learning rate: %f' % optimizer.param_groups[0]['lr'])
         # perf_counter() 返回性能计数器的值（以分秒为单位），即具有最高可用分辨率的时钟，以测量短持续时间。
         # 返回值的参考点未定义，因此只有连续调用结果之间的差异有效
         tic = time.perf_counter()
@@ -171,8 +172,10 @@ def main():
             # corner = [c.permute(0, 2, 3, 1).contiguous() for c in corner]  # from [bs c h w] to [bs, h, w, c]
             # 分别计算 loss
             hmap_loss = _heatmap_loss(hmap, batch['hmap'])
-            corner_loss = _corner_loss(corner, batch['corner'], batch['hmap'])
-            w_h_loss = _w_h_loss(w_h_, batch['bboxes'], batch['hmap'])
+            # loss_mask = copy.deepcopy(batch['hmap'])
+            # loss_mask[loss_mask != 0] = 1
+            corner_loss = _corner_loss(corner, batch['corner'], batch['corner_mask'])
+            w_h_loss = _w_h_loss(w_h_, batch['bboxes'], batch['bboxes_mask'])
             # 进行 loss 加权，得到最终 loss
             loss = hmap_loss + 1 * corner_loss + 1 * w_h_loss
 
