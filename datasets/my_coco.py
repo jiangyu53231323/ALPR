@@ -32,7 +32,7 @@ GAUSSIAN_SCALE = 0.125
 
 
 class COCO(data.Dataset):
-    def __init__(self, data_dir, split, split_ratio=1.0, img_size=512):
+    def __init__(self, data_dir, split, split_ratio=1.0, img_size=384):
         super(COCO, self).__init__()
         # 数据集类别总数、类别名、有效ID
         self.num_classes = len(COCO_IDS)

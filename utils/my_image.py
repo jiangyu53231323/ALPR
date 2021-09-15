@@ -110,15 +110,19 @@ def draw_heatmap_gaussian(heatmap, kpsoi_aug, scale, down_ratio):
     # 协方差矩阵
     sigma = np.dot(rotation_matrix, scaling_matrix)
     sigma = np.linalg.inv(np.dot(sigma, sigma.T))
-
-    vector = np.array([x, y], dtype=object)
-    h = np.exp(-0.5 * np.dot(np.dot(vector, sigma), vector.T))
-    # 限制最小值
-    h[h < 0.01] = 0
+    try:
+        vector = np.array([x, y], dtype=object)
+        h = np.exp(-0.5 * np.dot(np.dot(vector, sigma), vector.T))
+        # 限制最小值
+        h[h < 0.01] = 0
+        masked_gaussian = h.T
+    except:
+        print(x)
+        print(y)
+        masked_gaussian = heatmap[top:bottom + 1, left:right + 1]
 
     masked_heatmap = heatmap[top:bottom + 1, left:right + 1]
     # mask = masks[top:bottom + 1, left:right + 1]
-    masked_gaussian = h.T
 
     if min(masked_gaussian.shape) > 0 and min(masked_heatmap.shape) > 0:  # TODO debug
         # 将高斯分布覆盖到 heatmap 上，相当于不断的在 heatmap 基础上添加关键点的高斯，
