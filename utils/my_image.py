@@ -38,7 +38,9 @@ def resize_and_padding(image, size, bboxes, segmentation):
                              segmentation[2] + (padding_w // 2), segmentation[3] + (padding_h // 2),
                              segmentation[4] + (padding_w // 2), segmentation[5] + (padding_h // 2),
                              segmentation[6] + (padding_w // 2), segmentation[7] + (padding_h // 2), ])
-    return new_image, scale, bboxes, segmentation
+    out = {'new_image': new_image, 'scale': scale, 'bboxes': bboxes, 'segmentation': segmentation,
+           'padding_h': padding_h, 'padding_w': padding_w}
+    return out
 
 
 # 仿射+透视变换
@@ -152,8 +154,8 @@ def draw_corner_gaussian(corner, kpsoi_aug, masked_gaussian, down_ratio):
     corner_mask = corner[:, top:bottom + 1, left:right + 1]
     masked_corner = copy.deepcopy(corner_mask)  # masked_corner深拷贝corner_mask
     corner_mask[:, :, :] = -1e4
-    center_x = math.ceil((kpsoi_aug[0].x + kpsoi_aug[1].x + kpsoi_aug[2].x + kpsoi_aug[3].x) / 4.0)
-    center_y = math.ceil((kpsoi_aug[0].y + kpsoi_aug[1].y + kpsoi_aug[2].y + kpsoi_aug[3].y) / 4.0)
+    center_x = math.ceil((x1 + x2 + x3 + x4) / 4.0)
+    center_y = math.ceil((y1 + y2 + y3 + y4) / 4.0)
     # 在蒙版上定位中心点
     corner_center_x = center_x - left
     corner_center_y = center_y - top
@@ -170,7 +172,8 @@ def draw_corner_gaussian(corner, kpsoi_aug, masked_gaussian, down_ratio):
             masked_corner[5][i][j] = -(i + top - y3)
             masked_corner[6][i][j] = -(j + left - x4)
             masked_corner[7][i][j] = i + top - y4
-    masked_corner = masked_corner * masked_gaussian / 16  # 16是一个放大系数，可以让网络预测的值保持在一个比较小的范围
+
+    masked_corner = masked_corner * masked_gaussian  # / 16  # 16是一个放大系数，可以让网络预测的值保持在一个比较小的范围
     if min(masked_gaussian.shape) > 0 and min(masked_corner.shape) > 0:  # TODO debug
         # corner_mask = corner_mask * masked_corner
         np.maximum(corner_mask, masked_corner, out=corner_mask)
@@ -201,8 +204,8 @@ def draw_bboxes_gaussian(bboxes_map, bbs, kpsoi_aug, masked_gaussian, down_ratio
     masked_w_h_ = copy.deepcopy(bboxes_mask)  # masked_corner深拷贝corner_mask
     bboxes_mask[:, :, :] = -1e4
 
-    center_x = math.ceil((kpsoi_aug[0].x + kpsoi_aug[1].x + kpsoi_aug[2].x + kpsoi_aug[3].x) / 4.0)
-    center_y = math.ceil((kpsoi_aug[0].y + kpsoi_aug[1].y + kpsoi_aug[2].y + kpsoi_aug[3].y) / 4.0)
+    center_x = math.ceil((x1 + x2 + x3 + x4) / 4.0)
+    center_y = math.ceil((y1 + y2 + y3 + y4) / 4.0)
     # 在蒙版上定位中心点
     corner_center_x = center_x - left
     corner_center_y = center_y - top
@@ -214,7 +217,7 @@ def draw_bboxes_gaussian(bboxes_map, bbs, kpsoi_aug, masked_gaussian, down_ratio
             masked_w_h_[2][i][j] = -(j + left - w2)
             masked_w_h_[3][i][j] = -(i + top - h2)
 
-    masked_corner = masked_w_h_ * masked_gaussian / 16  # 16是一个放大系数，可以让网络预测的值保持在一个比较小的范围
+    masked_corner = masked_w_h_ * masked_gaussian  # / 16  # 16是一个放大系数，可以让网络预测的值保持在一个比较小的范围
     if min(masked_gaussian.shape) > 0 and min(masked_corner.shape) > 0:  # TODO debug
         # corner_mask = corner_mask * masked_corner
         np.maximum(bboxes_mask, masked_corner, out=bboxes_mask)

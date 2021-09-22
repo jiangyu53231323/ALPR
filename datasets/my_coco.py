@@ -28,7 +28,8 @@ COCO_EIGEN_VALUES = [0.2141788, 0.01817699, 0.00341571]
 COCO_EIGEN_VECTORS = [[-0.58752847, -0.69563484, 0.41340352],
                       [-0.5832747, 0.00994535, -0.81221408],
                       [-0.56089297, 0.71832671, 0.41158938]]
-GAUSSIAN_SCALE = 0.125
+# 控制高斯分布半径的缩放系数，数值越小半径越小
+GAUSSIAN_SCALE = 0.12
 
 
 class COCO(data.Dataset):
@@ -98,7 +99,14 @@ class COCO(data.Dataset):
         # 读取图片
         image = cv2.imread(img_path)[:, :, ::-1]  # BGR to RGB
         # 调整图片大小并填充，返回调整后的图片和缩小的比例
-        image, scale, bboxes, segmentation = resize_and_padding(image, self.img_size['h'], bboxes, segmentation)
+        # image, scale, bboxes, segmentation = resize_and_padding(image, self.img_size['h'], bboxes, segmentation)
+        resize_out = resize_and_padding(image, self.img_size['h'], bboxes, segmentation)
+        image = resize_out['new_image']
+        scale = resize_out['scale']
+        bboxes = resize_out['bboxes']
+        segmentation = resize_out['segmentation']
+        padding_h = resize_out['padding_h']
+        padding_w = resize_out['padding_w']
 
         flipped = False  # 翻转
 
@@ -145,17 +153,18 @@ class COCO(data.Dataset):
 
         # 设置角点和边界框loss计算的的mask
         reg_mask = copy.deepcopy(heat_map)
-        reg_mask[reg_mask != 0] = 1
-        corner_mask = np.zeros((8, math.ceil(fmap_h / self.down_ratio), math.ceil(fmap_w / self.down_ratio)), dtype=np.float32)
-        bboxes_mask = np.zeros((4, math.ceil(fmap_h / self.down_ratio), math.ceil(fmap_w / self.down_ratio)), dtype=np.float32)
-        for ind in range(8):
-            corner_mask[ind] = reg_mask[0]
-        for ind in range(4):
-            bboxes_mask[ind] = reg_mask[0]
+        # reg_mask[reg_mask != 0] = 1
+        # corner_mask = np.zeros((8, math.ceil(fmap_h / self.down_ratio), math.ceil(fmap_w / self.down_ratio)),
+        #                        dtype=np.float32)
+        # bboxes_mask = np.zeros((4, math.ceil(fmap_h / self.down_ratio), math.ceil(fmap_w / self.down_ratio)),
+        #                        dtype=np.float32)
+        # for ind in range(8):
+        #     corner_mask[ind] = reg_mask[0]
+        # for ind in range(4):
+        #     bboxes_mask[ind] = reg_mask[0]
 
         return {'image': image, 'hmap': heat_map, 'corner': corner_map, 'bboxes': bboxes_map, 'inds': inds,
-                'ind_masks': ind_masks, 'scale': scale, 'img_id': img_id, 'corner_mask': corner_mask,
-                'bboxes_mask': bboxes_mask}
+                'ind_masks': ind_masks, 'scale': scale, 'img_id': img_id, 'reg_mask': reg_mask}
 
     def __len__(self):
         return self.num_samples
@@ -205,8 +214,15 @@ class COCO_eval(COCO):
                 # center = np.array([new_width // 2, new_height // 2], dtype=np.float32)
                 # scaled_size = np.array([img_width, img_height], dtype=np.float32)
 
-            img, img_scale, new_bboxes, new_segmentation = resize_and_padding(image, max(img_height, img_width),
-                                                                              new_bboxes, new_segmentation)
+            resize_out = resize_and_padding(image, max(img_height, img_width), new_bboxes, new_segmentation)
+            img = resize_out['new_image']
+            img_scale = resize_out['scale']
+            new_bboxes = resize_out['bboxes']
+            new_segmentation = resize_out['segmentation']
+            padding_h = resize_out['padding_h']
+            padding_w = resize_out['padding_w']
+            # img, img_scale, new_bboxes, new_segmentation = resize_and_padding(image, max(img_height, img_width),
+            #                                                                   new_bboxes, new_segmentation)
             img_height = img.shape[0]
             img_width = img.shape[1]
             # trans_img = get_affine_transform(center, scaled_size, 0, [img_width, img_height])
@@ -224,7 +240,11 @@ class COCO_eval(COCO):
                           'fmap_h': img_height // self.down_ratio,
                           'fmap_w': img_width // self.down_ratio,
                           'bboxes': new_bboxes,
-                          'segmentation': new_segmentation}
+                          'segmentation': new_segmentation,
+                          'image_scale': img_scale,
+                          'padding_w': padding_w,
+                          'padding_h': padding_h
+                          }
 
         return img_id, out
 

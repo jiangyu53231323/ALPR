@@ -36,10 +36,14 @@ def _topk(scores, K=40):
     return topk_score, topk_inds, topk_clses, topk_ys, topk_xs
 
 
-def ctdet_decode(hmap, cors, bbs, K=100):
+def ctdet_decode(hmap, cors, bbs, padding, down_ratio=4, image_scale=1, K=100):
     '''
     hmap 提取中心点位置为 xs,ys
     cors 保存的是角点，是相对于中心点的坐标
+    返回：corner(坐标形式)
+         bboxes(坐标形式)
+         scores 得分
+         clses 类别
     '''
     batch, cat, height, width = hmap.shape
     hmap = torch.sigmoid(hmap)
@@ -54,38 +58,32 @@ def ctdet_decode(hmap, cors, bbs, K=100):
     bbs = _tranpose_and_gather_feature(bbs, inds)
     bbs = bbs.view(batch, K, 4)
 
-    # 四个角点的坐标，16是相对坐标缩放的系数，在 draw_corner_gaussian 中有相同数值使用
-    x1 = xs.view(batch, K, 1) - (cors[:, :, 0:1] * 16)
-    y1 = ys.view(batch, K, 1) - (cors[:, :, 1:2] * 16)
-    x2 = xs.view(batch, K, 1) - (cors[:, :, 2:3] * 16)
-    y2 = ys.view(batch, K, 1) + (cors[:, :, 3:4] * 16)
-    x3 = xs.view(batch, K, 1) + (cors[:, :, 4:5] * 16)
-    y3 = ys.view(batch, K, 1) + (cors[:, :, 5:6] * 16)
-    x4 = xs.view(batch, K, 1) + (cors[:, :, 6:7] * 16)
-    y4 = ys.view(batch, K, 1) - (cors[:, :, 7:8] * 16)
-
+    '''四个角点的坐标，
+    16是相对坐标缩放的系数，在 draw_corner_gaussian 中有相同数值使用
+    down_ratio是特征图缩小的倍数
+    padding是在my_image.py中resize_and_padding()后对图片的填充值，填充后会影响corner和bboxes的坐标
+    image_scale是resize后图片与原始图片的比值，利用coco api计算iou是与原始图片的标注进行计算，而不是resize后的图片
+    '''
+    x1 = (xs.view(batch, K, 1) - cors[:, :, 0:1]) * down_ratio - (padding[0] // 2)
+    y1 = (ys.view(batch, K, 1) - cors[:, :, 1:2]) * down_ratio - (padding[1] // 2)
+    x2 = (xs.view(batch, K, 1) - cors[:, :, 2:3]) * down_ratio - (padding[0] // 2)
+    y2 = (ys.view(batch, K, 1) + cors[:, :, 3:4]) * down_ratio - (padding[1] // 2)
+    x3 = (xs.view(batch, K, 1) + cors[:, :, 4:5]) * down_ratio - (padding[0] // 2)
+    y3 = (ys.view(batch, K, 1) + cors[:, :, 5:6]) * down_ratio - (padding[1] // 2)
+    x4 = (xs.view(batch, K, 1) + cors[:, :, 6:7]) * down_ratio - (padding[0] // 2)
+    y4 = (ys.view(batch, K, 1) - cors[:, :, 7:8]) * down_ratio - (padding[1] // 2)
+    corners = torch.cat([x1, y1, x2, y2, x3, y3, x4, y4], dim=2)
+    corners = corners * image_scale
     # bboxes坐标
-    bx1 = xs.view(batch, K, 1) - (bbs[:, :, 0:1] * 16)
-    by1 = ys.view(batch, K, 1) - (bbs[:, :, 1:2] * 16)
-    bx2 = xs.view(batch, K, 1) + (bbs[:, :, 2:3] * 16)
-    by2 = ys.view(batch, K, 1) + (bbs[:, :, 3:4] * 16)
-
-    # # 中心点坐标 = 中心点像素位置 + 偏移
-    # xs = xs.view(batch, K, 1) + regs[:, :, 0:1]
-    # ys = ys.view(batch, K, 1) + regs[:, :, 1:2]
-    # # 找到前K个极大值点对应的宽高
-    # w_h_ = _tranpose_and_gather_feature(w_h_, inds)
-    # w_h_ = w_h_.view(batch, K, 2)
+    bx1 = (xs.view(batch, K, 1) - bbs[:, :, 0:1]) * down_ratio - (padding[0] // 2)
+    by1 = (ys.view(batch, K, 1) - bbs[:, :, 1:2]) * down_ratio - (padding[1] // 2)
+    bx2 = (xs.view(batch, K, 1) + bbs[:, :, 2:3]) * down_ratio - (padding[0] // 2)
+    by2 = (ys.view(batch, K, 1) + bbs[:, :, 3:4]) * down_ratio - (padding[1] // 2)
+    bboxes = torch.cat([bx1, by1, bx2, by2], dim=2)
+    bboxes = bboxes * image_scale
 
     clses = clses.view(batch, K, 1).float()  # [batch,k,1]
     scores = scores.view(batch, K, 1)  # [batch,k,1]
-    # xs,ys 是中心坐标，w_h_[...,0:1] 是 w,1:2 是 h
-    # bboxes = torch.cat([xs - w_h_[..., 0:1] / 2,
-    #                     ys - w_h_[..., 1:2] / 2,
-    #                     xs + w_h_[..., 0:1] / 2,
-    #                     ys + w_h_[..., 1:2] / 2], dim=2)
-    corners = torch.cat([x1, y1, x2, y2, x3, y3, x4, y4], dim=2)
-    bboxes = torch.cat([bx1, by1, bx2, by2], dim=2)
 
     detections = torch.cat([corners, bboxes, scores, clses], dim=2)  # detections[batch, K, corners+scores+clses]
     return detections

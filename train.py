@@ -28,12 +28,12 @@ from utils.post_process import ctdet_decode
 parser = argparse.ArgumentParser(description='simple_centernet45')
 
 parser.add_argument('--local_rank', type=int, default=0)
-# action=‘store_true’，只要运行时该变量有传参就将该变量设为True
+# action=‘store_true’，只要运行时该变量有传参就将该变量设为True，即触发时为True不触发为false
 parser.add_argument('--dist', action='store_true')  # 多GPU
 
 parser.add_argument('--root_dir', type=str, default='./')
 parser.add_argument('--data_dir', type=str, default='C:/data')
-parser.add_argument('--log_name', type=str, default='pascal_resdcn_18_384_dp')
+parser.add_argument('--log_name', type=str, default='coco_resdcn_18_384_dp')
 parser.add_argument('--pretrain_name', type=str, default='pretrain')
 
 parser.add_argument('--dataset', type=str, default='coco', choices=['coco', 'yolo'])
@@ -172,12 +172,10 @@ def main():
             # corner = [c.permute(0, 2, 3, 1).contiguous() for c in corner]  # from [bs c h w] to [bs, h, w, c]
             # 分别计算 loss
             hmap_loss = _heatmap_loss(hmap, batch['hmap'])
-            # loss_mask = copy.deepcopy(batch['hmap'])
-            # loss_mask[loss_mask != 0] = 1
-            corner_loss = _corner_loss(corner, batch['corner'], batch['corner_mask'])
-            w_h_loss = _w_h_loss(w_h_, batch['bboxes'], batch['bboxes_mask'])
+            corner_loss = _corner_loss(corner, batch['corner'], batch['reg_mask'])
+            w_h_loss = _w_h_loss(w_h_, batch['bboxes'], batch['reg_mask'])
             # 进行 loss 加权，得到最终 loss
-            loss = hmap_loss + 1 * corner_loss + 1 * w_h_loss
+            loss = hmap_loss + 0.1 * corner_loss + 0.2 * w_h_loss
 
             optimizer.zero_grad()
             loss.backward()
@@ -210,11 +208,14 @@ def main():
                 img_id, inputs = inputs[0]
                 detections = []
                 # 不同的图片缩放比例
-                for scale in inputs:
+                for scale in inputs:  # 多个尺度如0.5,,0.75,1,1.25等
                     inputs[scale]['image'] = inputs[scale]['image'].to(cfg.device)
+                    image_scale = torch.from_numpy(inputs[scale]['image_scale'])
+                    padding_w = torch.from_numpy(inputs[scale]['padding_w'])
+                    padding_h = torch.from_numpy(inputs[scale]['padding_h'])
                     output = model(inputs[scale]['image'])[-1]
-                    # 对检测结果进行后处理
-                    dets = ctdet_decode(*output, K=cfg.test_topk)  # 表示列表元素作为多个元素传入
+                    # 对检测结果进行后处理， *output表示列表元素作为多个元素传入
+                    dets = ctdet_decode(*output, [padding_w, padding_h], image_scale=image_scale, K=cfg.test_topk)
                     dets = dets.detach().cpu().numpy().reshape(1, -1, dets.shape[2])[0]
 
                     top_preds = {}
