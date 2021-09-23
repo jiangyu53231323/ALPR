@@ -5,7 +5,7 @@ from collections import OrderedDict
 
 
 def bbox_iou(box1, box2, x1y1x2y2=True, GIoU=False, DIoU=False, CIoU=False, eps=1e-9):
-    box2 = box2.T
+    # box2 = box2.T
 
     if x1y1x2y2:
         b1_x1, b1_y1, b1_x2, b1_y2 = box1[0], box1[1], box1[2], box1[3]

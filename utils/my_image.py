@@ -58,9 +58,12 @@ def image_affine(image, bboxes, segmentation):
     seq = iaa.Sequential([
         # iaa.GammaContrast(1.5),
         # 平移+旋转
-        iaa.Affine(translate_percent={"x": (-0.2, 0.2), "y": (-0.2, 0.2)}, rotate=(-15, 15), scale=1),
+        # iaa.Affine(translate_percent={"x": (-0.2, 0.2), "y": (-0.2, 0.2)}, rotate=(-15, 15), scale=1),
         # 透视变换
-        iaa.PerspectiveTransform(scale=(0.01, 0.15))
+        # iaa.PerspectiveTransform(scale=(0.01, 0.15))
+
+        iaa.Affine(translate_percent={"x": (-0.1, 0.1), "y": (-0.1, 0.1)}, rotate=(-1, 1), scale=1),
+        iaa.PerspectiveTransform(scale=(0.01, 0.02))
     ])
     # 增强后的image,bbs,kpsoi
     image_aug, bbs_aug, kpsoi_aug = seq(image=image, bounding_boxes=bbs, keypoints=kpsoi)
@@ -119,6 +122,9 @@ def draw_heatmap_gaussian(heatmap, kpsoi_aug, scale, down_ratio):
         h[h < 0.01] = 0
         masked_gaussian = h.T
     except:
+        print('corner coordinate: x1=%f y1=%f x2=%f y2=%f x3=%f y3=%f x4=%f y4=%f' % (x1, y1, x2, y2, x3, y3, x4, y4))
+        print('left: %f, right: %f, top: %f, bottom: %f' % (left, right, top, bottom))
+        print('center_x: %f, center_y: %f' % (center_x, center_y))
         print(x)
         print(y)
         masked_gaussian = heatmap[top:bottom + 1, left:right + 1]

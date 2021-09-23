@@ -3,6 +3,7 @@ import copy
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from utils.utils import bbox_iou
 
 
 def _neg_loss_slow(preds, targets):
@@ -90,7 +91,7 @@ def _corner_loss(regs, gt_regs, mask):
         loss = loss + (F.l1_loss(reg, gt_reg, reduction='sum') / (num[b].sum() + 1e-4))
     # reg = regs[0] * mask
     # loss = F.l1_loss(reg, gt_regs, reduction='sum') / (mask.sum() + 1e-4)
-    return loss/batch
+    return loss / batch
 
 
 def _w_h_loss(regs, gt_regs, mask):
@@ -107,12 +108,12 @@ def _w_h_loss(regs, gt_regs, mask):
     batch, cat, height, width = mask.size()
     # topk_scores, topk_inds = torch.topk(mask.view(batch, cat, -1), num.sum().int() // batch)
     loss = 0
+    iou_loss = 0
     for b in range(batch):
         topk_score, topk_ind = torch.topk(mask[b].view(cat, -1), num[b].sum().int())
         topk_ind = topk_ind.expand(4, topk_ind.size(1))
         reg = regs[0][b].view(4, -1).gather(1, topk_ind)
         gt_reg = gt_regs[b].view(4, -1).gather(1, topk_ind)
         loss = loss + (F.l1_loss(reg, gt_reg, reduction='sum') / (num[b].sum() + 1e-4))
-    # reg = regs[0] * mask
-    # loss = F.l1_loss(reg, gt_regs, reduction='sum') / (mask.sum() + 1e-4)
-    return loss/batch
+        # iou_loss = iou_loss + (1 - bbox_iou(reg, gt_reg, DIoU=True)).sum() / (num[b].sum() + 1e-4)
+    return loss / batch

@@ -32,7 +32,7 @@ parser.add_argument('--local_rank', type=int, default=0)
 parser.add_argument('--dist', action='store_true')  # 多GPU
 
 parser.add_argument('--root_dir', type=str, default='./')
-parser.add_argument('--data_dir', type=str, default='C:/data')
+parser.add_argument('--data_dir', type=str, default='C:\data')
 parser.add_argument('--log_name', type=str, default='coco_resdcn_18_384_dp')
 parser.add_argument('--pretrain_name', type=str, default='pretrain')
 
