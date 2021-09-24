@@ -1,9 +1,9 @@
 import math
-
 import torch.nn as nn
+import torch
+import torch.utils.model_zoo as model_zoo
 
 from lib.DCNv2.dcn_v2 import DCN
-import torch.utils.model_zoo as model_zoo
 
 BN_MOMENTUM = 0.1
 model_urls = {'resnet18': 'https://download.pytorch.org/models/resnet18-5c106cde.pth',
@@ -35,11 +35,12 @@ class ChannelAttention(nn.Module):
         out = avg_out + max_out
         return self.sigmoid(out)
 
+
 class SpatialAttention(nn.Module):
     def __init__(self, kernel_size=7):
         super(SpatialAttention, self).__init__()
 
-        self.conv1 = nn.Conv2d(2, 1, kernel_size, padding=kernel_size//2, bias=False)
+        self.conv1 = nn.Conv2d(2, 1, kernel_size, padding=kernel_size // 2, bias=False)
         self.sigmoid = nn.Sigmoid()
 
     def forward(self, x):
@@ -60,6 +61,10 @@ class BasicBlock(nn.Module):
         self.relu = nn.ReLU(inplace=True)
         self.conv2 = conv3x3(out_planes, out_planes)
         self.bn2 = nn.BatchNorm2d(out_planes, momentum=BN_MOMENTUM)
+
+        self.ca = ChannelAttention(out_planes)
+        self.sa = SpatialAttention()
+
         self.downsample = downsample
         self.stride = stride
 
@@ -71,6 +76,9 @@ class BasicBlock(nn.Module):
         out = self.relu(out)
         out = self.conv2(out)
         out = self.bn2(out)
+
+        out = self.ca(out) * out
+        out = self.sa(out) * out
 
         if self.downsample is not None:
             residual = self.downsample(x)
@@ -93,6 +101,10 @@ class Bottleneck(nn.Module):
         self.conv3 = nn.Conv2d(planes, planes * self.expansion, kernel_size=1, bias=False)
         self.bn3 = nn.BatchNorm2d(planes * self.expansion, momentum=BN_MOMENTUM)
         self.relu = nn.ReLU(inplace=True)
+
+        self.ca = ChannelAttention(planes * self.expansion)
+        self.sa = SpatialAttention
+
         self.downsample = downsample
         self.stride = stride
 
@@ -109,6 +121,9 @@ class Bottleneck(nn.Module):
 
         out = self.conv3(out)
         out = self.bn3(out)
+
+        out = self.ca(out) * out
+        out = self.sa(out) * out
 
         if self.downsample is not None:
             residual = self.downsample(x)
