@@ -58,12 +58,12 @@ def image_affine(image, bboxes, segmentation):
     seq = iaa.Sequential([
         # iaa.GammaContrast(1.5),
         # 平移+旋转
-        # iaa.Affine(translate_percent={"x": (-0.2, 0.2), "y": (-0.2, 0.2)}, rotate=(-15, 15), scale=1),
+        iaa.Affine(translate_percent={"x": (-0.2, 0.2), "y": (-0.2, 0.2)}, rotate=(-15, 15), scale=1),
         # 透视变换
-        # iaa.PerspectiveTransform(scale=(0.01, 0.15))
+        iaa.PerspectiveTransform(scale=(0.01, 0.15))
 
-        iaa.Affine(translate_percent={"x": (-0.1, 0.1), "y": (-0.1, 0.1)}, rotate=(-1, 1), scale=1),
-        iaa.PerspectiveTransform(scale=(0.01, 0.02))
+        # iaa.Affine(translate_percent={"x": (-0.1, 0.1), "y": (-0.1, 0.1)}, rotate=(-1, 1), scale=1),
+        # iaa.PerspectiveTransform(scale=(0.01, 0.02))
     ])
     # 增强后的image,bbs,kpsoi
     image_aug, bbs_aug, kpsoi_aug = seq(image=image, bounding_boxes=bbs, keypoints=kpsoi)

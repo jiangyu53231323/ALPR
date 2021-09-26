@@ -55,8 +55,8 @@ class COCO(data.Dataset):
         # 数据集路径 data/CCPD2019
         # 图片 data/CCPD2019/ccpd_base
         self.data_dir = os.path.join(data_dir, 'CCPD2019')
-        self.img_dir = os.path.join(self.data_dir, 'ccpd_base')
-        self.annot_path = os.path.join(self.data_dir, 'annotations', 'ccpd_base_%s2020.json' % split)
+        self.img_dir = os.path.join(self.data_dir, 'ccpd_rotate')
+        self.annot_path = os.path.join(self.data_dir, 'annotations', 'ccpd_rotate_%s2020.json' % split)
 
         self.max_objs = 1  # 最大检测目标数
         self.padding = 127  # 31 for resnet/resdcn

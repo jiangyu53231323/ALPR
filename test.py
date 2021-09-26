@@ -16,7 +16,8 @@ from datasets.my_coco import COCO_eval
 from datasets.yolo import YOLO_eval
 
 from nets.hourglass import get_hourglass
-from nets.resdcn import get_pose_net
+# from nets.resdcn import get_pose_net
+from nets.resdcn_cbam import get_pose_net
 
 from utils.utils import load_model
 from utils.summary import create_logger
@@ -26,8 +27,9 @@ from utils.post_process import ctdet_decode
 parser = argparse.ArgumentParser(description='centernet')
 
 parser.add_argument('--root_dir', type=str, default='./')
-parser.add_argument('--data_dir', type=str, default='F:/code_download')
-parser.add_argument('--log_name', type=str, default='coco_resdcn_18_384_dp')
+parser.add_argument('--data_dir', type=str, default='C:\data')
+parser.add_argument('--ckpt_name', type=str, default='coco_resdcn_18_384_ad')
+parser.add_argument('--log_name', type=str, default='coco_resdcn_18_384_ad_rotate')
 
 parser.add_argument('--dataset', type=str, default='coco', choices=['coco', 'pascal'])
 parser.add_argument('--arch', type=str, default='resdcn_18')
@@ -46,7 +48,7 @@ cfg = parser.parse_args()
 os.chdir(cfg.root_dir)
 
 cfg.log_dir = os.path.join(cfg.root_dir, 'logs', cfg.log_name)
-cfg.ckpt_dir = os.path.join(cfg.root_dir, 'ckpt', cfg.log_name)
+cfg.ckpt_dir = os.path.join(cfg.root_dir, 'ckpt', cfg.ckpt_name)
 cfg.pretrain_dir = os.path.join(cfg.ckpt_dir, 'checkpoint.t7')
 
 os.makedirs(cfg.log_dir, exist_ok=True)

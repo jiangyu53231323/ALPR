@@ -62,8 +62,8 @@ class BasicBlock(nn.Module):
         self.conv2 = conv3x3(out_planes, out_planes)
         self.bn2 = nn.BatchNorm2d(out_planes, momentum=BN_MOMENTUM)
 
-        # self.ca = ChannelAttention(out_planes)
-        # self.sa = SpatialAttention()
+        self.ca = ChannelAttention(out_planes)
+        self.sa = SpatialAttention()
 
         self.downsample = downsample
         self.stride = stride
@@ -77,8 +77,8 @@ class BasicBlock(nn.Module):
         out = self.conv2(out)
         out = self.bn2(out)
 
-        # out = self.ca(out) * out
-        # out = self.sa(out) * out
+        out = self.ca(out) * out
+        out = self.sa(out) * out
 
         if self.downsample is not None:
             residual = self.downsample(x)
@@ -102,8 +102,8 @@ class Bottleneck(nn.Module):
         self.bn3 = nn.BatchNorm2d(planes * self.expansion, momentum=BN_MOMENTUM)
         self.relu = nn.ReLU(inplace=True)
 
-        # self.ca = ChannelAttention(planes * self.expansion)
-        # self.sa = SpatialAttention
+        self.ca = ChannelAttention(planes * self.expansion)
+        self.sa = SpatialAttention
 
         self.downsample = downsample
         self.stride = stride
@@ -122,8 +122,8 @@ class Bottleneck(nn.Module):
         out = self.conv3(out)
         out = self.bn3(out)
 
-        # out = self.ca(out) * out
-        # out = self.sa(out) * out
+        out = self.ca(out) * out
+        out = self.sa(out) * out
 
         if self.downsample is not None:
             residual = self.downsample(x)

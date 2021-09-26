@@ -147,9 +147,9 @@ def parseImageName(image_path_list):
 
 
 if __name__ == '__main__':
-    image_path = 'F:\code_download\CCPD2019\ccpd_base'
-    train_json_file = './ccpd_train2020.json'
-    test_json_file = './ccpd_val2020.json'
+    image_path = 'F:\code_download\CCPD2019\ccpd_rotate'
+    train_json_file = './ccpd_base_train2020.json'
+    test_json_file = './ccpd_rotate_val2020.json'
     # './pascal_trainval0712.json'
 
     image_path_list = os.listdir(image_path)
@@ -164,5 +164,5 @@ if __name__ == '__main__':
 
     print('init coco')
     init_coco()
-    parseImageName(train_list)
+    parseImageName(image_path_list)
     json.dump(coco, open(test_json_file, 'w'))
