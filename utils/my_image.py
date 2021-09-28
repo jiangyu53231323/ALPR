@@ -75,6 +75,12 @@ def image_affine(image, bboxes, segmentation):
         image_aug = image
         bbs_aug = bbs
         kpsoi_aug = kpsoi
+    # if any((abs(kpsoi_aug[0].x - kpsoi_aug[4].x) < 4, abs(kpsoi_aug[1].x - kpsoi_aug[3].x) < 4,
+    #         abs(kpsoi_aug[0].y - kpsoi_aug[1].y) < 4, abs(kpsoi_aug[2].y - kpsoi_aug[3].y) < 4)):
+    #     image_aug = image
+    #     bbs_aug = bbs
+    #     kpsoi_aug = kpsoi
+
     return image_aug, bbs_aug, kpsoi_aug
 
 
@@ -105,8 +111,8 @@ def draw_heatmap_gaussian(heatmap, kpsoi_aug, scale, down_ratio):
     angle = (angle2 + angle1) / 2
     # 高斯分布概率
     # 对边界进行约束，防止越界
-    left, right = math.ceil(min(x1, x2)), math.ceil(max(x3, x4))
-    top, bottom = math.ceil(min(y1, y4)), math.ceil(max(y2, y3))
+    left, right = math.floor(min(x1, x2)), math.ceil(max(x3, x4))
+    top, bottom = math.floor(min(y1, y4)), math.ceil(max(y2, y3))
     x, y = np.ogrid[left - center_x:right - center_x + 1, top - center_y:bottom - center_y + 1]
     # 旋转矩阵
     rotation_matrix = np.array([[math.cos(angle), -(math.sin(angle))], [math.sin(angle), math.cos(angle)]])
@@ -154,8 +160,8 @@ def draw_corner_gaussian(corner, kpsoi_aug, masked_gaussian, down_ratio):
     x4 = kpsoi_aug[3].x / down_ratio
     y4 = kpsoi_aug[3].y / down_ratio
     # 对边界进行约束，防止越界
-    left, right = math.ceil(min(x1, x2)), math.ceil(max(x3, x4))
-    top, bottom = math.ceil(min(y1, y4)), math.ceil(max(y2, y3))
+    left, right = math.floor(min(x1, x2)), math.ceil(max(x3, x4))
+    top, bottom = math.floor(min(y1, y4)), math.ceil(max(y2, y3))
     # 在高斯分布上标注角点坐标
     corner_mask = corner[:, top:bottom + 1, left:right + 1]
     masked_corner = copy.deepcopy(corner_mask)  # masked_corner深拷贝corner_mask
@@ -196,8 +202,8 @@ def draw_bboxes_gaussian(bboxes_map, bbs, kpsoi_aug, masked_gaussian, down_ratio
     x4 = kpsoi_aug[3].x / down_ratio
     y4 = kpsoi_aug[3].y / down_ratio
     # 对边界进行约束，防止越界
-    left, right = math.ceil(min(x1, x2)), math.ceil(max(x3, x4))
-    top, bottom = math.ceil(min(y1, y4)), math.ceil(max(y2, y3))
+    left, right = math.floor(min(x1, x2)), math.ceil(max(x3, x4))
+    top, bottom = math.floor(min(y1, y4)), math.ceil(max(y2, y3))
 
     # w1,h1 是左上角坐标，w2,h2是右下角坐标
     w1 = bbs[0].x1 / down_ratio

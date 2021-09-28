@@ -29,7 +29,7 @@ parser = argparse.ArgumentParser(description='centernet')
 parser.add_argument('--root_dir', type=str, default='./')
 parser.add_argument('--data_dir', type=str, default='C:\data')
 parser.add_argument('--ckpt_name', type=str, default='coco_resdcn_18_384_ad')
-parser.add_argument('--log_name', type=str, default='coco_resdcn_18_384_ad_rotate')
+parser.add_argument('--log_name', type=str, default='coco_resdcn_18_384_ad_all')
 
 parser.add_argument('--dataset', type=str, default='coco', choices=['coco', 'pascal'])
 parser.add_argument('--arch', type=str, default='resdcn_18')

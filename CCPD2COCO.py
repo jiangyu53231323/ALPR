@@ -32,7 +32,7 @@ def init_image_set():
 def init_coco():
     global coco, image_id
     image_id = 20200000000
-    # coco = dict()
+    coco = dict()
     coco['images'] = []
     coco['type'] = 'instances'
     coco['annotations'] = []
@@ -40,6 +40,7 @@ def init_coco():
     category_item_id = 1
     category_item['id'] = category_item_id
     category_item['name'] = "License Plate"
+    coco['categories'] = []
     coco['categories'].append(category_item)
 
 
