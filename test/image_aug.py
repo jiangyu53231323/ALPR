@@ -52,6 +52,13 @@ ia.imshow(np.hstack([
     bbs_aug4.draw_on_image(image4, size=2)
 ]))
 
+if any((abs(kpsoi_aug[0].x - kpsoi_aug[3].x) < 4, abs(kpsoi_aug[1].x - kpsoi_aug[2].x) < 4,
+        abs(kpsoi_aug[0].y - kpsoi_aug[1].y) < 4, abs(kpsoi_aug[2].y - kpsoi_aug[3].y) < 4)):
+    image_aug = image
+    bbs_aug = bbs
+    kpsoi_aug = kpsoi
+
+print('---------------')
 # print("Original:")
 # ia.imshow(image)
 # # cv.imshow("original", image)

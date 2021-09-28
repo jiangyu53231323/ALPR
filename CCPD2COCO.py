@@ -25,9 +25,11 @@ category_item_id = 0
 image_id = 20200000000
 annotation_id = 0
 
+
 def init_image_set():
     global image_set
     image_set = set()
+
 
 def init_coco():
     global coco, image_id
@@ -89,6 +91,10 @@ def addAnnoItem(image_id, category_id, bbox, segmentation):
     # right_top
     seg.append(segmentation[3][0])
     seg.append(segmentation[3][1])
+    if any((abs(segmentation[2][0] - segmentation[3][0]) < 10, abs(segmentation[1][0] - segmentation[0][0]) < 10,
+            abs(segmentation[2][1] - segmentation[1][1]) < 10, abs(segmentation[0][1] - segmentation[3][1]) < 10)):
+        print(image_id)
+
     annotation_item['segmentation'].append(seg)
     annotation_item['area'] = bbox[2] * bbox[3]
     annotation_item['iscrowd'] = 0
@@ -226,49 +232,49 @@ if __name__ == '__main__':
     test_list = test_list_base + test_list_blur + test_list_challenge + test_list_db + test_list_fn + test_list_rotate + test_list_tilt + test_list_weather
 
     parseImageName(train_list)
-    json.dump(coco, open(train_json_file, 'w'))
+    # json.dump(coco, open(train_json_file, 'w'))
 
     print('init coco: val')
     init_coco()
     parseImageName(test_list)
-    json.dump(coco, open(val_json_file, 'w'))
+    # json.dump(coco, open(val_json_file, 'w'))
     print('init coco:base val')
     init_image_set()
     init_coco()
     parseImageName(test_list_base)
-    json.dump(coco, open(val_base_json_file, 'w'))
+    # json.dump(coco, open(val_base_json_file, 'w'))
     print('init coco:blur val')
     init_image_set()
     init_coco()
     parseImageName(test_list_blur)
-    json.dump(coco, open(val_blur_json_file, 'w'))
+    # json.dump(coco, open(val_blur_json_file, 'w'))
     print('init coco:challenge val')
     init_image_set()
     init_coco()
     parseImageName(test_list_challenge)
-    json.dump(coco, open(val_challenge_json_file, 'w'))
+    # json.dump(coco, open(val_challenge_json_file, 'w'))
     print('init coco:db val')
     init_image_set()
     init_coco()
     parseImageName(test_list_db)
-    json.dump(coco, open(val_db_json_file, 'w'))
+    # json.dump(coco, open(val_db_json_file, 'w'))
     print('init coco:fn val')
     init_image_set()
     init_coco()
     parseImageName(test_list_fn)
-    json.dump(coco, open(val_fn_json_file, 'w'))
+    # json.dump(coco, open(val_fn_json_file, 'w'))
     print('init coco:rotate val')
     init_image_set()
     init_coco()
     parseImageName(test_list_rotate)
-    json.dump(coco, open(val_rotate_json_file, 'w'))
+    # json.dump(coco, open(val_rotate_json_file, 'w'))
     print('init coco:tilt val')
     init_image_set()
     init_coco()
     parseImageName(test_list_tilt)
-    json.dump(coco, open(val_tilt_json_file, 'w'))
+    # json.dump(coco, open(val_tilt_json_file, 'w'))
     print('init coco:weather val')
     init_image_set()
     init_coco()
     parseImageName(test_list_weather)
-    json.dump(coco, open(val_weather_json_file, 'w'))
+    # json.dump(coco, open(val_weather_json_file, 'w'))
