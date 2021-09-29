@@ -44,7 +44,7 @@ def resize_and_padding(image, size, bboxes, segmentation):
 
 
 # 仿射+透视变换
-def image_affine(image, bboxes, segmentation):
+def image_affine(image, bboxes, segmentation, img_id):
     bbs = BoundingBoxesOnImage([
         BoundingBox(x1=bboxes[0], y1=bboxes[1], x2=bboxes[2], y2=bboxes[3])
     ], shape=image.shape)
@@ -75,11 +75,13 @@ def image_affine(image, bboxes, segmentation):
         image_aug = image
         bbs_aug = bbs
         kpsoi_aug = kpsoi
-    # if any((abs(kpsoi_aug[0].x - kpsoi_aug[3].x) < 4, abs(kpsoi_aug[1].x - kpsoi_aug[3].x) < 4,
-    #         abs(kpsoi_aug[0].y - kpsoi_aug[1].y) < 4, abs(kpsoi_aug[2].y - kpsoi_aug[3].y) < 4)):
-    #     image_aug = image
-    #     bbs_aug = bbs
-    #     kpsoi_aug = kpsoi
+    if any((abs(kpsoi_aug[0].x - kpsoi_aug[3].x) < 4, abs(kpsoi_aug[1].x - kpsoi_aug[3].x) < 4,
+            abs(kpsoi_aug[0].y - kpsoi_aug[1].y) < 4, abs(kpsoi_aug[2].y - kpsoi_aug[3].y) < 4)):
+        image_aug = image
+        bbs_aug = bbs
+        kpsoi_aug = kpsoi
+        print(kpsoi)
+        print(img_id)
 
     return image_aug, bbs_aug, kpsoi_aug
 

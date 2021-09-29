@@ -178,7 +178,9 @@ class PoseResNet(nn.Module):
 
         # used for deconv layers 可形变卷积
         # 将主干网最终输出channel控制在64
-        self.deconv_layers = self._make_deconv_layer(3, [256, 128, 64], [4, 4, 4])
+        self.deconv_layer1 = self._make_deconv_layer(256, 4)
+        self.deconv_layer2 = self._make_deconv_layer(128, 4)
+        self.deconv_layer3 = self._make_deconv_layer(64, 4)
         # 进行回归预测前的卷积filter个数
         if head_conv > 0:
             # heatmap layers 中心点定位
@@ -232,49 +234,39 @@ class PoseResNet(nn.Module):
         return deconv_kernel, padding, output_padding
 
     # 创建可形变卷积层
-    def _make_deconv_layer(self, num_layers, num_filters, num_kernels):
-        assert num_layers == len(num_filters), \
-            'ERROR: num_deconv_layers is different len(num_deconv_filters)'
-        assert num_layers == len(num_kernels), \
-            'ERROR: num_deconv_layers is different len(num_deconv_filters)'
-
+    def _make_deconv_layer(self, filter, kernel):
         layers = []
-        for i in range(num_layers):
-            kernel, padding, output_padding = \
-                self._get_deconv_cfg(num_kernels[i], i)
-
-            planes = num_filters[i]
-            # self.inplanes记录了上一层网络的out通道数
-            fc = DCN(self.inplanes,
-                     planes,
-                     kernel_size=(3, 3),
-                     stride=1,
-                     padding=1,
-                     dilation=1,
-                     deformable_groups=1)
-            # fc = nn.Conv2d(self.inplanes, planes,
-            #         kernel_size=3, stride=1,
-            #         padding=1, dilation=1, bias=False)
-            # fill_fc_weights(fc)
-
-            # 转置卷积（逆卷积、反卷积）
-            up = nn.ConvTranspose2d(in_channels=planes,
-                                    out_channels=planes,
-                                    kernel_size=kernel,
-                                    stride=2,
-                                    padding=padding,
-                                    output_padding=output_padding,
-                                    bias=self.deconv_with_bias)
-            fill_up_weights(up)
-
-            layers.append(fc)
-            layers.append(nn.BatchNorm2d(planes, momentum=BN_MOMENTUM))
-            layers.append(nn.ReLU(inplace=True))
-            # 上采样，最终将特征图恢复到layer1层之前的大小
-            layers.append(up)
-            layers.append(nn.BatchNorm2d(planes, momentum=BN_MOMENTUM))
-            layers.append(nn.ReLU(inplace=True))
-            self.inplanes = planes
+        kernel, padding, output_padding = self._get_deconv_cfg(kernel)
+        planes = filter
+        # self.inplanes记录了上一层网络的out通道数
+        fc = DCN(self.inplanes,
+                 planes,
+                 kernel_size=(3, 3),
+                 stride=1,
+                 padding=1,
+                 dilation=1,
+                 deformable_groups=1)
+        # fc = nn.Conv2d(self.inplanes, planes,
+        #         kernel_size=3, stride=1,
+        #         padding=1, dilation=1, bias=False)
+        # fill_fc_weights(fc)
+        # 转置卷积（逆卷积、反卷积）
+        up = nn.ConvTranspose2d(in_channels=planes,
+                                out_channels=planes,
+                                kernel_size=kernel,
+                                stride=2,
+                                padding=padding,
+                                output_padding=output_padding,
+                                bias=self.deconv_with_bias)
+        fill_up_weights(up)
+        layers.append(fc)
+        layers.append(nn.BatchNorm2d(planes, momentum=BN_MOMENTUM))
+        layers.append(nn.ReLU(inplace=True))
+        # 上采样，最终将特征图恢复到layer1层之前的大小
+        layers.append(up)
+        layers.append(nn.BatchNorm2d(planes, momentum=BN_MOMENTUM))
+        layers.append(nn.ReLU(inplace=True))
+        self.inplanes = planes
 
         return nn.Sequential(*layers)
 
