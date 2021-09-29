@@ -276,13 +276,19 @@ class PoseResNet(nn.Module):
         x = self.relu(x)
         x = self.maxpool(x)
 
-        out1 = self.layer1(x)
-        out2 = self.layer2(out1)
-        out3 = self.layer3(out2)
-        out4 = self.layer4(out3)
+        c1 = self.layer1(x)
+        c2 = self.layer2(c1)
+        c3 = self.layer3(c2)
+        c4 = self.layer4(c3)
 
-        x = self.deconv_layers(out4)
-        out = [[self.hmap(x), self.cors(x), self.w_h_(x)]]
+        d3 = self.deconv_layer1(c4)
+        p3 = d3+c3
+        d2 = self.deconv_layer2(p3)
+        p2 = d2+c2
+        d1 = self.deconv_layer3(p2)
+
+
+        out = [[self.hmap(d1), self.cors(d1), self.w_h_(d1)]]
         return out
 
     # 初始化权重

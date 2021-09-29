@@ -17,7 +17,9 @@ from datasets.yolo import YOLO, YOLO_eval
 
 from nets.hourglass import get_hourglass
 # from nets.resdcn import get_pose_net
-from nets.resdcn_cbam import get_pose_net
+# from nets.resdcn_cbam import get_pose_net
+from nets.resdcn_cbam_fpn import get_pose_net
+
 
 from utils.utils import _tranpose_and_gather_feature, load_model
 from utils.image import transform_preds
@@ -34,7 +36,7 @@ parser.add_argument('--dist', action='store_true')  # 多GPU
 
 parser.add_argument('--root_dir', type=str, default='./')
 parser.add_argument('--data_dir', type=str, default='C:\data')
-parser.add_argument('--log_name', type=str, default='coco_resdcn_18_384_ad')
+parser.add_argument('--log_name', type=str, default='coco_resdcn_18_384_ad_cbam_fpn')
 parser.add_argument('--pretrain_name', type=str, default='pretrain')
 
 parser.add_argument('--dataset', type=str, default='coco', choices=['coco', 'yolo'])
