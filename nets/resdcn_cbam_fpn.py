@@ -220,7 +220,7 @@ class PoseResNet(nn.Module):
             layers.append(block(self.inplanes, planes))
         return nn.Sequential(*layers)  # 表示列表元素作为多个元素传入
 
-    def _get_deconv_cfg(self, deconv_kernel, index):
+    def _get_deconv_cfg(self, deconv_kernel):
         if deconv_kernel == 4:
             padding = 1
             output_padding = 0
@@ -300,7 +300,15 @@ class PoseResNet(nn.Module):
 
         print('=> init deconv weights from normal distribution')
         # 正态分布初始化 可形变卷积 中的BN层
-        for name, m in self.deconv_layers.named_modules():
+        for name, m in self.deconv_layer1.named_modules():
+            if isinstance(m, nn.BatchNorm2d):
+                nn.init.constant_(m.weight, 1)
+                nn.init.constant_(m.bias, 0)
+        for name, m in self.deconv_layer2.named_modules():
+            if isinstance(m, nn.BatchNorm2d):
+                nn.init.constant_(m.weight, 1)
+                nn.init.constant_(m.bias, 0)
+        for name, m in self.deconv_layer3.named_modules():
             if isinstance(m, nn.BatchNorm2d):
                 nn.init.constant_(m.weight, 1)
                 nn.init.constant_(m.bias, 0)
