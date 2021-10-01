@@ -17,7 +17,7 @@ from datasets.yolo import YOLO_eval
 
 from nets.hourglass import get_hourglass
 # from nets.resdcn import get_pose_net
-from nets.resdcn_cbam import get_pose_net
+from nets.resdcn_cbam_fpn import get_pose_net
 
 from utils.utils import load_model
 from utils.summary import create_logger
@@ -28,8 +28,8 @@ parser = argparse.ArgumentParser(description='centernet')
 
 parser.add_argument('--root_dir', type=str, default='./')
 parser.add_argument('--data_dir', type=str, default='C:\data')
-parser.add_argument('--ckpt_name', type=str, default='coco_resdcn_18_384_ad')
-parser.add_argument('--log_name', type=str, default='coco_resdcn_18_384_ad_all')
+parser.add_argument('--ckpt_name', type=str, default='coco_resdcn_18_384_ad_cbam_fpn')
+parser.add_argument('--log_name', type=str, default='coco_resdcn_18_384_ad_cbam_fpn_fn')
 
 parser.add_argument('--dataset', type=str, default='coco', choices=['coco', 'pascal'])
 parser.add_argument('--arch', type=str, default='resdcn_18')

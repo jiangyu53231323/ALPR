@@ -7,7 +7,7 @@ from tqdm import tqdm
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--dir', default='F:/code_download/CCPD2019/ccpd_base', type=str)
+    parser.add_argument('--dir', default='C:\data\CCPD2019\ccpd', type=str)
     args = parser.parse_args()
     return args
 

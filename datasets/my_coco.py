@@ -17,6 +17,7 @@ from utils.image import get_border, get_affine_transform, affine_transform, colo
 from utils.image import draw_umich_gaussian, gaussian_radius
 from utils.my_image import resize_and_padding, image_affine, draw_heatmap_gaussian, draw_corner_gaussian, \
     draw_bboxes_gaussian
+from utils.utils import get_image_path
 
 COCO_NAMES = ['__background__', 'License Plate']
 COCO_IDS = [1]
@@ -56,7 +57,7 @@ class COCO(data.Dataset):
         # 图片 data/CCPD2019/ccpd_base
         self.data_dir = os.path.join(data_dir, 'CCPD2019')
         self.img_dir = os.path.join(self.data_dir, 'ccpd')
-        self.annot_path = os.path.join(self.data_dir, 'annotations', 'ccpd_%s2020.json' % split)
+        self.annot_path = os.path.join(self.data_dir, 'annotations', 'ccpd_fn_%s2020.json' % split)
 
         self.max_objs = 1  # 最大检测目标数
         self.padding = 127  # 31 for resnet/resdcn
@@ -68,7 +69,7 @@ class COCO(data.Dataset):
         self.rand_scales = np.arange(0.6, 1.4, 0.1)  # [0.6,0.7,0.8,...,1.2,1.3]
         self.gaussian_iou = 0.7  #
 
-        print('==> initializing coco 2017 %s data.' % split)
+        print('==> initializing CCPD 2019 %s data.' % split)
         self.coco = coco.COCO(self.annot_path)
         self.images = self.coco.getImgIds()
 
@@ -85,6 +86,10 @@ class COCO(data.Dataset):
         # 根据index得到image对应的id，再由id得到图片文件名，拼接成路径
         img_id = self.images[index]
         img_path = os.path.join(self.img_dir, self.coco.loadImgs(ids=[img_id])[0]['file_name'])
+
+        # 如果 self.img_dir 下有多个文件夹，则使用get_image_path来寻找image的真正路径
+        # img_path = get_image_path(self.data_dir, self.coco.loadImgs(ids=[img_id])[0]['file_name'])
+
         # 根据image id 获取 annotion id
         ann_ids = self.coco.getAnnIds(imgIds=[img_id])
         annotations = self.coco.loadAnns(ids=ann_ids)
@@ -111,7 +116,7 @@ class COCO(data.Dataset):
         flipped = False  # 翻转
 
         # 随机 仿射+透视 变换
-        image, bbs, kpsoi = image_affine(image, bboxes, segmentation,img_id)
+        image, bbs, kpsoi = image_affine(image, bboxes, segmentation, img_id)
         # ---------------------------------------------------------------------------------
         image = image.astype(np.float32) / 255.
         image -= self.mean
