@@ -78,19 +78,24 @@ def _corner_loss(regs, gt_regs, mask):
     num = copy.deepcopy(mask)
     num[num > 0] = 1
     batch, cat, height, width = mask.size()
-    # topk_scores, topk_inds = torch.topk(mask.view(batch, cat, -1), num.sum().int() // batch)
     loss = 0
     # 单独计算每一个图片的loss
     for b in range(batch):
         # 按照heat-map值的大小顺序，获取当前图片的mask
         topk_score, topk_ind = torch.topk(mask[b].view(cat, -1), num[b].sum().int())
+        total = topk_score.sum()
         topk_ind = topk_ind.expand(8, topk_ind.size(1))  # 将mask的维度调整到与reg相同
+        topk_score = topk_score.expand(8, topk_score.size(1))
         reg = regs[0][b].view(8, -1).gather(1, topk_ind)  # 沿给定轴，将索引向量mask中值在reg上进行聚合
         gt_reg = gt_regs[b].view(8, -1).gather(1, topk_ind)
+
         # 计算L1损失的值，除以参与计算的总点数
-        loss = loss + (F.smooth_l1_loss(reg, gt_reg, reduction='sum') / (num[b].sum() + 1e-4))
-    # reg = regs[0] * mask
-    # loss = F.l1_loss(reg, gt_regs, reduction='sum') / (mask.sum() + 1e-4)
+        # loss = loss + (F.smooth_l1_loss(reg, gt_reg, reduction='sum') / (num[b].sum() + 1e-4))
+
+        # 将点按照离物体中心的程度作为权重，乘以对应点的loss值
+        loss_centerness = F.smooth_l1_loss(reg, gt_reg, reduction='none') * topk_score
+        loss = loss + (loss_centerness.sum()/total)
+
     return loss / batch
 
 
@@ -111,9 +116,17 @@ def _w_h_loss(regs, gt_regs, mask):
     iou_loss = 0
     for b in range(batch):
         topk_score, topk_ind = torch.topk(mask[b].view(cat, -1), num[b].sum().int())
+        total = topk_score.sum()
         topk_ind = topk_ind.expand(4, topk_ind.size(1))
+        topk_score = topk_score.expand(4, topk_score.size(1))
         reg = regs[0][b].view(4, -1).gather(1, topk_ind)
         gt_reg = gt_regs[b].view(4, -1).gather(1, topk_ind)
-        loss = loss + (F.smooth_l1_loss(reg, gt_reg, reduction='sum') / (num[b].sum() + 1e-4))
+
+        # loss = loss + (F.smooth_l1_loss(reg, gt_reg, reduction='sum') / (num[b].sum() + 1e-4))
         # iou_loss = iou_loss + (1 - bbox_iou(reg, gt_reg, DIoU=True)).sum() / (num[b].sum() + 1e-4)
+
+        # 将点按照离物体中心的程度作为权重，乘以对应点的loss值
+        loss_centerness = F.smooth_l1_loss(reg, gt_reg, reduction='none') * topk_score
+        loss = loss + (loss_centerness.sum()/total)
+
     return loss / batch

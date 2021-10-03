@@ -21,9 +21,9 @@ from utils.utils import get_image_path
 
 COCO_NAMES = ['__background__', 'License Plate']
 COCO_IDS = [1]
-# CCPD base 数据集的平均值和标准差,RGB顺序
-COCO_MEAN = [0.41520595, 0.46959662, 0.43970743]
-COCO_STD = [0.2493595, 0.24370627, 0.24678902]
+# CCPD all 数据集的平均值和标准差,RGB顺序
+COCO_MEAN = [0.41250753, 0.46157351, 0.4346494]
+COCO_STD = [0.2468385, 0.2403439, 0.24371054]
 # 作用未知，在仿射变换中使用
 COCO_EIGEN_VALUES = [0.2141788, 0.01817699, 0.00341571]
 COCO_EIGEN_VECTORS = [[-0.58752847, -0.69563484, 0.41340352],
@@ -56,8 +56,9 @@ class COCO(data.Dataset):
         # 数据集路径 data/CCPD2019
         # 图片 data/CCPD2019/ccpd_base
         self.data_dir = os.path.join(data_dir, 'CCPD2019')
-        self.img_dir = os.path.join(self.data_dir, 'ccpd')
-        self.annot_path = os.path.join(self.data_dir, 'annotations', 'ccpd_fn_%s2020.json' % split)
+        # self.img_dir = os.path.join(self.data_dir, 'ccpd')
+        # self.annot_path = os.path.join(self.data_dir, 'annotations', 'ccpd_%s2020.json' % split)
+        self.annot_path = os.path.join('./', 'ccpd_%s2020.json' % split)
 
         self.max_objs = 1  # 最大检测目标数
         self.padding = 127  # 31 for resnet/resdcn
@@ -85,10 +86,10 @@ class COCO(data.Dataset):
     def __getitem__(self, index):
         # 根据index得到image对应的id，再由id得到图片文件名，拼接成路径
         img_id = self.images[index]
-        img_path = os.path.join(self.img_dir, self.coco.loadImgs(ids=[img_id])[0]['file_name'])
+        # img_path = os.path.join(self.data_dir, self.coco.loadImgs(ids=[img_id])[0]['file_name'])
 
         # 如果 self.img_dir 下有多个文件夹，则使用get_image_path来寻找image的真正路径
-        # img_path = get_image_path(self.data_dir, self.coco.loadImgs(ids=[img_id])[0]['file_name'])
+        img_path = get_image_path(self.data_dir, self.coco.loadImgs(ids=[img_id])[0]['file_name'])
 
         # 根据image id 获取 annotion id
         ann_ids = self.coco.getAnnIds(imgIds=[img_id])
@@ -185,7 +186,9 @@ class COCO_eval(COCO):
     def __getitem__(self, index):
         # 根据index得到image对应的id，再由id得到图片文件名，拼接成路径
         img_id = self.images[index]
-        img_path = os.path.join(self.img_dir, self.coco.loadImgs(ids=[img_id])[0]['file_name'])
+        # img_path = os.path.join(self.img_dir, self.coco.loadImgs(ids=[img_id])[0]['file_name'])
+        # 如果 self.img_dir 下有多个文件夹，则使用get_image_path来寻找image的真正路径
+        img_path = get_image_path(self.data_dir, self.coco.loadImgs(ids=[img_id])[0]['file_name'])
         # 根据image id 获取 annotion id
         ann_ids = self.coco.getAnnIds(imgIds=[img_id])
         annotations = self.coco.loadAnns(ids=ann_ids)

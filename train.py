@@ -20,7 +20,6 @@ from nets.hourglass import get_hourglass
 # from nets.resdcn_cbam import get_pose_net
 from nets.resdcn_cbam_fpn import get_pose_net
 
-
 from utils.utils import _tranpose_and_gather_feature, load_model
 from utils.image import transform_preds
 from utils.my_losses import _heatmap_loss, _corner_loss, _w_h_loss
@@ -35,8 +34,8 @@ parser.add_argument('--local_rank', type=int, default=0)
 parser.add_argument('--dist', action='store_true')  # 多GPU
 
 parser.add_argument('--root_dir', type=str, default='./')
-parser.add_argument('--data_dir', type=str, default='C:\data')
-parser.add_argument('--log_name', type=str, default='coco_resdcn_18_384_ad_cbam_fpn')
+parser.add_argument('--data_dir', type=str, default='/hy-tmp/CCPD')
+parser.add_argument('--log_name', type=str, default='coco_resdcn_18_384_cbam_fpn_centerness')
 parser.add_argument('--pretrain_name', type=str, default='pretrain')
 
 parser.add_argument('--dataset', type=str, default='coco', choices=['coco', 'yolo'])
@@ -47,14 +46,14 @@ parser.add_argument('--split_ratio', type=float, default=1.0)
 
 parser.add_argument('--lr', type=float, default=1.25e-4)
 parser.add_argument('--lr_step', type=str, default='2,4,6')
-parser.add_argument('--batch_size', type=int, default=10)
+parser.add_argument('--batch_size', type=int, default=16)
 parser.add_argument('--num_epochs', type=int, default=20)
 
 parser.add_argument('--test_topk', type=int, default=10)
 
 parser.add_argument('--log_interval', type=int, default=1000)
-parser.add_argument('--val_interval', type=int, default=2)
-parser.add_argument('--num_workers', type=int, default=4)
+parser.add_argument('--val_interval', type=int, default=1)
+parser.add_argument('--num_workers', type=int, default=8)
 
 cfg = parser.parse_args()
 
@@ -156,7 +155,7 @@ def main():
     def train(epoch):
         print('\n Epoch: %d' % epoch)
         model.train()
-        print(' learning rate: %f' % optimizer.param_groups[0]['lr'])
+        print(' learning rate: %e' % optimizer.param_groups[0]['lr'])
         # perf_counter() 返回性能计数器的值（以分秒为单位），即具有最高可用分辨率的时钟，以测量短持续时间。
         # 返回值的参考点未定义，因此只有连续调用结果之间的差异有效
         tic = time.perf_counter()
@@ -178,7 +177,7 @@ def main():
             corner_loss = _corner_loss(corner, batch['corner'], batch['reg_mask'])
             w_h_loss = _w_h_loss(w_h_, batch['bboxes'], batch['reg_mask'])
             # 进行 loss 加权，得到最终 loss
-            loss = hmap_loss + 0.1 * corner_loss + 0.2 * w_h_loss
+            loss = hmap_loss + corner_loss + 2 * w_h_loss
 
             optimizer.zero_grad()
             loss.backward()

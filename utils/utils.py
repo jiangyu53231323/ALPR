@@ -7,11 +7,14 @@ from collections import OrderedDict
 
 def get_image_path(image_dir, image_name):
     path_list = os.listdir(image_dir)
+    p = ''
     for p in path_list:
         img_dir = os.path.join(image_dir, p)
         img_path = os.path.join(img_dir, image_name)
         if os.path.exists(img_path):
+            p = img_path
             return img_path
+    assert p != ''
 
 
 def bbox_iou(box1, box2, x1y1x2y2=True, GIoU=False, DIoU=False, CIoU=False, eps=1e-9):

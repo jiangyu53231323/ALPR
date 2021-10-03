@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="WebServers">
+    <option name="servers">
+      <webServer id="7690d54a-7dbb-41de-b074-1c63bdab5c80" name="GPUshare">
+        <fileTransfer accessType="SFTP" host="i-1.gpushare.com" port="18942" sshConfigId="7c3daa67-fe7e-41fa-93fb-e8c171e4d84a" sshConfig="root@i-1.gpushare.com:18942 password">
+          <advancedOptions>
+            <advancedOptions dataProtectionLevel="Private" passiveMode="true" shareSSLContext="true" />
+          </advancedOptions>
+        </fileTransfer>
+      </webServer>
+      <webServer id="b0880c34-f1b2-41d2-8682-85cae2d7606b" name="root@i-1.gpushare.com:18942 password">
+        <fileTransfer accessType="SFTP" host="i-1.gpushare.com" port="18942" sshConfigId="7c3daa67-fe7e-41fa-93fb-e8c171e4d84a" sshConfig="root@i-1.gpushare.com:18942 password" />
+      </webServer>
+      <webServer id="2805a721-b95b-42cf-ac25-782efd27aca8" name="GPU2">
+        <fileTransfer accessType="SFTP" host="i-1.gpushare.com" port="24147" sshConfigId="74317218-aaa8-4f1d-99d0-9ff437310a91" sshConfig="root@i-1.gpushare.com:24147 password">
+          <advancedOptions>
+            <advancedOptions dataProtectionLevel="Private" passiveMode="true" shareSSLContext="true" />
+          </advancedOptions>
+        </fileTransfer>
+      </webServer>
+    </option>
+  </component>
+</project>
