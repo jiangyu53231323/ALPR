@@ -19,6 +19,13 @@
           </advancedOptions>
         </fileTransfer>
       </webServer>
+      <webServer id="e219b129-00fc-498c-b6f9-90b8c4fbcebf" name="GPU3">
+        <fileTransfer accessType="SFTP" host="i-1.gpushare.com" port="24613" sshConfigId="65bdd028-48d4-40ce-901f-8a54dd94f362" sshConfig="root@i-1.gpushare.com:24613 password">
+          <advancedOptions>
+            <advancedOptions dataProtectionLevel="Private" keepAliveTimeout="0" passiveMode="true" shareSSLContext="true" />
+          </advancedOptions>
+        </fileTransfer>
+      </webServer>
     </option>
   </component>
 </project>
