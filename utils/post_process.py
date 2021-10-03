@@ -64,21 +64,21 @@ def ctdet_decode(hmap, cors, bbs, padding, down_ratio=4, image_scale=1, K=100):
     padding是在my_image.py中resize_and_padding()后对图片的填充值，填充后会影响corner和bboxes的坐标
     image_scale是resize后图片与原始图片的比值，利用coco api计算iou是与原始图片的标注进行计算，而不是resize后的图片
     '''
-    x1 = (xs.view(batch, K, 1) - cors[:, :, 0:1] * 8) * down_ratio - (padding[0] // 2)
-    y1 = (ys.view(batch, K, 1) - cors[:, :, 1:2] * 8) * down_ratio - (padding[1] // 2)
-    x2 = (xs.view(batch, K, 1) - cors[:, :, 2:3] * 8) * down_ratio - (padding[0] // 2)
-    y2 = (ys.view(batch, K, 1) + cors[:, :, 3:4] * 8) * down_ratio - (padding[1] // 2)
-    x3 = (xs.view(batch, K, 1) + cors[:, :, 4:5] * 8) * down_ratio - (padding[0] // 2)
-    y3 = (ys.view(batch, K, 1) + cors[:, :, 5:6] * 8) * down_ratio - (padding[1] // 2)
-    x4 = (xs.view(batch, K, 1) + cors[:, :, 6:7] * 8) * down_ratio - (padding[0] // 2)
-    y4 = (ys.view(batch, K, 1) - cors[:, :, 7:8] * 8) * down_ratio - (padding[1] // 2)
+    x1 = (xs.view(batch, K, 1) - cors[:, :, 0:1] * 1) * down_ratio - (padding[0] // 2)
+    y1 = (ys.view(batch, K, 1) - cors[:, :, 1:2] * 1) * down_ratio - (padding[1] // 2)
+    x2 = (xs.view(batch, K, 1) - cors[:, :, 2:3] * 1) * down_ratio - (padding[0] // 2)
+    y2 = (ys.view(batch, K, 1) + cors[:, :, 3:4] * 1) * down_ratio - (padding[1] // 2)
+    x3 = (xs.view(batch, K, 1) + cors[:, :, 4:5] * 1) * down_ratio - (padding[0] // 2)
+    y3 = (ys.view(batch, K, 1) + cors[:, :, 5:6] * 1) * down_ratio - (padding[1] // 2)
+    x4 = (xs.view(batch, K, 1) + cors[:, :, 6:7] * 1) * down_ratio - (padding[0] // 2)
+    y4 = (ys.view(batch, K, 1) - cors[:, :, 7:8] * 1) * down_ratio - (padding[1] // 2)
     corners = torch.cat([x1, y1, x2, y2, x3, y3, x4, y4], dim=2)
     corners = corners * image_scale
     # bboxes坐标
-    bx1 = (xs.view(batch, K, 1) - bbs[:, :, 0:1] * 8) * down_ratio - (padding[0] // 2)
-    by1 = (ys.view(batch, K, 1) - bbs[:, :, 1:2] * 8) * down_ratio - (padding[1] // 2)
-    bx2 = (xs.view(batch, K, 1) + bbs[:, :, 2:3] * 8) * down_ratio - (padding[0] // 2)
-    by2 = (ys.view(batch, K, 1) + bbs[:, :, 3:4] * 8) * down_ratio - (padding[1] // 2)
+    bx1 = (xs.view(batch, K, 1) - bbs[:, :, 0:1] * 1) * down_ratio - (padding[0] // 2)
+    by1 = (ys.view(batch, K, 1) - bbs[:, :, 1:2] * 1) * down_ratio - (padding[1] // 2)
+    bx2 = (xs.view(batch, K, 1) + bbs[:, :, 2:3] * 1) * down_ratio - (padding[0] // 2)
+    by2 = (ys.view(batch, K, 1) + bbs[:, :, 3:4] * 1) * down_ratio - (padding[1] // 2)
     bboxes = torch.cat([bx1, by1, bx2, by2], dim=2)
     bboxes = bboxes * image_scale
 

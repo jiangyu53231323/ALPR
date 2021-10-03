@@ -177,7 +177,7 @@ def main():
             corner_loss = _corner_loss(corner, batch['corner'], batch['reg_mask'])
             w_h_loss = _w_h_loss(w_h_, batch['bboxes'], batch['reg_mask'])
             # 进行 loss 加权，得到最终 loss
-            loss = hmap_loss + corner_loss + 2 * w_h_loss
+            loss = hmap_loss + 0.1 * corner_loss + 0.2 * w_h_loss
 
             optimizer.zero_grad()
             loss.backward()

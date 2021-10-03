@@ -75,6 +75,16 @@ def image_affine(image, bboxes, segmentation, img_id):
         image_aug = image
         bbs_aug = bbs
         kpsoi_aug = kpsoi
+    if any((abs(kpsoi_aug[0].x - kpsoi_aug[3].x) < 4, abs(kpsoi_aug[1].x - kpsoi_aug[3].x) < 4,
+            abs(kpsoi_aug[0].y - kpsoi_aug[1].y) < 4, abs(kpsoi_aug[2].y - kpsoi_aug[3].y) < 4)):
+        print('----------仿射变换后异常坐标------------------------------')
+        print(kpsoi_aug)  # 打印异常点坐标
+        image_aug = image
+        bbs_aug = bbs
+        kpsoi_aug = kpsoi
+        print('----------原始标注------------------------------')
+        print(kpsoi_aug)  # 打印异常点坐标
+        print(img_id)  # 打印当前异常图片id
     # 透视变换
     image_aug, bbs_aug, kpsoi_aug = iaa.PerspectiveTransform(scale=(0.01, 0.15))(image=image_aug,
                                                                                  bounding_boxes=bbs_aug,
@@ -93,11 +103,12 @@ def image_affine(image, bboxes, segmentation, img_id):
     # 包围盒、角点异常判断，若对应点距离小于4则不做图像增强处理
     if any((abs(kpsoi_aug[0].x - kpsoi_aug[3].x) < 4, abs(kpsoi_aug[1].x - kpsoi_aug[3].x) < 4,
             abs(kpsoi_aug[0].y - kpsoi_aug[1].y) < 4, abs(kpsoi_aug[2].y - kpsoi_aug[3].y) < 4)):
+        print('----------透视变换后异常坐标------------------------------')
         print(kpsoi_aug)  # 打印异常点坐标
         image_aug = image
         bbs_aug = bbs
         kpsoi_aug = kpsoi
-        print('--------原始标注----------')
+        print('----------原始标注------------------------------')
         print(kpsoi_aug)  # 打印异常点坐标
         print(img_id)  # 打印当前异常图片id
 
@@ -205,7 +216,7 @@ def draw_corner_gaussian(corner, kpsoi_aug, masked_gaussian, down_ratio):
             masked_corner[6][i][j] = -(j + left - x4)
             masked_corner[7][i][j] = i + top - y4
 
-    masked_corner = masked_corner * masked_gaussian / 8  # 8是一个放大系数，可以让网络预测的值保持在一个比较小的范围
+    masked_corner = masked_corner * masked_gaussian #/ 8  # 8是一个放大系数，可以让网络预测的值保持在一个比较小的范围
     if min(masked_gaussian.shape) > 0 and min(masked_corner.shape) > 0:  # TODO debug
         # corner_mask = corner_mask * masked_corner
         np.maximum(corner_mask, masked_corner, out=corner_mask)
@@ -249,7 +260,7 @@ def draw_bboxes_gaussian(bboxes_map, bbs, kpsoi_aug, masked_gaussian, down_ratio
             masked_w_h_[2][i][j] = -(j + left - w2)
             masked_w_h_[3][i][j] = -(i + top - h2)
 
-    masked_corner = masked_w_h_ * masked_gaussian / 8  # 8是一个放大系数，可以让网络预测的值保持在一个比较小的范围
+    masked_corner = masked_w_h_ * masked_gaussian #/ 8  # 8是一个放大系数，可以让网络预测的值保持在一个比较小的范围
     if min(masked_gaussian.shape) > 0 and min(masked_corner.shape) > 0:  # TODO debug
         # corner_mask = corner_mask * masked_corner
         np.maximum(bboxes_mask, masked_corner, out=bboxes_mask)
