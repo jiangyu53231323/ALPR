@@ -296,7 +296,7 @@ class PoseResNet(nn.Module):
     # 初始化权重
     def init_weights(self, num_layers):
         url = model_urls['resnet{}'.format(num_layers)]
-        pretrained_state_dict = model_zoo.load_url(url)
+        pretrained_state_dict = model_zoo.load_url(url, model_dir='./model')
         print('=> loading pretrained model {}'.format(url))
         self.load_state_dict(pretrained_state_dict, strict=False)
 

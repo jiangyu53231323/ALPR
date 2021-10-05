@@ -282,11 +282,10 @@ class PoseResNet(nn.Module):
         c4 = self.layer4(c3)
 
         d3 = self.deconv_layer1(c4)
-        p3 = d3+c3
+        p3 = d3 + c3
         d2 = self.deconv_layer2(p3)
-        p2 = d2+c2
+        p2 = d2 + c2
         d1 = self.deconv_layer3(p2)
-
 
         out = [[self.hmap(d1), self.cors(d1), self.w_h_(d1)]]
         return out
@@ -294,7 +293,7 @@ class PoseResNet(nn.Module):
     # 初始化权重
     def init_weights(self, num_layers):
         url = model_urls['resnet{}'.format(num_layers)]
-        pretrained_state_dict = model_zoo.load_url(url)
+        pretrained_state_dict = model_zoo.load_url(url, model_dir='./model')
         print('=> loading pretrained model {}'.format(url))
         self.load_state_dict(pretrained_state_dict, strict=False)
 
