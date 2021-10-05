@@ -25,6 +25,7 @@ from utils.image import transform_preds
 from utils.my_losses import _heatmap_loss, _corner_loss, _w_h_loss
 from utils.summary import create_summary, create_logger, create_saver, DisablePrint
 from utils.post_process import ctdet_decode
+from datasets.CudaDataLoader import CudaDataLoader
 
 # Training settings
 parser = argparse.ArgumentParser(description='simple_centernet45')
@@ -46,14 +47,14 @@ parser.add_argument('--split_ratio', type=float, default=1.0)
 
 parser.add_argument('--lr', type=float, default=1.25e-4)
 parser.add_argument('--lr_step', type=str, default='2,4,6')
-parser.add_argument('--batch_size', type=int, default=10)
+parser.add_argument('--batch_size', type=int, default=4)
 parser.add_argument('--num_epochs', type=int, default=20)
 
 parser.add_argument('--test_topk', type=int, default=10)
 
 parser.add_argument('--log_interval', type=int, default=1000)
 parser.add_argument('--val_interval', type=int, default=1)
-parser.add_argument('--num_workers', type=int, default=0)
+parser.add_argument('--num_workers', type=int, default=6)
 
 cfg = parser.parse_args()
 
@@ -114,7 +115,9 @@ def main():
                                                num_workers=cfg.num_workers,
                                                pin_memory=True,
                                                drop_last=True,
-                                               sampler=train_sampler if cfg.dist else None)
+                                               sampler=train_sampler if cfg.dist else None,
+                                               persistent_workers=True)
+    train_loader = CudaDataLoader(train_loader, device=0)
 
     dataset_eval = COCO_eval if cfg.dataset == 'coco' else YOLO_eval
     val_dataset = dataset_eval(cfg.data_dir, 'val', test_scales=[1.], test_flip=False)

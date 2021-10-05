@@ -1,50 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
-  <component name="PublishConfigData" autoUpload="Always" serverName="root@i-1.gpushare.com:16022 password" deleteMissingItems="true">
-    <serverData>
-      <paths name="GPU2">
-        <serverdata>
-          <mappings>
-            <mapping local="$PROJECT_DIR$" web="/" />
-          </mappings>
-        </serverdata>
-      </paths>
-      <paths name="GPU3">
-        <serverdata>
-          <mappings>
-            <mapping local="$PROJECT_DIR$" web="/" />
-          </mappings>
-        </serverdata>
-      </paths>
-      <paths name="GPU4">
-        <serverdata>
-          <mappings>
-            <mapping local="$PROJECT_DIR$" web="/" />
-          </mappings>
-        </serverdata>
-      </paths>
-      <paths name="root@i-1.gpushare.com:16022 password">
-        <serverdata>
-          <mappings>
-            <mapping deploy="/hy-tmp/ALPR" local="$PROJECT_DIR$" />
-          </mappings>
-        </serverdata>
-      </paths>
-      <paths name="root@i-1.gpushare.com:24147 password">
-        <serverdata>
-          <mappings>
-            <mapping deploy="/hy-tmp/example" local="$PROJECT_DIR$" />
-          </mappings>
-        </serverdata>
-      </paths>
-      <paths name="root@i-1.gpushare.com:24613 password">
-        <serverdata>
-          <mappings>
-            <mapping deploy="/hy-tmp/ALPR" local="$PROJECT_DIR$" />
-          </mappings>
-        </serverdata>
-      </paths>
-    </serverData>
+  <component name="PublishConfigData" autoUpload="Always" deleteMissingItems="true">
     <option name="myAutoUpload" value="ALWAYS" />
   </component>
 </project>
