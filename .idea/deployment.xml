@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
-  <component name="PublishConfigData" autoUpload="Always" serverName="root@i-1.gpushare.com:24613 password" deleteMissingItems="true">
+  <component name="PublishConfigData" autoUpload="Always" serverName="root@i-1.gpushare.com:16022 password" deleteMissingItems="true">
     <serverData>
       <paths name="GPU2">
         <serverdata>
@@ -16,17 +16,17 @@
           </mappings>
         </serverdata>
       </paths>
-      <paths name="GPUshare">
+      <paths name="GPU4">
         <serverdata>
           <mappings>
             <mapping local="$PROJECT_DIR$" web="/" />
           </mappings>
         </serverdata>
       </paths>
-      <paths name="root@i-1.gpushare.com:18942 password">
+      <paths name="root@i-1.gpushare.com:16022 password">
         <serverdata>
           <mappings>
-            <mapping deploy="/hy-tmp/example" local="$PROJECT_DIR$" />
+            <mapping deploy="/hy-tmp/ALPR" local="$PROJECT_DIR$" />
           </mappings>
         </serverdata>
       </paths>

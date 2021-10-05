@@ -34,7 +34,7 @@ parser.add_argument('--local_rank', type=int, default=0)
 parser.add_argument('--dist', action='store_true')  # 多GPU
 
 parser.add_argument('--root_dir', type=str, default='./')
-parser.add_argument('--data_dir', type=str, default='/hy-tmp/CCPD')
+parser.add_argument('--data_dir', type=str, default='C:/data')
 parser.add_argument('--log_name', type=str, default='coco_resdcn_18_384_cbam_fpn_centerness')
 parser.add_argument('--pretrain_name', type=str, default='pretrain')
 
@@ -46,7 +46,7 @@ parser.add_argument('--split_ratio', type=float, default=1.0)
 
 parser.add_argument('--lr', type=float, default=1.25e-4)
 parser.add_argument('--lr_step', type=str, default='2,4,6')
-parser.add_argument('--batch_size', type=int, default=16)
+parser.add_argument('--batch_size', type=int, default=10)
 parser.add_argument('--num_epochs', type=int, default=20)
 
 parser.add_argument('--test_topk', type=int, default=10)

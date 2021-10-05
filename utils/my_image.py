@@ -86,7 +86,7 @@ def image_affine(image, bboxes, segmentation, img_id):
         print(kpsoi_aug)  # 打印异常点坐标
         print(img_id)  # 打印当前异常图片id
     # 透视变换
-    image_aug, bbs_aug, kpsoi_aug = iaa.PerspectiveTransform(scale=(0.01, 0.15))(image=image_aug,
+    image_aug2, bbs_aug2, kpsoi_aug2 = iaa.PerspectiveTransform(scale=(0.01, 0.15))(image=image_aug,
                                                                                  bounding_boxes=bbs_aug,
                                                                                  keypoints=kpsoi_aug)
 
@@ -94,25 +94,25 @@ def image_affine(image, bboxes, segmentation, img_id):
     # image_aug, bbs_aug, kpsoi_aug = seq(image=image, bounding_boxes=bbs, keypoints=kpsoi)
 
     # 包围盒、角点越界判断，若产生越界则不做图像增强处理
-    if any((not bbs_aug[0].is_fully_within_image(image_aug), kpsoi_aug[0].is_out_of_image(image_aug),
-            kpsoi_aug[1].is_out_of_image(image_aug), kpsoi_aug[2].is_out_of_image(image_aug),
-            kpsoi_aug[3].is_out_of_image(image_aug))):
-        image_aug = image
-        bbs_aug = bbs
-        kpsoi_aug = kpsoi
+    if any((not bbs_aug2[0].is_fully_within_image(image_aug), kpsoi_aug2[0].is_out_of_image(image_aug),
+            kpsoi_aug2[1].is_out_of_image(image_aug), kpsoi_aug2[2].is_out_of_image(image_aug),
+            kpsoi_aug2[3].is_out_of_image(image_aug))):
+        image_aug2 = image_aug
+        bbs_aug2 = bbs_aug
+        kpsoi_aug2 = kpsoi_aug
     # 包围盒、角点异常判断，若对应点距离小于4则不做图像增强处理
-    if any((abs(kpsoi_aug[0].x - kpsoi_aug[3].x) < 4, abs(kpsoi_aug[1].x - kpsoi_aug[3].x) < 4,
-            abs(kpsoi_aug[0].y - kpsoi_aug[1].y) < 4, abs(kpsoi_aug[2].y - kpsoi_aug[3].y) < 4)):
+    if any((abs(kpsoi_aug2[0].x - kpsoi_aug2[3].x) < 4, abs(kpsoi_aug2[1].x - kpsoi_aug2[3].x) < 4,
+            abs(kpsoi_aug2[0].y - kpsoi_aug2[1].y) < 4, abs(kpsoi_aug2[2].y - kpsoi_aug2[3].y) < 4)):
         print('----------透视变换后异常坐标------------------------------')
-        print(kpsoi_aug)  # 打印异常点坐标
-        image_aug = image
-        bbs_aug = bbs
-        kpsoi_aug = kpsoi
-        print('----------原始标注------------------------------')
-        print(kpsoi_aug)  # 打印异常点坐标
+        print(kpsoi_aug2)  # 打印异常点坐标
+        image_aug2 = image_aug
+        bbs_aug2 = bbs_aug
+        kpsoi_aug2 = kpsoi_aug
+        print('----------透视变换前正常标注------------------------------')
+        print(kpsoi_aug2)  # 打印异常点坐标
         print(img_id)  # 打印当前异常图片id
 
-    return image_aug, bbs_aug, kpsoi_aug
+    return image_aug2, bbs_aug2, kpsoi_aug2
 
 
 def draw_heatmap_gaussian(heatmap, kpsoi_aug, scale, down_ratio):
