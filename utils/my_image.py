@@ -8,15 +8,20 @@ from imgaug.augmentables.bbs import BoundingBox, BoundingBoxesOnImage
 from imgaug.augmentables.kps import Keypoint, KeypointsOnImage
 
 
-def resize_and_padding(image, size, bboxes, segmentation):
-    # ------图像resize------
-    height, width = image.shape[0], image.shape[1]  # 获取原始图片尺寸
-    center = np.array([width / 2., height / 2.], dtype=np.float32)  # center of image
-    scale = max(height, width) * 1.0  # 长边计算缩放比例
-    scale = scale / size
-    new_height = math.ceil(height / scale)
-    new_width = math.ceil(width / scale)
-    image = cv2.resize(image, (new_width, new_height))
+def resize_and_padding(image, size, bboxes, segmentation, pre_384=False):
+    if pre_384 == True:
+        scale = 1160 / size
+        new_height = math.ceil(1160 / scale)
+        new_width = math.ceil(720 / scale)
+    else:
+        # ------图像resize------
+        height, width = image.shape[0], image.shape[1]  # 获取原始图片尺寸
+        center = np.array([width / 2., height / 2.], dtype=np.float32)  # center of image
+        scale = max(height, width) * 1.0  # 长边计算缩放比例
+        scale = scale / size
+        new_height = math.ceil(height / scale)
+        new_width = math.ceil(width / scale)
+        image = cv2.resize(image, (new_width, new_height))
     # 判断resize后的图片能否被32整除，如果不能则要进行填充
     padding_h, padding_w = 0, 0
     if new_height % 32 != 0:
@@ -44,7 +49,7 @@ def resize_and_padding(image, size, bboxes, segmentation):
 
 
 # 仿射+透视变换
-def image_affine(image, bboxes, segmentation, img_id):
+def image_affine(image, bboxes, segmentation, img_id, img_aug=True):
     bbs = BoundingBoxesOnImage([
         BoundingBox(x1=bboxes[0], y1=bboxes[1], x2=bboxes[2], y2=bboxes[3])
     ], shape=image.shape)
@@ -55,62 +60,46 @@ def image_affine(image, bboxes, segmentation, img_id):
            Keypoint(x=segmentation[6], y=segmentation[7])
            ]
     kpsoi = KeypointsOnImage(kps, shape=image.shape)
-    seq = iaa.Sequential([
-        # iaa.GammaContrast(1.5),
+    # 是否做数据增强
+    if img_aug == True:
         # 平移+旋转
-        iaa.Affine(translate_percent={"x": (-0.2, 0.2), "y": (-0.2, 0.2)}, rotate=(-15, 15), scale=1),
+        image_aug, bbs_aug, kpsoi_aug = iaa.Affine(translate_percent={"x": (-0.2, 0.2), "y": (-0.2, 0.2)},
+                                                   rotate=(-15, 15),
+                                                   scale=1)(image=image, bounding_boxes=bbs, keypoints=kpsoi)
+        # 包围盒、角点越界判断，若产生越界则不做图像增强处理
+        if any((not bbs_aug[0].is_fully_within_image(image_aug), kpsoi_aug[0].is_out_of_image(image_aug),
+                kpsoi_aug[1].is_out_of_image(image_aug), kpsoi_aug[2].is_out_of_image(image_aug),
+                kpsoi_aug[3].is_out_of_image(image_aug))):
+            image_aug = image
+            bbs_aug = bbs
+            kpsoi_aug = kpsoi
+        if any((abs(kpsoi_aug[0].x - kpsoi_aug[3].x) < 4, abs(kpsoi_aug[1].x - kpsoi_aug[3].x) < 4,
+                abs(kpsoi_aug[0].y - kpsoi_aug[1].y) < 4, abs(kpsoi_aug[2].y - kpsoi_aug[3].y) < 4)):
+            image_aug = image
+            bbs_aug = bbs
+            kpsoi_aug = kpsoi
         # 透视变换
-        iaa.PerspectiveTransform(scale=(0.01, 0.15))
+        image_aug2, bbs_aug2, kpsoi_aug2 = iaa.PerspectiveTransform(scale=(0.01, 0.15))(image=image_aug,
+                                                                                        bounding_boxes=bbs_aug,
+                                                                                        keypoints=kpsoi_aug)
 
-        # iaa.Affine(translate_percent={"x": (-0.1, 0.1), "y": (-0.1, 0.1)}, rotate=(-1, 1), scale=1),
-        # iaa.PerspectiveTransform(scale=(0.01, 0.02))
-    ])
-    # 平移+旋转
-    image_aug, bbs_aug, kpsoi_aug = iaa.Affine(translate_percent={"x": (-0.2, 0.2), "y": (-0.2, 0.2)}, rotate=(-15, 15),
-                                               scale=1)(image=image, bounding_boxes=bbs, keypoints=kpsoi)
-    # 包围盒、角点越界判断，若产生越界则不做图像增强处理
-    if any((not bbs_aug[0].is_fully_within_image(image_aug), kpsoi_aug[0].is_out_of_image(image_aug),
-            kpsoi_aug[1].is_out_of_image(image_aug), kpsoi_aug[2].is_out_of_image(image_aug),
-            kpsoi_aug[3].is_out_of_image(image_aug))):
-        image_aug = image
-        bbs_aug = bbs
-        kpsoi_aug = kpsoi
-    if any((abs(kpsoi_aug[0].x - kpsoi_aug[3].x) < 4, abs(kpsoi_aug[1].x - kpsoi_aug[3].x) < 4,
-            abs(kpsoi_aug[0].y - kpsoi_aug[1].y) < 4, abs(kpsoi_aug[2].y - kpsoi_aug[3].y) < 4)):
-        print('----------仿射变换后异常坐标------------------------------')
-        print(kpsoi_aug)  # 打印异常点坐标
-        image_aug = image
-        bbs_aug = bbs
-        kpsoi_aug = kpsoi
-        print('----------原始标注------------------------------')
-        print(kpsoi_aug)  # 打印异常点坐标
-        print(img_id)  # 打印当前异常图片id
-    # 透视变换
-    image_aug2, bbs_aug2, kpsoi_aug2 = iaa.PerspectiveTransform(scale=(0.01, 0.15))(image=image_aug,
-                                                                                 bounding_boxes=bbs_aug,
-                                                                                 keypoints=kpsoi_aug)
-
-    # 增强后的image,bbs,kpsoi
-    # image_aug, bbs_aug, kpsoi_aug = seq(image=image, bounding_boxes=bbs, keypoints=kpsoi)
-
-    # 包围盒、角点越界判断，若产生越界则不做图像增强处理
-    if any((not bbs_aug2[0].is_fully_within_image(image_aug), kpsoi_aug2[0].is_out_of_image(image_aug),
-            kpsoi_aug2[1].is_out_of_image(image_aug), kpsoi_aug2[2].is_out_of_image(image_aug),
-            kpsoi_aug2[3].is_out_of_image(image_aug))):
-        image_aug2 = image_aug
-        bbs_aug2 = bbs_aug
-        kpsoi_aug2 = kpsoi_aug
-    # 包围盒、角点异常判断，若对应点距离小于4则不做图像增强处理
-    if any((abs(kpsoi_aug2[0].x - kpsoi_aug2[3].x) < 4, abs(kpsoi_aug2[1].x - kpsoi_aug2[3].x) < 4,
-            abs(kpsoi_aug2[0].y - kpsoi_aug2[1].y) < 4, abs(kpsoi_aug2[2].y - kpsoi_aug2[3].y) < 4)):
-        print('----------透视变换后异常坐标------------------------------')
-        print(kpsoi_aug2)  # 打印异常点坐标
-        image_aug2 = image_aug
-        bbs_aug2 = bbs_aug
-        kpsoi_aug2 = kpsoi_aug
-        print('----------透视变换前正常标注------------------------------')
-        print(kpsoi_aug2)  # 打印异常点坐标
-        print(img_id)  # 打印当前异常图片id
+        # 包围盒、角点越界判断，若产生越界则不做图像增强处理
+        if any((not bbs_aug2[0].is_fully_within_image(image_aug), kpsoi_aug2[0].is_out_of_image(image_aug),
+                kpsoi_aug2[1].is_out_of_image(image_aug), kpsoi_aug2[2].is_out_of_image(image_aug),
+                kpsoi_aug2[3].is_out_of_image(image_aug))):
+            image_aug2 = image_aug
+            bbs_aug2 = bbs_aug
+            kpsoi_aug2 = kpsoi_aug
+        # 包围盒、角点异常判断，若对应点距离小于4则不做图像增强处理
+        if any((abs(kpsoi_aug2[0].x - kpsoi_aug2[3].x) < 4, abs(kpsoi_aug2[1].x - kpsoi_aug2[3].x) < 4,
+                abs(kpsoi_aug2[0].y - kpsoi_aug2[1].y) < 4, abs(kpsoi_aug2[2].y - kpsoi_aug2[3].y) < 4)):
+            image_aug2 = image_aug
+            bbs_aug2 = bbs_aug
+            kpsoi_aug2 = kpsoi_aug
+    else:
+        image_aug2 = image
+        bbs_aug2 = bbs
+        kpsoi_aug2 = kpsoi
 
     return image_aug2, bbs_aug2, kpsoi_aug2
 
@@ -216,7 +205,7 @@ def draw_corner_gaussian(corner, kpsoi_aug, masked_gaussian, down_ratio):
             masked_corner[6][i][j] = -(j + left - x4)
             masked_corner[7][i][j] = i + top - y4
 
-    masked_corner = masked_corner * masked_gaussian #/ 8  # 8是一个放大系数，可以让网络预测的值保持在一个比较小的范围
+    masked_corner = masked_corner * masked_gaussian  # / 8  # 8是一个放大系数，可以让网络预测的值保持在一个比较小的范围
     if min(masked_gaussian.shape) > 0 and min(masked_corner.shape) > 0:  # TODO debug
         # corner_mask = corner_mask * masked_corner
         np.maximum(corner_mask, masked_corner, out=corner_mask)
@@ -260,7 +249,7 @@ def draw_bboxes_gaussian(bboxes_map, bbs, kpsoi_aug, masked_gaussian, down_ratio
             masked_w_h_[2][i][j] = -(j + left - w2)
             masked_w_h_[3][i][j] = -(i + top - h2)
 
-    masked_corner = masked_w_h_ * masked_gaussian #/ 8  # 8是一个放大系数，可以让网络预测的值保持在一个比较小的范围
+    masked_corner = masked_w_h_ * masked_gaussian  # / 8  # 8是一个放大系数，可以让网络预测的值保持在一个比较小的范围
     if min(masked_gaussian.shape) > 0 and min(masked_corner.shape) > 0:  # TODO debug
         # corner_mask = corner_mask * masked_corner
         np.maximum(bboxes_mask, masked_corner, out=bboxes_mask)

@@ -86,10 +86,10 @@ class COCO(data.Dataset):
     def __getitem__(self, index):
         # 根据index得到image对应的id，再由id得到图片文件名，拼接成路径
         img_id = self.images[index]
-        img_path = os.path.join(self.img_dir, self.coco.loadImgs(ids=[img_id])[0]['file_name'])
+        # img_path = os.path.join(self.img_dir, self.coco.loadImgs(ids=[img_id])[0]['file_name'])
 
         # 如果 self.img_dir 下有多个文件夹，则使用get_image_path来寻找image的真正路径
-        # img_path = get_image_path(self.data_dir, self.coco.loadImgs(ids=[img_id])[0]['file_name'])
+        img_path = get_image_path(self.data_dir, self.coco.loadImgs(ids=[img_id])[0]['file_name'])
 
         # 根据image id 获取 annotion id
         ann_ids = self.coco.getAnnIds(imgIds=[img_id])
