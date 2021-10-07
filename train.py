@@ -4,6 +4,7 @@ import sys
 import time
 import argparse
 
+# os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'lib'))
 
 import numpy as np
@@ -35,7 +36,7 @@ parser.add_argument('--local_rank', type=int, default=0)
 parser.add_argument('--dist', action='store_true')  # 多GPU
 
 parser.add_argument('--root_dir', type=str, default='./')
-parser.add_argument('--data_dir', type=str, default='F:\code_download')
+parser.add_argument('--data_dir', type=str, default='C:\data')
 parser.add_argument('--log_name', type=str, default='coco_resdcn_18_384_cbam_fpn_centerness')
 parser.add_argument('--pretrain_name', type=str, default='pretrain')
 
@@ -108,21 +109,21 @@ def main():
     # sampler自定义从数据集中取样本的策略，如果指定则shuffle必须为False
     # pin_memory为True，data loader将会在返回它们之前，将tensors拷贝到CUDA中的固定内存（CUDA pinned memory）中
     # drop_last为True，在最后一个不满batch_size的batch将会丢弃
-    # train_loader = torch.utils.data.DataLoader(train_dataset,
-    #                                            batch_size=cfg.batch_size // num_gpus
-    #                                            if cfg.dist else cfg.batch_size,
-    #                                            shuffle=not cfg.dist,
-    #                                            num_workers=cfg.num_workers,
-    #                                            pin_memory=True,
-    #                                            drop_last=True,
-    #                                            sampler=train_sampler if cfg.dist else None,
-    #                                            )
-    train_loader = MultiEpochsDataLoader(train_dataset,
-                                         batch_size=cfg.batch_size // num_gpus if cfg.dist else cfg.batch_size,
-                                         shuffle=not cfg.dist, num_workers=cfg.num_workers,
-                                         pin_memory=True)
-    train_loader = CudaDataLoader(train_loader, device=0)
-
+    train_loader = torch.utils.data.DataLoader(train_dataset,
+                                               batch_size=cfg.batch_size // num_gpus
+                                               if cfg.dist else cfg.batch_size,
+                                               shuffle=not cfg.dist,
+                                               num_workers=cfg.num_workers,
+                                               pin_memory=True,
+                                               drop_last=True,
+                                               sampler=train_sampler if cfg.dist else None
+                                               )
+    # train_loader = MultiEpochsDataLoader(train_dataset,
+    #                                      batch_size=cfg.batch_size // num_gpus if cfg.dist else cfg.batch_size,
+    #                                      shuffle=not cfg.dist, num_workers=cfg.num_workers,
+    #                                      pin_memory=True)
+    # train_loader = CudaDataLoader(train_loader, device=0)
+    # list(train_loader)
     dataset_eval = COCO_eval if cfg.dataset == 'coco' else YOLO_eval
     val_dataset = dataset_eval(cfg.data_dir, 'val', test_scales=[1.], test_flip=False)
     # collate_fn 将一个list的sample组成一个mini-batch的函数
