@@ -103,7 +103,7 @@ class Bottleneck(nn.Module):
         self.relu = nn.ReLU(inplace=True)
 
         self.ca = ChannelAttention(planes * self.expansion)
-        self.sa = SpatialAttention
+        self.sa = SpatialAttention()
 
         self.downsample = downsample
         self.stride = stride
@@ -178,21 +178,21 @@ class PoseResNet(nn.Module):
 
         # used for deconv layers 可形变卷积
         # 将主干网最终输出channel控制在64
-        self.deconv_layer1 = self._make_deconv_layer(256, 4)
-        self.deconv_layer2 = self._make_deconv_layer(128, 4)
-        self.deconv_layer3 = self._make_deconv_layer(64, 4)
+        self.deconv_layer1 = self._make_deconv_layer(256 * block.expansion, 4)
+        self.deconv_layer2 = self._make_deconv_layer(128 * block.expansion, 4)
+        self.deconv_layer3 = self._make_deconv_layer(64 * block.expansion, 4)
         # 进行回归预测前的卷积filter个数
         if head_conv > 0:
             # heatmap layers 中心点定位
-            self.hmap = nn.Sequential(nn.Conv2d(64, head_conv, kernel_size=3, padding=1, bias=True),
+            self.hmap = nn.Sequential(nn.Conv2d(64 * block.expansion, head_conv, kernel_size=3, padding=1, bias=True),
                                       nn.ReLU(inplace=True),
                                       nn.Conv2d(head_conv, num_classes, kernel_size=1, bias=True))
             self.hmap[-1].bias.data.fill_(-2.19)
             # regression layers  角点、长宽
-            self.cors = nn.Sequential(nn.Conv2d(64, head_conv, kernel_size=3, padding=1, bias=True),
+            self.cors = nn.Sequential(nn.Conv2d(64 * block.expansion, head_conv, kernel_size=3, padding=1, bias=True),
                                       nn.ReLU(inplace=True),
                                       nn.Conv2d(head_conv, 8, kernel_size=1, bias=True))
-            self.w_h_ = nn.Sequential(nn.Conv2d(64, head_conv, kernel_size=3, padding=1, bias=True),
+            self.w_h_ = nn.Sequential(nn.Conv2d(64 * block.expansion, head_conv, kernel_size=3, padding=1, bias=True),
                                       nn.ReLU(inplace=True),
                                       nn.Conv2d(head_conv, 4, kernel_size=1, bias=True))
         else:

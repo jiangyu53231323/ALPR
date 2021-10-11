@@ -43,7 +43,10 @@ class Block(nn.Module):
     def __init__(self, kernel_size, in_size, expand_size, out_size, nolinear, semodule, stride):
         super(Block, self).__init__()
         self.stride = stride
-        self.se = semodule
+        if semodule != None:
+            self.se = semodule(out_size)
+        else:
+            self.se = None
 
         self.conv1 = nn.Conv2d(in_size, expand_size, kernel_size=1, stride=1, padding=0, bias=False)
         self.bn1 = nn.BatchNorm2d(expand_size)
@@ -83,18 +86,18 @@ class MobileNetV3_Large(nn.Module):
             Block(3, 16, 16, 16, nn.ReLU(inplace=True), None, 1),
             Block(3, 16, 64, 24, nn.ReLU(inplace=True), None, 2),
             Block(3, 24, 72, 24, nn.ReLU(inplace=True), None, 1),
-            Block(5, 24, 72, 40, nn.ReLU(inplace=True), SeModule(40), 2),
-            Block(5, 40, 120, 40, nn.ReLU(inplace=True), SeModule(40), 1),
-            Block(5, 40, 120, 40, nn.ReLU(inplace=True), SeModule(40), 1),
+            Block(5, 24, 72, 40, nn.ReLU(inplace=True), SeModule, 2),
+            Block(5, 40, 120, 40, nn.ReLU(inplace=True), SeModule, 1),
+            Block(5, 40, 120, 40, nn.ReLU(inplace=True), SeModule, 1),
             Block(3, 40, 240, 80, hswish(), None, 2),
             Block(3, 80, 200, 80, hswish(), None, 1),
             Block(3, 80, 184, 80, hswish(), None, 1),
             Block(3, 80, 184, 80, hswish(), None, 1),
-            Block(3, 80, 480, 112, hswish(), SeModule(112), 1),
-            Block(3, 112, 672, 112, hswish(), SeModule(112), 1),
-            Block(5, 112, 672, 160, hswish(), SeModule(160), 1),
-            Block(5, 160, 672, 160, hswish(), SeModule(160), 2),
-            Block(5, 160, 960, 160, hswish(), SeModule(160), 1),
+            Block(3, 80, 480, 112, hswish(), SeModule, 1),
+            Block(3, 112, 672, 112, hswish(), SeModule, 1),
+            Block(5, 112, 672, 160, hswish(), SeModule, 1),
+            Block(5, 160, 672, 160, hswish(), SeModule, 2),
+            Block(5, 160, 960, 160, hswish(), SeModule, 1),
         )
 
         self.conv2 = nn.Conv2d(160, 960, kernel_size=1, stride=1, padding=0, bias=False)
@@ -139,17 +142,17 @@ class MobileNetV3_Small(nn.Module):
         self.hs1 = hswish()
 
         self.bneck = nn.Sequential(
-            Block(3, 16, 16, 16, nn.ReLU(inplace=True), SeModule(16), 2),
+            Block(3, 16, 16, 16, nn.ReLU(inplace=True), SeModule, 2),
             Block(3, 16, 72, 24, nn.ReLU(inplace=True), None, 2),
             Block(3, 24, 88, 24, nn.ReLU(inplace=True), None, 1),
-            Block(5, 24, 96, 40, hswish(), SeModule(40), 2),
-            Block(5, 40, 240, 40, hswish(), SeModule(40), 1),
-            Block(5, 40, 240, 40, hswish(), SeModule(40), 1),
-            Block(5, 40, 120, 48, hswish(), SeModule(48), 1),
-            Block(5, 48, 144, 48, hswish(), SeModule(48), 1),
-            Block(5, 48, 288, 96, hswish(), SeModule(96), 2),
-            Block(5, 96, 576, 96, hswish(), SeModule(96), 1),
-            Block(5, 96, 576, 96, hswish(), SeModule(96), 1),
+            Block(5, 24, 96, 40, hswish(), SeModule, 2),
+            Block(5, 40, 240, 40, hswish(), SeModule, 1),
+            Block(5, 40, 240, 40, hswish(), SeModule, 1),
+            Block(5, 40, 120, 48, hswish(), SeModule, 1),
+            Block(5, 48, 144, 48, hswish(), SeModule, 1),
+            Block(5, 48, 288, 96, hswish(), SeModule, 2),
+            Block(5, 96, 576, 96, hswish(), SeModule, 1),
+            Block(5, 96, 576, 96, hswish(), SeModule, 1),
         )
 
         self.conv2 = nn.Conv2d(96, 576, kernel_size=1, stride=1, padding=0, bias=False)
@@ -192,4 +195,6 @@ def test():
     y = net(x)
     print(y.size())
 
-# test()
+
+if __name__ == '__main__':
+    test()
