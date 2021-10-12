@@ -11,6 +11,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 import math
 
+from thop import profile
+
 
 # __all__ = ['ghost_net']
 
@@ -62,7 +64,7 @@ class ConvBnAct(nn.Module):
     def __init__(self, in_chs, out_chs, kernel_size,
                  stride=1, act_layer=nn.ReLU):
         super(ConvBnAct, self).__init__()
-        self.conv = nn.Conv2d(in_chs, out_chs, kernel_size, stride, kernel_size//2, bias=False)
+        self.conv = nn.Conv2d(in_chs, out_chs, kernel_size, stride, kernel_size // 2, bias=False)
         self.bn1 = nn.BatchNorm2d(out_chs)
         self.act1 = act_layer(inplace=True)
 
@@ -78,16 +80,16 @@ class GhostModule(nn.Module):
         super(GhostModule, self).__init__()
         self.oup = oup
         init_channels = math.ceil(oup / ratio)
-        new_channels = init_channels*(ratio-1)
+        new_channels = init_channels * (ratio - 1)
 
         self.primary_conv = nn.Sequential(
-            nn.Conv2d(inp, init_channels, kernel_size, stride, kernel_size//2, bias=False),
+            nn.Conv2d(inp, init_channels, kernel_size, stride, kernel_size // 2, bias=False),
             nn.BatchNorm2d(init_channels),
             nn.ReLU(inplace=True) if relu else nn.Sequential(),
         )
 
         self.cheap_operation = nn.Sequential(
-            nn.Conv2d(init_channels, new_channels, dw_size, 1, dw_size//2, groups=init_channels, bias=False),
+            nn.Conv2d(init_channels, new_channels, dw_size, 1, dw_size // 2, groups=init_channels, bias=False),
             nn.BatchNorm2d(new_channels),
             nn.ReLU(inplace=True) if relu else nn.Sequential(),
         )
@@ -95,8 +97,8 @@ class GhostModule(nn.Module):
     def forward(self, x):
         x1 = self.primary_conv(x)
         x2 = self.cheap_operation(x1)
-        out = torch.cat([x1,x2], dim=1)
-        return out[:,:self.oup,:,:]
+        out = torch.cat([x1, x2], dim=1)
+        return out[:, :self.oup, :, :]
 
 
 class GhostBottleneck(nn.Module):
@@ -114,7 +116,7 @@ class GhostBottleneck(nn.Module):
         # Depth-wise convolution
         if self.stride > 1:
             self.conv_dw = nn.Conv2d(mid_chs, mid_chs, dw_kernel_size, stride=stride,
-                                     padding=(dw_kernel_size-1)//2,
+                                     padding=(dw_kernel_size - 1) // 2,
                                      groups=mid_chs, bias=False)
             self.bn_dw = nn.BatchNorm2d(mid_chs)
 
@@ -133,12 +135,11 @@ class GhostBottleneck(nn.Module):
         else:
             self.shortcut = nn.Sequential(
                 nn.Conv2d(in_chs, in_chs, dw_kernel_size, stride=stride,
-                          padding=(dw_kernel_size-1)//2, groups=in_chs, bias=False),
+                          padding=(dw_kernel_size - 1) // 2, groups=in_chs, bias=False),
                 nn.BatchNorm2d(in_chs),
                 nn.Conv2d(in_chs, out_chs, 1, stride=1, padding=0, bias=False),
                 nn.BatchNorm2d(out_chs),
             )
-
 
     def forward(self, x):
         residual = x
@@ -224,18 +225,18 @@ def ghostnet(**kwargs):
     cfgs = [
         # k, t, c, SE, s
         # stage1
-        [[3,  16,  16, 0, 1]],
+        [[3, 16, 16, 0, 1]],
         # stage2
-        [[3,  48,  24, 0, 2]],
-        [[3,  72,  24, 0, 1]],
+        [[3, 48, 24, 0, 2]],
+        [[3, 72, 24, 0, 1]],
         # stage3
-        [[5,  72,  40, 0.25, 2]],
-        [[5, 120,  40, 0.25, 1]],
+        [[5, 72, 40, 0.25, 2]],
+        [[5, 120, 40, 0.25, 1]],
         # stage4
-        [[3, 240,  80, 0, 2]],
-        [[3, 200,  80, 0, 1],
-         [3, 184,  80, 0, 1],
-         [3, 184,  80, 0, 1],
+        [[3, 240, 80, 0, 2]],
+        [[3, 200, 80, 0, 1],
+         [3, 184, 80, 0, 1],
+         [3, 184, 80, 0, 1],
          [3, 480, 112, 0.25, 1],
          [3, 672, 112, 0.25, 1]
          ],
@@ -250,10 +251,14 @@ def ghostnet(**kwargs):
     return GhostNet(cfgs, **kwargs)
 
 
-if __name__=='__main__':
+if __name__ == '__main__':
+    input = torch.randn(1, 3, 320, 256)
     model = ghostnet()
+    flops, params = profile(model, inputs=(input,))
     model.eval()
     print(model)
-    input = torch.randn(32,3,320,256)
+
     y = model(input)
     print(y.size())
+    print('FLOPs = ' + str(flops / 1000 ** 3) + 'G')
+    print('Params = ' + str(params / 1000 ** 2) + 'M')

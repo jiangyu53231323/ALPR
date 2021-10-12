@@ -6,7 +6,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn import init
-
+from thop import profile
 
 class hswish(nn.Module):
     def forward(self, x):
@@ -190,10 +190,14 @@ class MobileNetV3_Small(nn.Module):
 
 
 def test():
-    net = MobileNetV3_Small()
-    x = torch.randn(2, 3, 224, 224)
+    net = MobileNetV3_Large()
+    x = torch.randn(1, 3, 224, 224)
+    flops, params = profile(net, inputs=(x,))
+    net.eval()
     y = net(x)
     print(y.size())
+    print('FLOPs = ' + str(flops / 1000 ** 3) + 'G')
+    print('Params = ' + str(params / 1000 ** 2) + 'M')
 
 
 if __name__ == '__main__':
