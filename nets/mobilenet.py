@@ -2,11 +2,18 @@
 See the paper "Inverted Residuals and Linear Bottlenecks:
 Mobile Networks for Classification, Detection and Segmentation" for more details.
 '''
+import math
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn import init
 from thop import profile
+
+from lib.DCNv2.dcn_v2 import DCN
+
+BN_MOMENTUM = 0.1
+
 
 class hswish(nn.Module):
     def forward(self, x):
@@ -75,6 +82,30 @@ class Block(nn.Module):
         return out
 
 
+# 填充转置卷积的weight
+def fill_up_weights(up):
+    w = up.weight.data
+    f = math.ceil(w.size(2) / 2)  # ceil()向上取整
+    c = (2 * f - 1 - f % 2) / (2. * f)
+    for i in range(w.size(2)):
+        for j in range(w.size(3)):
+            # fabs()返回绝对值
+            w[0, 0, i, j] = (1 - math.fabs(i / f - c)) * (1 - math.fabs(j / f - c))
+    for c in range(1, w.size(0)):
+        w[c, 0, :, :] = w[0, 0, :, :]
+
+
+# 填充回归预测的卷积 weight
+def fill_fc_weights(layers):
+    for m in layers.modules():
+        if isinstance(m, nn.Conv2d):
+            nn.init.normal_(m.weight, std=0.001)
+            # torch.nn.init.kaiming_normal_(m.weight.data, nonlinearity='relu')
+            # torch.nn.init.xavier_normal_(m.weight.data)
+            if m.bias is not None:
+                nn.init.constant_(m.bias, 0)
+
+
 class MobileNetV3_Large(nn.Module):
     def __init__(self, num_classes=1000):
         super(MobileNetV3_Large, self).__init__()
@@ -136,33 +167,127 @@ class MobileNetV3_Large(nn.Module):
 
 class MobileNetV3_Small(nn.Module):
     def __init__(self, num_classes=1000):
+        self.deconv_with_bias = False
+        expansion = 1  # DCN的输出通道扩张数
+
         super(MobileNetV3_Small, self).__init__()
         self.conv1 = nn.Conv2d(3, 16, kernel_size=3, stride=2, padding=1, bias=False)
         self.bn1 = nn.BatchNorm2d(16)
         self.hs1 = hswish()
 
-        self.bneck = nn.Sequential(
+        # self.bneck = nn.Sequential(
+        #     Block(3, 16, 16, 16, nn.ReLU(inplace=True), SeModule, 2),
+        #     Block(3, 16, 72, 24, nn.ReLU(inplace=True), None, 2),
+        #     Block(3, 24, 88, 24, nn.ReLU(inplace=True), None, 1),
+        #     Block(5, 24, 96, 40, hswish(), SeModule, 2),
+        #     Block(5, 40, 240, 40, hswish(), SeModule, 1),
+        #     Block(5, 40, 240, 40, hswish(), SeModule, 1),
+        #     Block(5, 40, 120, 48, hswish(), SeModule, 1),
+        #     Block(5, 48, 144, 48, hswish(), SeModule, 1),
+        #     Block(5, 48, 288, 96, hswish(), SeModule, 2),
+        #     Block(5, 96, 576, 96, hswish(), SeModule, 1),
+        #     Block(5, 96, 576, 96, hswish(), SeModule, 1),
+        # )
+
+        self.bneck1 = nn.Sequential(
             Block(3, 16, 16, 16, nn.ReLU(inplace=True), SeModule, 2),
+        )
+        self.bneck2 = nn.Sequential(
             Block(3, 16, 72, 24, nn.ReLU(inplace=True), None, 2),
             Block(3, 24, 88, 24, nn.ReLU(inplace=True), None, 1),
+        )
+        self.bneck3 = nn.Sequential(
             Block(5, 24, 96, 40, hswish(), SeModule, 2),
             Block(5, 40, 240, 40, hswish(), SeModule, 1),
             Block(5, 40, 240, 40, hswish(), SeModule, 1),
             Block(5, 40, 120, 48, hswish(), SeModule, 1),
             Block(5, 48, 144, 48, hswish(), SeModule, 1),
+        )
+        self.bneck4 = nn.Sequential(
             Block(5, 48, 288, 96, hswish(), SeModule, 2),
             Block(5, 96, 576, 96, hswish(), SeModule, 1),
             Block(5, 96, 576, 96, hswish(), SeModule, 1),
         )
 
-        self.conv2 = nn.Conv2d(96, 576, kernel_size=1, stride=1, padding=0, bias=False)
-        self.bn2 = nn.BatchNorm2d(576)
-        self.hs2 = hswish()
-        self.linear3 = nn.Linear(576, 1280)
-        self.bn3 = nn.BatchNorm1d(1280)
-        self.hs3 = hswish()
-        self.linear4 = nn.Linear(1280, num_classes)
-        self.init_params()
+        self.conv_fpn2 = nn.Conv2d(24, 64, kernel_size=1, stride=1, padding=0, bias=False)
+        self.conv_fpn3 = nn.Conv2d(48, 128, kernel_size=1, stride=1, padding=0, bias=False)
+        self.conv_fpn4 = nn.Conv2d(96, 256, kernel_size=1, stride=1, padding=0, bias=False)
+
+        # used for deconv layers 可形变卷积
+        # 将主干网最终输出channel控制在64
+        self.deconv_layer3 = self._make_deconv_layer(256, 128, 4)
+        self.deconv_layer2 = self._make_deconv_layer(128, 64, 4)
+        self.deconv_layer1 = self._make_deconv_layer(64, 32, 4)
+
+        self.hmap = nn.Sequential(nn.Conv2d(32, 64, kernel_size=3, padding=1, bias=True),
+                                  hswish(),
+                                  nn.Conv2d(64, num_classes, kernel_size=1, bias=True))
+        self.hmap[-1].bias.data.fill_(-2.19)
+        self.cors = nn.Sequential(nn.Conv2d(32, 64, kernel_size=3, padding=1, bias=True),
+                                  hswish(),
+                                  nn.Conv2d(64, 8, kernel_size=1, bias=True))
+        self.w_h_ = nn.Sequential(nn.Conv2d(32, 64, kernel_size=3, padding=1, bias=True),
+                                  hswish(),
+                                  nn.Conv2d(64, 4, kernel_size=1, bias=True))
+
+        # self.conv2 = nn.Conv2d(96, 576, kernel_size=1, stride=1, padding=0, bias=False)
+        # self.bn2 = nn.BatchNorm2d(576)
+        # self.hs2 = hswish()
+        # self.linear3 = nn.Linear(576, 1280)
+        # self.bn3 = nn.BatchNorm1d(1280)
+        # self.hs3 = hswish()
+        # self.linear4 = nn.Linear(1280, num_classes)
+        # self.init_params()
+
+    def _get_deconv_cfg(self, deconv_kernel):
+        if deconv_kernel == 4:
+            padding = 1
+            output_padding = 0
+        elif deconv_kernel == 3:
+            padding = 1
+            output_padding = 1
+        elif deconv_kernel == 2:
+            padding = 0
+            output_padding = 0
+
+        return deconv_kernel, padding, output_padding
+
+    # 创建可形变卷积层，kernel为转置卷积的卷积核大小，dcn的卷积核为固定的3×3
+    def _make_deconv_layer(self, inplanes, filter, kernel):
+        layers = []
+        kernel, padding, output_padding = self._get_deconv_cfg(kernel)
+        planes = filter
+        # self.inplanes记录了上一层网络的out通道数
+        fc = DCN(inplanes,
+                 planes,
+                 kernel_size=(3, 3),
+                 stride=1,
+                 padding=1,
+                 dilation=1,
+                 deformable_groups=1)
+        # fc = nn.Conv2d(self.inplanes, planes,
+        #         kernel_size=3, stride=1,
+        #         padding=1, dilation=1, bias=False)
+        # fill_fc_weights(fc)
+        # 转置卷积（逆卷积、反卷积）
+        up = nn.ConvTranspose2d(in_channels=planes,
+                                out_channels=planes,
+                                kernel_size=kernel,
+                                stride=2,
+                                padding=padding,
+                                output_padding=output_padding,
+                                bias=self.deconv_with_bias)
+        fill_up_weights(up)
+        layers.append(fc)
+        layers.append(nn.BatchNorm2d(planes, momentum=BN_MOMENTUM))
+        layers.append(hswish())
+        # 上采样，最终将特征图恢复到layer1层之前的大小
+        layers.append(up)
+        layers.append(nn.BatchNorm2d(planes, momentum=BN_MOMENTUM))
+        layers.append(hswish())
+        self.inplanes = planes
+
+        return nn.Sequential(*layers)
 
     def init_params(self):
         for m in self.modules():
@@ -180,22 +305,35 @@ class MobileNetV3_Small(nn.Module):
 
     def forward(self, x):
         out = self.hs1(self.bn1(self.conv1(x)))
-        out = self.bneck(out)
-        out = self.hs2(self.bn2(self.conv2(out)))
-        out = F.avg_pool2d(out, 7)
-        out = out.view(out.size(0), -1)
-        out = self.hs3(self.bn3(self.linear3(out)))
-        out = self.linear4(out)
+        # out = self.bneck(out)
+        c1 = self.bneck1(out)
+        c2 = self.bneck2(c1)
+        c3 = self.bneck3(c2)
+        c4 = self.bneck4(c3)
+
+        p4 = self.conv_fpn4(c4)
+        p3 = self.deconv_layer3(p4) + self.conv_fpn3(c3)
+        p2 = self.deconv_layer2(p3) + self.conv_fpn2(c2)
+        p1 = self.deconv_layer1(p2)
+
+        out = [[self.hmap(p1), self.cors(p1), self.w_h_(p1)]]
+
+        # out = self.hs2(self.bn2(self.conv2(out4)))
+        # out = F.avg_pool2d(out, 7)
+        # out = out.view(out.size(0), -1)
+        # out = self.hs3(self.bn3(self.linear3(out)))
+        # out = self.linear4(out)
         return out
 
 
 def test():
-    net = MobileNetV3_Large()
-    x = torch.randn(1, 3, 224, 224)
+    net = MobileNetV3_Small(num_classes=1)
+    x = torch.randn(1, 3, 384, 256)
     flops, params = profile(net, inputs=(x,))
     net.eval()
     y = net(x)
-    print(y.size())
+    print(y[0][0].size())
+    # print(y.size())
     print('FLOPs = ' + str(flops / 1000 ** 3) + 'G')
     print('Params = ' + str(params / 1000 ** 2) + 'M')
 

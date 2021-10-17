@@ -4,6 +4,7 @@ import torch
 import torch.utils.model_zoo as model_zoo
 
 from lib.DCNv2.dcn_v2 import DCN
+from thop import profile
 
 BN_MOMENTUM = 0.1
 model_urls = {'resnet18': 'https://download.pytorch.org/models/resnet18-5c106cde.pth',
@@ -206,7 +207,7 @@ class PoseResNet(nn.Module):
         fill_fc_weights(self.cors)
         fill_fc_weights(self.w_h_)
 
-    # 创建普通卷积层
+    # 创建resnet普通卷积层
     def _make_layer(self, block, planes, blocks, stride=1):
         downsample = None
         if stride != 1 or self.inplanes != planes * block.expansion:
@@ -325,3 +326,18 @@ def get_pose_net(num_layers, head_conv=64, num_classes=1):
     model = PoseResNet(block_class, layers, head_conv, num_classes)
     model.init_weights(num_layers)
     return model
+
+def test():
+    net = get_pose_net(num_layers=18,num_classes=1)
+    x = torch.randn(1, 3, 384, 256)
+    flops, params = profile(net, inputs=(x,))
+    net.eval()
+    y = net(x)
+    print(y[0][0].size())
+    # print(y.size())
+    print('FLOPs = ' + str(flops / 1000 ** 3) + 'G')
+    print('Params = ' + str(params / 1000 ** 2) + 'M')
+
+
+if __name__ == '__main__':
+    test()

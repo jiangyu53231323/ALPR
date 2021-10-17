@@ -5,6 +5,8 @@ import time
 import argparse
 
 # os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+from nets.mobilenet import MobileNetV3_Small
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'lib'))
 
 import numpy as np
@@ -37,11 +39,11 @@ parser.add_argument('--dist', action='store_true')  # 多GPU
 
 parser.add_argument('--root_dir', type=str, default='./')
 parser.add_argument('--data_dir', type=str, default='C:\data')
-parser.add_argument('--log_name', type=str, default='coco_resdcn_18_384_cbam_fpn_centerness')
+parser.add_argument('--log_name', type=str, default='coco_mobilenet_small_384_se_fpn_centerness')
 parser.add_argument('--pretrain_name', type=str, default='pretrain')
 
 parser.add_argument('--dataset', type=str, default='coco', choices=['coco', 'yolo'])
-parser.add_argument('--arch', type=str, default='resdcn_18')
+parser.add_argument('--arch', type=str, default='mobilenet')
 
 parser.add_argument('--img_size', type=int, default=384)
 parser.add_argument('--split_ratio', type=float, default=1.0)
@@ -53,7 +55,7 @@ parser.add_argument('--num_epochs', type=int, default=20)
 
 parser.add_argument('--test_topk', type=int, default=10)
 
-parser.add_argument('--log_interval', type=int, default=1)
+parser.add_argument('--log_interval', type=int, default=1000)
 parser.add_argument('--val_interval', type=int, default=1)
 parser.add_argument('--num_workers', type=int, default=4)
 
@@ -139,6 +141,8 @@ def main():
         model = get_hourglass[cfg.arch]
     elif 'resdcn' in cfg.arch:
         model = get_pose_net(num_layers=int(cfg.arch.split('_')[-1]), num_classes=train_dataset.num_classes)
+    elif 'mobilenet' in cfg.arch:
+        model = MobileNetV3_Small(num_classes = train_dataset.num_classes)
     else:
         raise NotImplementedError
 
