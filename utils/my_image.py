@@ -3,6 +3,8 @@ import numpy as np
 import cv2
 import copy
 import random
+import albumentations as A
+import imgaug as ia
 from imgaug import augmenters as iaa
 from imgaug.augmentables.bbs import BoundingBox, BoundingBoxesOnImage
 from imgaug.augmentables.kps import Keypoint, KeypointsOnImage
@@ -46,6 +48,34 @@ def resize_and_padding(image, size, bboxes, segmentation, pre_384=False):
     out = {'new_image': new_image, 'scale': scale, 'bboxes': bboxes, 'segmentation': segmentation,
            'padding_h': padding_h, 'padding_w': padding_w}
     return out
+
+
+def new_image_affine(image, bboxes, segmentation, img_id):
+    bbox = [[bboxes[0], bboxes[1], bboxes[2], bboxes[3]], ]
+    keypoints = [(segmentation[0], segmentation[1]),
+                 (segmentation[2], segmentation[3]),
+                 (segmentation[4], segmentation[5]),
+                 (segmentation[6], segmentation[7]), ]
+    category_ids = [1]
+    category_id_to_name = {1: 'licence plate'}
+
+    transform = A.Compose([
+        A.RandomBrightnessContrast(p=0.2),
+        A.ShiftScaleRotate(shift_limit=0.2, scale_limit=0.2, rotate_limit=20, p=0.5, border_mode=cv2.BORDER_REPLICATE,),
+        A.Perspective(scale=(0.05, 0.15), p=0.25), ],
+        bbox_params=A.BboxParams(format='pascal_voc', min_visibility=0.8, label_fields=['category_ids']),
+        keypoint_params=A.KeypointParams(format='xy'))
+    transformed = transform(image=image, bboxes=bbox, keypoints=keypoints, category_ids=category_ids)
+
+    if len(transformed['keypoints']) < 4:
+        print('数据增强导致目标越界，取消增强')
+        return image, bboxes, segmentation
+    else:
+        keypoints_aug = []
+        for (x, y) in transformed['keypoints']:
+            keypoints_aug.append(x)
+            keypoints_aug.append(y)
+        return transformed['image'], list(transformed['bboxes']), keypoints_aug
 
 
 # 仿射+透视变换
@@ -93,6 +123,7 @@ def image_affine(image, bboxes, segmentation, img_id, img_aug=True):
         # 包围盒、角点异常判断，若对应点距离小于4则不做图像增强处理
         if any((abs(kpsoi_aug2[0].x - kpsoi_aug2[3].x) < 4, abs(kpsoi_aug2[1].x - kpsoi_aug2[3].x) < 4,
                 abs(kpsoi_aug2[0].y - kpsoi_aug2[1].y) < 4, abs(kpsoi_aug2[2].y - kpsoi_aug2[3].y) < 4)):
+            ia.imshow(image_aug2)
             image_aug2 = image_aug
             bbs_aug2 = bbs_aug
             kpsoi_aug2 = kpsoi_aug

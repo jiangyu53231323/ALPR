@@ -57,7 +57,7 @@ parser.add_argument('--test_topk', type=int, default=10)
 
 parser.add_argument('--log_interval', type=int, default=1000)
 parser.add_argument('--val_interval', type=int, default=1)
-parser.add_argument('--num_workers', type=int, default=4)
+parser.add_argument('--num_workers', type=int, default=3)
 
 cfg = parser.parse_args()
 

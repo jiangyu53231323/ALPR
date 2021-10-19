@@ -117,7 +117,7 @@ class COCO(data.Dataset):
         flipped = False  # 翻转
 
         # 随机 仿射+透视 变换， img_aug参数是是否做数据增强，False为不增强
-        image, bbs, kpsoi = image_affine(image, bboxes, segmentation, img_id, img_aug=False)
+        image, bbs, kpsoi = image_affine(image, bboxes, segmentation, img_id, img_aug=True)
         # ---------------------------------------------------------------------------------
         image = image.astype(np.float32) / 255.
         image -= self.mean

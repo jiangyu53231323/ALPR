@@ -9,8 +9,10 @@ KEYPOINT_COLOR = (0, 255, 0)  # Green
 
 def visualize_bbox(img, bbox, class_name, color=BOX_COLOR, thickness=2):
     """Visualizes a single bounding box on the image"""
-    x_min, y_min, w, h = bbox
-    x_min, x_max, y_min, y_max = int(x_min), int(x_min + w), int(y_min), int(y_min + h)
+    # x_min, y_min, w, h = bbox
+    # x_min, x_max, y_min, y_max = int(x_min), int(x_min + w), int(y_min), int(y_min + h)
+    x_min, y_min, x_max, y_max = bbox
+    x_min, x_max, y_min, y_max = int(x_min), int(x_max), int(y_min), int(y_max)
 
     cv2.rectangle(img, (x_min, y_min), (x_max, y_max), color=color, thickness=thickness)
 
@@ -46,7 +48,7 @@ def visualize(image, bboxes, keypoints, category_ids, category_id_to_name):
         class_name = category_id_to_name[category_id]
         img = visualize_bbox(img, bbox, class_name)
     img = vis_keypoints(img, keypoints)
-    plt.figure(figsize=(12, 12))
+    plt.figure(figsize=(16, 16))
     plt.axis('off')
     plt.imshow(img)
 
@@ -54,22 +56,23 @@ def visualize(image, bboxes, keypoints, category_ids, category_id_to_name):
 def main():
     transform = A.Compose([
         A.RandomBrightnessContrast(p=0.2),
-        A.ShiftScaleRotate(shift_limit=0.2, scale_limit=0.2, rotate_limit=25, p=1),
-        A.Perspective(scale=(0.0, 0.15), p=0.5), ],
-        bbox_params=A.BboxParams(format='coco', min_visibility=0.8, label_fields=['category_ids']),
+        A.ShiftScaleRotate(shift_limit=0.2, scale_limit=0.2, rotate_limit=20, p=1, border_mode=cv2.BORDER_REPLICATE,
+                           ),
+        A.Perspective(scale=(0.05, 0.15), p=0.25), ],
+        bbox_params=A.BboxParams(format='pascal_voc', min_visibility=0.1, label_fields=['category_ids']),
         keypoint_params=A.KeypointParams(format='xy'))
 
     image = cv2.imread(
         "F:\\code_download\\CCPD2019\\ccpd_base\\0205399904214-90_93-254&457_494&528-494&532_256&537_260&457_498&452-0_0_21_32_3_32_29-125-23.jpg")
     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-    bboxes = [[254, 457, 225, 71]]
+    bboxes = [[254, 457, 497, 528]]
     keypoints = [(494, 532),
                  (256, 537),
                  (260, 457),
                  (498, 452), ]
     category_ids = [1]
     category_id_to_name = {1: 'PL'}
-    visualize(image, bboxes, keypoints, category_ids, category_id_to_name)
+    # visualize(image, bboxes, keypoints, category_ids, category_id_to_name)
 
     class_labels = ['PL']
 
@@ -83,9 +86,14 @@ def main():
     )
     transformed_image = transformed['image']
     transformed_bboxes = transformed['bboxes']
+    transformed_keypoints = transformed['keypoints']
     transformed_class_labels = transformed['category_ids']
+    if len(transformed_keypoints) < 4:
+        print('---------')
+
     plt.show()
 
 
 if __name__ == '__main__':
-    main()
+    for i in range(5):
+        main()
