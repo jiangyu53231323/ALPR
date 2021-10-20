@@ -56,10 +56,10 @@ def visualize(image, bboxes, keypoints, category_ids, category_id_to_name):
 def main():
     transform = A.Compose([
         A.RandomBrightnessContrast(p=0.2),
-        A.ShiftScaleRotate(shift_limit=0.2, scale_limit=0.2, rotate_limit=20, p=1, border_mode=cv2.BORDER_REPLICATE,
+        A.ShiftScaleRotate(shift_limit=0.6, scale_limit=0.2, rotate_limit=20, p=1, border_mode=cv2.BORDER_REPLICATE,
                            ),
         A.Perspective(scale=(0.05, 0.15), p=0.25), ],
-        bbox_params=A.BboxParams(format='pascal_voc', min_visibility=0.1, label_fields=['category_ids']),
+        bbox_params=A.BboxParams(format='pascal_voc', min_visibility=0.9, label_fields=['category_ids']),
         keypoint_params=A.KeypointParams(format='xy'))
 
     image = cv2.imread(
@@ -90,6 +90,8 @@ def main():
     transformed_class_labels = transformed['category_ids']
     if len(transformed_keypoints) < 4:
         print('---------')
+    if len(transformed['bboxes']) < 1:
+        print('数据增强导致目标越界，取消增强')
 
     plt.show()
 

@@ -61,21 +61,22 @@ def new_image_affine(image, bboxes, segmentation, img_id):
 
     transform = A.Compose([
         A.RandomBrightnessContrast(p=0.2),
-        A.ShiftScaleRotate(shift_limit=0.2, scale_limit=0.2, rotate_limit=20, p=0.5, border_mode=cv2.BORDER_REPLICATE,),
+        A.ShiftScaleRotate(shift_limit=0.2, scale_limit=0.2, rotate_limit=20, p=0.5,
+                           border_mode=cv2.BORDER_REPLICATE, ),
         A.Perspective(scale=(0.05, 0.15), p=0.25), ],
-        bbox_params=A.BboxParams(format='pascal_voc', min_visibility=0.8, label_fields=['category_ids']),
+        bbox_params=A.BboxParams(format='pascal_voc', min_visibility=0.6, label_fields=['category_ids']),
         keypoint_params=A.KeypointParams(format='xy'))
     transformed = transform(image=image, bboxes=bbox, keypoints=keypoints, category_ids=category_ids)
 
-    if len(transformed['keypoints']) < 4:
-        print('数据增强导致目标越界，取消增强')
+    if len(transformed['keypoints']) < 4 or len(transformed['bboxes']) < 1:
+        # print('数据增强导致目标越界，取消增强')
         return image, bboxes, segmentation
     else:
         keypoints_aug = []
         for (x, y) in transformed['keypoints']:
             keypoints_aug.append(x)
             keypoints_aug.append(y)
-        return transformed['image'], list(transformed['bboxes']), keypoints_aug
+        return transformed['image'], list(transformed['bboxes'][0]), keypoints_aug
 
 
 # 仿射+透视变换
@@ -137,18 +138,18 @@ def image_affine(image, bboxes, segmentation, img_id, img_aug=True):
 
 def draw_heatmap_gaussian(heatmap, kpsoi_aug, scale, down_ratio):
     # 计算缩小down_ratio后的车牌中心点坐标
-    center_x = math.ceil((kpsoi_aug[0].x + kpsoi_aug[1].x + kpsoi_aug[2].x + kpsoi_aug[3].x) / (4.0 * down_ratio))
-    center_y = math.ceil((kpsoi_aug[0].y + kpsoi_aug[1].y + kpsoi_aug[2].y + kpsoi_aug[3].y) / (4.0 * down_ratio))
+    center_x = math.ceil((kpsoi_aug[0] + kpsoi_aug[2] + kpsoi_aug[4] + kpsoi_aug[6]) / (4.0 * down_ratio))
+    center_y = math.ceil((kpsoi_aug[1] + kpsoi_aug[3] + kpsoi_aug[5] + kpsoi_aug[7]) / (4.0 * down_ratio))
     center = [center_x, center_y]
     # 寻找四边形的几何属性（倾斜角度、长边、短边）
-    x1 = kpsoi_aug[0].x / down_ratio
-    y1 = kpsoi_aug[0].y / down_ratio
-    x2 = kpsoi_aug[1].x / down_ratio
-    y2 = kpsoi_aug[1].y / down_ratio
-    x3 = kpsoi_aug[2].x / down_ratio
-    y3 = kpsoi_aug[2].y / down_ratio
-    x4 = kpsoi_aug[3].x / down_ratio
-    y4 = kpsoi_aug[3].y / down_ratio
+    x1 = kpsoi_aug[0] / down_ratio
+    y1 = kpsoi_aug[1] / down_ratio
+    x2 = kpsoi_aug[2] / down_ratio
+    y2 = kpsoi_aug[3] / down_ratio
+    x3 = kpsoi_aug[4] / down_ratio
+    y3 = kpsoi_aug[5] / down_ratio
+    x4 = kpsoi_aug[6] / down_ratio
+    y4 = kpsoi_aug[7] / down_ratio
     # 长、短边长
     l1 = math.sqrt(pow((x4 - x1), 2) + pow((y4 - y1), 2))
     l2 = math.sqrt(pow((x3 - x2), 2) + pow((y3 - y2), 2))
@@ -202,14 +203,14 @@ def draw_heatmap_gaussian(heatmap, kpsoi_aug, scale, down_ratio):
 
 
 def draw_corner_gaussian(corner, kpsoi_aug, masked_gaussian, down_ratio):
-    x1 = kpsoi_aug[0].x / down_ratio
-    y1 = kpsoi_aug[0].y / down_ratio
-    x2 = kpsoi_aug[1].x / down_ratio
-    y2 = kpsoi_aug[1].y / down_ratio
-    x3 = kpsoi_aug[2].x / down_ratio
-    y3 = kpsoi_aug[2].y / down_ratio
-    x4 = kpsoi_aug[3].x / down_ratio
-    y4 = kpsoi_aug[3].y / down_ratio
+    x1 = kpsoi_aug[0] / down_ratio
+    y1 = kpsoi_aug[1] / down_ratio
+    x2 = kpsoi_aug[2] / down_ratio
+    y2 = kpsoi_aug[3] / down_ratio
+    x3 = kpsoi_aug[4] / down_ratio
+    y3 = kpsoi_aug[5] / down_ratio
+    x4 = kpsoi_aug[6] / down_ratio
+    y4 = kpsoi_aug[7] / down_ratio
     # 对边界进行约束，防止越界
     left, right = math.floor(min(x1, x2)), math.ceil(max(x3, x4))
     top, bottom = math.floor(min(y1, y4)), math.ceil(max(y2, y3))
@@ -244,23 +245,23 @@ def draw_corner_gaussian(corner, kpsoi_aug, masked_gaussian, down_ratio):
 
 
 def draw_bboxes_gaussian(bboxes_map, bbs, kpsoi_aug, masked_gaussian, down_ratio):
-    x1 = kpsoi_aug[0].x / down_ratio
-    y1 = kpsoi_aug[0].y / down_ratio
-    x2 = kpsoi_aug[1].x / down_ratio
-    y2 = kpsoi_aug[1].y / down_ratio
-    x3 = kpsoi_aug[2].x / down_ratio
-    y3 = kpsoi_aug[2].y / down_ratio
-    x4 = kpsoi_aug[3].x / down_ratio
-    y4 = kpsoi_aug[3].y / down_ratio
+    x1 = kpsoi_aug[0] / down_ratio
+    y1 = kpsoi_aug[1] / down_ratio
+    x2 = kpsoi_aug[2] / down_ratio
+    y2 = kpsoi_aug[3] / down_ratio
+    x3 = kpsoi_aug[4] / down_ratio
+    y3 = kpsoi_aug[5] / down_ratio
+    x4 = kpsoi_aug[6] / down_ratio
+    y4 = kpsoi_aug[7] / down_ratio
     # 对边界进行约束，防止越界
     left, right = math.floor(min(x1, x2)), math.ceil(max(x3, x4))
     top, bottom = math.floor(min(y1, y4)), math.ceil(max(y2, y3))
 
     # w1,h1 是左上角坐标，w2,h2是右下角坐标
-    w1 = bbs[0].x1 / down_ratio
-    h1 = bbs[0].y1 / down_ratio
-    w2 = bbs[0].x2 / down_ratio
-    h2 = bbs[0].y2 / down_ratio
+    w1 = bbs[0] / down_ratio
+    h1 = bbs[1] / down_ratio
+    w2 = bbs[2] / down_ratio
+    h2 = bbs[3] / down_ratio
 
     # 在高斯分布上标注角点坐标
     bboxes_mask = bboxes_map[:, top:bottom + 1, left:right + 1]
