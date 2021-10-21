@@ -118,7 +118,7 @@ class COCO(data.Dataset):
 
         # 随机 仿射+透视 变换， img_aug参数是是否做数据增强，False为不增强
         # image, bbs, kpsoi = image_affine(image, bboxes, segmentation, img_id, img_aug=True)
-        image, bbs, kp = new_image_affine(image, bboxes, segmentation, img_id)
+        # image, bboxes, segmentation = new_image_affine(image, bboxes, segmentation, img_id)
         # ---------------------------------------------------------------------------------
         image = image.astype(np.float32) / 255.
         image -= self.mean
@@ -150,10 +150,10 @@ class COCO(data.Dataset):
         # 在这里是单目标检测，情况会简单很多
         ind_masks = np.zeros((self.max_objs,), dtype=np.uint8)
         # 将高斯分布画到heatmap上
-        masked_gaussian, center = draw_heatmap_gaussian(heat_map[0], kp, self.gaussian_scale,
+        masked_gaussian, center = draw_heatmap_gaussian(heat_map[0], segmentation, self.gaussian_scale,
                                                         self.down_ratio)
-        draw_corner_gaussian(corner_map, kp, masked_gaussian, self.down_ratio)
-        draw_bboxes_gaussian(bboxes_map, bbs, kp, masked_gaussian, self.down_ratio)
+        draw_corner_gaussian(corner_map, segmentation, masked_gaussian, self.down_ratio)
+        draw_bboxes_gaussian(bboxes_map, bboxes, segmentation, masked_gaussian, self.down_ratio)
         # inds保存heatmap中目标点的索引，也就是正样本的位置索引
         inds[0] = center[1] * heat_map.shape[1] + center[0]
         ind_masks[0] = 1
