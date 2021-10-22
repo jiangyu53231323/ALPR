@@ -170,8 +170,9 @@ class COCO(data.Dataset):
         # for ind in range(4):
         #     bboxes_mask[ind] = reg_mask[0]
 
-        return {'image': image, 'hmap': heat_map, 'corner': corner_map, 'bboxes': bboxes_map, 'inds': inds,
-                'ind_masks': ind_masks, 'scale': scale, 'img_id': img_id, 'reg_mask': reg_mask}
+        return {'image': image, 'heat_map': heat_map, 'corner_map': corner_map, 'bboxes_map': bboxes_map, 'inds': inds,
+                'ind_masks': ind_masks, 'scale': scale, 'img_id': img_id, 'reg_mask': reg_mask, 'bboxes': bboxes,
+                'segmentation': segmentation}
 
     def __len__(self):
         return self.num_samples

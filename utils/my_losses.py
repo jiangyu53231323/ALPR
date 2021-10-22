@@ -94,7 +94,7 @@ def _corner_loss(regs, gt_regs, mask):
 
         # 将点按照离物体中心的程度作为权重，乘以对应点的loss值
         loss_centerness = F.smooth_l1_loss(reg, gt_reg, reduction='none') * topk_score
-        loss = loss + (loss_centerness.sum()/total)
+        loss = loss + (loss_centerness.sum() / total)
 
     return loss / batch
 
@@ -115,6 +115,7 @@ def _w_h_loss(regs, gt_regs, mask):
     loss = 0
     iou_loss = 0
     for b in range(batch):
+        # 按照高斯概率进行排序，总数为heat_map中有效数字的点
         topk_score, topk_ind = torch.topk(mask[b].view(cat, -1), num[b].sum().int())
         total = topk_score.sum()
         topk_ind = topk_ind.expand(4, topk_ind.size(1))
@@ -127,6 +128,23 @@ def _w_h_loss(regs, gt_regs, mask):
 
         # 将点按照离物体中心的程度作为权重，乘以对应点的loss值
         loss_centerness = F.smooth_l1_loss(reg, gt_reg, reduction='none') * topk_score
-        loss = loss + (loss_centerness.sum()/total)
+        loss = loss + (loss_centerness.sum() / total)
 
     return loss / batch
+
+
+def bboxes_loss(regs, gt_regs, mask):
+    batch, cat, height, width = mask.size()
+    num = copy.deepcopy(mask)
+    num[num > 0] = 1
+    iou_loss = 0
+    for b in range(batch):
+        topk_score, topk_ind = torch.topk(mask[b].view(cat, -1), num[b].sum().int())
+        x = topk_ind[0][0] % width
+        y = topk_ind[0][0] // width
+        total = topk_score.sum()
+        topk_ind = topk_ind.expand(4, topk_ind.size(1))
+        topk_score = topk_score.expand(4, topk_score.size(1))
+        reg = regs[0][b].view(4, -1).gather(1, topk_ind)
+        gt_reg = gt_regs[b]
+        iou_loss = iou_loss + (1 - bbox_iou(reg, gt_reg, DIoU=True)).sum() / (num[b].sum() + 1e-4)

@@ -185,9 +185,9 @@ def main():
             # hmap = [h.permute(0, 2, 3, 1).contiguous() for h in hmap]  # from [bs c h w] to [bs, h, w, c]
             # corner = [c.permute(0, 2, 3, 1).contiguous() for c in corner]  # from [bs c h w] to [bs, h, w, c]
             # 分别计算 loss
-            hmap_loss = _heatmap_loss(hmap, batch['hmap'])
-            corner_loss = _corner_loss(corner, batch['corner'], batch['reg_mask'])
-            w_h_loss = _w_h_loss(w_h_, batch['bboxes'], batch['reg_mask'])
+            hmap_loss = _heatmap_loss(hmap, batch['heat_map'])
+            corner_loss = _corner_loss(corner, batch['corner_map'], batch['reg_mask'])
+            w_h_loss = _w_h_loss(w_h_, batch['bboxes_map'], batch['reg_mask'])
             # 进行 loss 加权，得到最终 loss
             loss = hmap_loss + 0.1 * corner_loss + 0.2 * w_h_loss
 
