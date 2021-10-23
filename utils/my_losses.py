@@ -140,11 +140,15 @@ def bboxes_loss(regs, gt_regs, mask):
     iou_loss = 0
     for b in range(batch):
         topk_score, topk_ind = torch.topk(mask[b].view(cat, -1), num[b].sum().int())
-        x = topk_ind[0][0] % width
-        y = topk_ind[0][0] // width
+        x = (topk_ind[0] % width)
+        y = (topk_ind[0] / width)
         total = topk_score.sum()
         topk_ind = topk_ind.expand(4, topk_ind.size(1))
         topk_score = topk_score.expand(4, topk_score.size(1))
         reg = regs[0][b].view(4, -1).gather(1, topk_ind)
+        bx1 = (x - reg[0] * 1)
+        bx2 = (x + reg[2] * 1)
+        by1 = (y - reg[1] * 1)
+        by2 = (y + reg[3] * 1)
         gt_reg = gt_regs[b]
         iou_loss = iou_loss + (1 - bbox_iou(reg, gt_reg, DIoU=True)).sum() / (num[b].sum() + 1e-4)
