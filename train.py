@@ -25,7 +25,7 @@ from nets.resdcn_cbam_fpn import get_pose_net
 
 from utils.utils import _tranpose_and_gather_feature, load_model
 from utils.image import transform_preds
-from utils.my_losses import _heatmap_loss, _corner_loss, _w_h_loss
+from utils.my_losses import _heatmap_loss, _corner_loss, _w_h_loss, bboxes_loss
 from utils.summary import create_summary, create_logger, create_saver, DisablePrint
 from utils.post_process import ctdet_decode
 from datasets.CudaDataLoader import CudaDataLoader, MultiEpochsDataLoader
@@ -188,6 +188,7 @@ def main():
             hmap_loss = _heatmap_loss(hmap, batch['heat_map'])
             corner_loss = _corner_loss(corner, batch['corner_map'], batch['reg_mask'])
             w_h_loss = _w_h_loss(w_h_, batch['bboxes_map'], batch['reg_mask'])
+            bboxes = bboxes_loss(w_h_, batch['bboxes_map'], batch['reg_mask'])
             # 进行 loss 加权，得到最终 loss
             loss = hmap_loss + 0.1 * corner_loss + 0.2 * w_h_loss
 
