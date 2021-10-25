@@ -44,6 +44,22 @@ class SeModule(nn.Module):
         return x * self.se(x)
 
 
+class DP_Conv(nn.Module):
+    def __init__(self, kernel_size, in_size, out_size, nolinear, stride):
+        super(DP_Conv, self).__init__()
+        self.conv1 = nn.Conv2d(in_size, in_size, kernel_size=kernel_size, stride=stride,
+                               padding=kernel_size // 2, groups=in_size, bias=False)
+        self.bn1 = nn.BatchNorm2d(in_size)
+        self.nolinear1 = nolinear
+        self.conv2 = nn.Conv2d(in_size, out_size, kernel_size=1, stride=1, padding=0, bias=False)
+        # self.bn2 = nn.BatchNorm2d(out_size)
+
+    def forward(self, x):
+        out = self.nolinear1(self.bn1(self.conv1(x)))
+        out = self.conv2(out)
+        return out
+
+
 class Block(nn.Module):
     '''expand + depthwise + pointwise'''
 
@@ -106,6 +122,55 @@ def fill_fc_weights(layers):
                 nn.init.constant_(m.bias, 0)
 
 
+def _get_deconv_cfg(deconv_kernel):
+    if deconv_kernel == 4:
+        padding = 1
+        output_padding = 0
+    elif deconv_kernel == 3:
+        padding = 1
+        output_padding = 1
+    elif deconv_kernel == 2:
+        padding = 0
+        output_padding = 0
+    return deconv_kernel, padding, output_padding
+
+
+# 创建可形变卷积层，kernel为转置卷积的卷积核大小，dcn的卷积核为固定的3×3
+def _make_deconv_layer(inplanes, filter, kernel):
+    layers = []
+    kernel, padding, output_padding = _get_deconv_cfg(kernel)
+    planes = filter
+    # self.inplanes记录了上一层网络的out通道数
+    fc = DCN(inplanes,
+             planes,
+             kernel_size=(3, 3),
+             stride=1,
+             padding=1,
+             dilation=1,
+             deformable_groups=1)
+    # fc = nn.Conv2d(self.inplanes, planes,
+    #         kernel_size=3, stride=1,
+    #         padding=1, dilation=1, bias=False)
+    # fill_fc_weights(fc)
+    # 转置卷积（逆卷积、反卷积）
+    up = nn.ConvTranspose2d(in_channels=planes,
+                            out_channels=planes,
+                            kernel_size=kernel,
+                            stride=2,
+                            padding=padding,
+                            output_padding=output_padding,
+                            bias=False)
+    fill_up_weights(up)
+    layers.append(fc)
+    layers.append(nn.BatchNorm2d(planes, momentum=BN_MOMENTUM))
+    layers.append(hswish())
+    # 上采样，最终将特征图恢复到layer1层之前的大小
+    layers.append(up)
+    layers.append(nn.BatchNorm2d(planes, momentum=BN_MOMENTUM))
+    layers.append(hswish())
+    return nn.Sequential(*layers)
+
+
 class MobileNetV3_Large(nn.Module):
     def __init__(self, num_classes=1000):
         self.deconv_with_bias = False
@@ -161,24 +226,34 @@ class MobileNetV3_Large(nn.Module):
         self.conv_fpn2 = nn.Conv2d(40, 64, kernel_size=1, stride=1, padding=0, bias=False)
         self.conv_fpn3 = nn.Conv2d(160, 128, kernel_size=1, stride=1, padding=0, bias=False)
         self.conv_fpn4 = nn.Conv2d(160, 256, kernel_size=1, stride=1, padding=0, bias=False)
-
         # used for deconv layers 可形变卷积
         # 将主干网最终输出channel控制在64
-        self.deconv_layer3 = self._make_deconv_layer(256, 128, 4)
-        self.deconv_layer2 = self._make_deconv_layer(128, 64, 4)
-        self.deconv_layer1 = self._make_deconv_layer(64, 32, 4)
+        self.deconv_layer3 = _make_deconv_layer(256, 128, 4)
+        self.deconv_layer2 = _make_deconv_layer(128, 64, 4)
+        self.deconv_layer1 = _make_deconv_layer(64, 32, 4)
+        # 融合特征图的逐点卷积
+        self.fuse3 = nn.Conv2d(256, 128, kernel_size=1, stride=1, padding=0, bias=False)
+        self.fuse2 = nn.Conv2d(128, 64, kernel_size=1, stride=1, padding=0, bias=False)
 
-        self.hmap = nn.Sequential(nn.Conv2d(32, 64, kernel_size=3, padding=1, bias=True),
+        # self.hmap = nn.Sequential(nn.Conv2d(32, 64, kernel_size=3, padding=1, bias=True),
+        #                           hswish(),
+        #                           nn.Conv2d(64, num_classes, kernel_size=1, bias=True))
+        # self.hmap[-1].bias.data.fill_(-2.19)
+        # self.cors = nn.Sequential(nn.Conv2d(32, 64, kernel_size=3, padding=1, bias=True),
+        #                           hswish(),
+        #                           nn.Conv2d(64, 8, kernel_size=1, bias=True))
+        # self.w_h_ = nn.Sequential(nn.Conv2d(32, 64, kernel_size=3, padding=1, bias=True),
+        #                           hswish(),
+        #                           nn.Conv2d(64, 4, kernel_size=1, bias=True))
+        self.hmap = nn.Sequential(DP_Conv(3, 32, 64, hswish(), 1),
                                   hswish(),
                                   nn.Conv2d(64, num_classes, kernel_size=1, bias=True))
-        self.hmap[-1].bias.data.fill_(-2.19)
-        self.cors = nn.Sequential(nn.Conv2d(32, 64, kernel_size=3, padding=1, bias=True),
+        self.cors = nn.Sequential(DP_Conv(3, 32, 64, hswish(), 1),
                                   hswish(),
                                   nn.Conv2d(64, 8, kernel_size=1, bias=True))
-        self.w_h_ = nn.Sequential(nn.Conv2d(32, 64, kernel_size=3, padding=1, bias=True),
+        self.w_h_ = nn.Sequential(DP_Conv(3, 32, 64, hswish(), 1),
                                   hswish(),
                                   nn.Conv2d(64, 4, kernel_size=1, bias=True))
-
 
         # self.conv2 = nn.Conv2d(160, 960, kernel_size=1, stride=1, padding=0, bias=False)
         # self.bn2 = nn.BatchNorm2d(960)
@@ -187,57 +262,7 @@ class MobileNetV3_Large(nn.Module):
         # self.bn3 = nn.BatchNorm1d(1280)
         # self.hs3 = hswish()
         # self.linear4 = nn.Linear(1280, num_classes)
-        # self.init_params()
-
-    def _get_deconv_cfg(self, deconv_kernel):
-        if deconv_kernel == 4:
-            padding = 1
-            output_padding = 0
-        elif deconv_kernel == 3:
-            padding = 1
-            output_padding = 1
-        elif deconv_kernel == 2:
-            padding = 0
-            output_padding = 0
-
-        return deconv_kernel, padding, output_padding
-
-    # 创建可形变卷积层，kernel为转置卷积的卷积核大小，dcn的卷积核为固定的3×3
-    def _make_deconv_layer(self, inplanes, filter, kernel):
-        layers = []
-        kernel, padding, output_padding = self._get_deconv_cfg(kernel)
-        planes = filter
-        # self.inplanes记录了上一层网络的out通道数
-        fc = DCN(inplanes,
-                 planes,
-                 kernel_size=(3, 3),
-                 stride=1,
-                 padding=1,
-                 dilation=1,
-                 deformable_groups=1)
-        # fc = nn.Conv2d(self.inplanes, planes,
-        #         kernel_size=3, stride=1,
-        #         padding=1, dilation=1, bias=False)
-        # fill_fc_weights(fc)
-        # 转置卷积（逆卷积、反卷积）
-        up = nn.ConvTranspose2d(in_channels=planes,
-                                out_channels=planes,
-                                kernel_size=kernel,
-                                stride=2,
-                                padding=padding,
-                                output_padding=output_padding,
-                                bias=self.deconv_with_bias)
-        fill_up_weights(up)
-        layers.append(fc)
-        layers.append(nn.BatchNorm2d(planes, momentum=BN_MOMENTUM))
-        layers.append(hswish())
-        # 上采样，最终将特征图恢复到layer1层之前的大小
-        layers.append(up)
-        layers.append(nn.BatchNorm2d(planes, momentum=BN_MOMENTUM))
-        layers.append(hswish())
-        self.inplanes = planes
-
-        return nn.Sequential(*layers)
+        self.init_params()
 
     def init_params(self):
         for m in self.modules():
@@ -267,8 +292,12 @@ class MobileNetV3_Large(nn.Module):
         c4 = self.bneck4(c3)
 
         p4 = self.conv_fpn4(c4)
-        p3 = self.deconv_layer3(p4) + self.conv_fpn3(c3)
-        p2 = self.deconv_layer2(p3) + self.conv_fpn2(c2)
+        p3 = torch.cat([self.deconv_layer3(p4), self.conv_fpn3(c3)], dim=1)
+        p3 = self.fuse3(p3)
+        p2 = torch.cat([self.deconv_layer2(p3), self.conv_fpn2(c2)], dim=1)
+        p2 = self.fuse2(p2)
+        # p3 = self.deconv_layer3(p4) + self.conv_fpn3(c3)
+        # p2 = self.deconv_layer2(p3) + self.conv_fpn2(c2)
         p1 = self.deconv_layer1(p2)
 
         out = [[self.hmap(p1), self.cors(p1), self.w_h_(p1)]]
@@ -326,9 +355,9 @@ class MobileNetV3_Small(nn.Module):
 
         # used for deconv layers 可形变卷积
         # 将主干网最终输出channel控制在64
-        self.deconv_layer3 = self._make_deconv_layer(256, 128, 4)
-        self.deconv_layer2 = self._make_deconv_layer(128, 64, 4)
-        self.deconv_layer1 = self._make_deconv_layer(64, 32, 4)
+        self.deconv_layer3 = _make_deconv_layer(256, 128, 4)
+        self.deconv_layer2 = _make_deconv_layer(128, 64, 4)
+        self.deconv_layer1 = _make_deconv_layer(64, 32, 4)
 
         self.hmap = nn.Sequential(nn.Conv2d(32, 64, kernel_size=3, padding=1, bias=True),
                                   hswish(),
@@ -350,55 +379,55 @@ class MobileNetV3_Small(nn.Module):
         # self.linear4 = nn.Linear(1280, num_classes)
         # self.init_params()
 
-    def _get_deconv_cfg(self, deconv_kernel):
-        if deconv_kernel == 4:
-            padding = 1
-            output_padding = 0
-        elif deconv_kernel == 3:
-            padding = 1
-            output_padding = 1
-        elif deconv_kernel == 2:
-            padding = 0
-            output_padding = 0
-
-        return deconv_kernel, padding, output_padding
-
-    # 创建可形变卷积层，kernel为转置卷积的卷积核大小，dcn的卷积核为固定的3×3
-    def _make_deconv_layer(self, inplanes, filter, kernel):
-        layers = []
-        kernel, padding, output_padding = self._get_deconv_cfg(kernel)
-        planes = filter
-        # self.inplanes记录了上一层网络的out通道数
-        fc = DCN(inplanes,
-                 planes,
-                 kernel_size=(3, 3),
-                 stride=1,
-                 padding=1,
-                 dilation=1,
-                 deformable_groups=1)
-        # fc = nn.Conv2d(self.inplanes, planes,
-        #         kernel_size=3, stride=1,
-        #         padding=1, dilation=1, bias=False)
-        # fill_fc_weights(fc)
-        # 转置卷积（逆卷积、反卷积）
-        up = nn.ConvTranspose2d(in_channels=planes,
-                                out_channels=planes,
-                                kernel_size=kernel,
-                                stride=2,
-                                padding=padding,
-                                output_padding=output_padding,
-                                bias=self.deconv_with_bias)
-        fill_up_weights(up)
-        layers.append(fc)
-        layers.append(nn.BatchNorm2d(planes, momentum=BN_MOMENTUM))
-        layers.append(hswish())
-        # 上采样，最终将特征图恢复到layer1层之前的大小
-        layers.append(up)
-        layers.append(nn.BatchNorm2d(planes, momentum=BN_MOMENTUM))
-        layers.append(hswish())
-        self.inplanes = planes
-
-        return nn.Sequential(*layers)
+    # def _get_deconv_cfg(self, deconv_kernel):
+    #     if deconv_kernel == 4:
+    #         padding = 1
+    #         output_padding = 0
+    #     elif deconv_kernel == 3:
+    #         padding = 1
+    #         output_padding = 1
+    #     elif deconv_kernel == 2:
+    #         padding = 0
+    #         output_padding = 0
+    #
+    #     return deconv_kernel, padding, output_padding
+    #
+    # # 创建可形变卷积层，kernel为转置卷积的卷积核大小，dcn的卷积核为固定的3×3
+    # def _make_deconv_layer(self, inplanes, filter, kernel):
+    #     layers = []
+    #     kernel, padding, output_padding = self._get_deconv_cfg(kernel)
+    #     planes = filter
+    #     # self.inplanes记录了上一层网络的out通道数
+    #     fc = DCN(inplanes,
+    #              planes,
+    #              kernel_size=(3, 3),
+    #              stride=1,
+    #              padding=1,
+    #              dilation=1,
+    #              deformable_groups=1)
+    #     # fc = nn.Conv2d(self.inplanes, planes,
+    #     #         kernel_size=3, stride=1,
+    #     #         padding=1, dilation=1, bias=False)
+    #     # fill_fc_weights(fc)
+    #     # 转置卷积（逆卷积、反卷积）
+    #     up = nn.ConvTranspose2d(in_channels=planes,
+    #                             out_channels=planes,
+    #                             kernel_size=kernel,
+    #                             stride=2,
+    #                             padding=padding,
+    #                             output_padding=output_padding,
+    #                             bias=self.deconv_with_bias)
+    #     fill_up_weights(up)
+    #     layers.append(fc)
+    #     layers.append(nn.BatchNorm2d(planes, momentum=BN_MOMENTUM))
+    #     layers.append(hswish())
+    #     # 上采样，最终将特征图恢复到layer1层之前的大小
+    #     layers.append(up)
+    #     layers.append(nn.BatchNorm2d(planes, momentum=BN_MOMENTUM))
+    #     layers.append(hswish())
+    #     self.inplanes = planes
+    #
+    #     return nn.Sequential(*layers)
 
     def init_params(self):
         for m in self.modules():
