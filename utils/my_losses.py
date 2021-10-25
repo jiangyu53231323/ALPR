@@ -1,4 +1,5 @@
 import copy
+import math
 
 import torch
 import torch.nn as nn
@@ -49,7 +50,7 @@ def _heatmap_loss(preds, targets):
     loss = 0
     for pred in preds:  # 预测值
         # 约束在 0-1 之间
-        pred = torch.clamp(torch.sigmoid(pred), min=1e-4, max=1 - 1e-4)
+        pred = torch.clamp(torch.sigmoid(pred), min=1e-6, max=1 - 1e-6)
         pos_loss = torch.log(pred) * torch.pow(1 - pred, 2) * pos_inds  # 正样本损失值
         neg_loss = torch.log(1 - pred) * torch.pow(pred, 2) * neg_weights * neg_inds  # 负样本损失值
 
@@ -137,25 +138,32 @@ def bboxes_loss(regs, gt_regs, mask):
     batch, cat, height, width = mask.size()
     num = copy.deepcopy(mask)
     num[num > 0] = 1
-    iou_loss = 0
+    loss = 0
     for b in range(batch):
         topk_score, topk_ind = torch.topk(mask[b].view(cat, -1), num[b].sum().int())
+        # x和y都是一维tensor，长度为所有点的个数
         x = (topk_ind[0] % width)
-        y = (topk_ind[0] / width)
+        y = (topk_ind[0] // width)
         total = topk_score.sum()
         topk_ind = topk_ind.expand(4, topk_ind.size(1))
-        topk_score = topk_score.expand(4, topk_score.size(1))
+        # topk_score = topk_score.expand(4, topk_score.size(1))
+        # transpose对tensor的两个维度进行交换，view则是以行序对所有元素重新排列
         reg = regs[0][b].view(4, -1).gather(1, topk_ind)
-        reg = reg.view(-1, 4)
-        gt_reg = gt_regs[b].view(-1, 4)
-        pre_bx1 = (x - reg[:, 0] * 1)
-        pre_bx2 = (x + reg[:, 2] * 1)
-        pre_by1 = (y - reg[:, 1] * 1)
-        pre_by2 = (y + reg[:, 3] * 1)
-        gt_bx1 = (x - gt_reg[:, 0] * 1)
-        gt_bx2 = (x + gt_reg[:, 2] * 1)
-        gt_by1 = (y - gt_reg[:, 1] * 1)
-        gt_by2 = (y + gt_reg[:, 3] * 1)
-        pre_bboxes = torch.cat([pre_bx1, pre_by1, pre_bx2, pre_by2], dim=1)
-        ge_bboxes = torch.cat([gt_bx1, gt_by1, gt_bx2, gt_by2], dim=1)
-        iou_loss = iou_loss + (1 - bbox_iou(reg, gt_reg, DIoU=True)).sum() / (num[b].sum() + 1e-4)
+        # reg = reg.transpose(0, 1).contiguous()
+        gt_reg = gt_regs[b].view(4, -1).gather(1, topk_ind)
+        # gt_reg = gt_reg.transpose(0, 1).contiguous()
+        pre_bx1 = (x - reg[0, :] * 1).unsqueeze(0)
+        pre_bx2 = (x + reg[2, :] * 1).unsqueeze(0)
+        pre_by1 = (y - reg[1, :] * 1).unsqueeze(0)
+        pre_by2 = (y + reg[3, :] * 1).unsqueeze(0)
+        gt_bx1 = (x - gt_reg[0, :] * 1).unsqueeze(0)
+        gt_bx2 = (x + gt_reg[2, :] * 1).unsqueeze(0)
+        gt_by1 = (y - gt_reg[1, :] * 1).unsqueeze(0)
+        gt_by2 = (y + gt_reg[3, :] * 1).unsqueeze(0)
+        pre_bboxes = torch.cat([pre_bx1, pre_by1, pre_bx2, pre_by2], dim=0)
+        gt_bboxes = torch.cat([gt_bx1, gt_by1, gt_bx2, gt_by2], dim=0)
+        weight = topk_score[0]
+        iou_loss = ((1 - bbox_iou(pre_bboxes, gt_bboxes, DIoU=True)) * weight).sum() / (total + 1e-4)
+        loss = loss + iou_loss
+
+    return loss / batch

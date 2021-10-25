@@ -188,9 +188,10 @@ def main():
             hmap_loss = _heatmap_loss(hmap, batch['heat_map'])
             corner_loss = _corner_loss(corner, batch['corner_map'], batch['reg_mask'])
             w_h_loss = _w_h_loss(w_h_, batch['bboxes_map'], batch['reg_mask'])
-            bboxes = bboxes_loss(w_h_, batch['bboxes_map'], batch['reg_mask'])
+            b_loss = bboxes_loss(w_h_, batch['bboxes_map'], batch['reg_mask'])
             # 进行 loss 加权，得到最终 loss
-            loss = hmap_loss + 0.1 * corner_loss + 0.2 * w_h_loss
+            # loss = hmap_loss + 0.1 * corner_loss + 0.2 * w_h_loss
+            loss = hmap_loss + 0.1 * corner_loss + 5 * b_loss
 
             optimizer.zero_grad()
             loss.backward()
@@ -201,13 +202,13 @@ def main():
                 tic = time.perf_counter()
                 print('[%d/%d-%d/%d] ' % (epoch, cfg.num_epochs, batch_idx, len(train_loader)) +
                       ' hmap_loss= %.5f corner_loss= %.5f w_h_loss= %.5f' %
-                      (hmap_loss.item(), corner_loss.item(), w_h_loss.item()) +
+                      (hmap_loss.item(), corner_loss.item(), b_loss.item()) +
                       ' (%d samples/sec)' % (cfg.batch_size * cfg.log_interval / duration))
 
                 step = len(train_loader) * epoch + batch_idx
                 summary_writer.add_scalar('hmap_loss', hmap_loss.item(), step)
                 summary_writer.add_scalar('corner_loss', corner_loss.item(), step)
-                summary_writer.add_scalar('w_h_loss', w_h_loss.item(), step)
+                summary_writer.add_scalar('w_h_loss', b_loss.item(), step)
 
         return
 

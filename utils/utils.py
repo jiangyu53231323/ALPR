@@ -17,7 +17,7 @@ def get_image_path(image_dir, image_name):
     assert p != ''
 
 
-def bbox_iou(box1, box2, x1y1x2y2=True, GIoU=False, DIoU=False, CIoU=False, eps=1e-9):
+def bbox_iou(box1, box2, x1y1x2y2=True, GIoU=False, DIoU=False, CIoU=False, eps=1e-7):
     # box2 = box2.T
 
     if x1y1x2y2:
@@ -27,8 +27,8 @@ def bbox_iou(box1, box2, x1y1x2y2=True, GIoU=False, DIoU=False, CIoU=False, eps=
         b1_x1, b1_y1, b1_x2, b1_y2 = box1[0], box1[1], box1[2] - box1[0], box1[3] - box1[1]
         b2_x1, b2_y1, b2_x2, b2_y2 = box2[0], box2[1], box2[2] - box2[0], box2[3] - box2[1]
     # intersection area 交集
-    inter = (torch.min(b1_x2, b2_x2) - torch.max(b1_x1, b2_x1)).clamp(0) * \
-            (torch.min(b1_x2, b2_x2) - torch.max(b1_x1, b2_x1)).clamp(0)
+    inter = (torch.min(b1_x2, b2_x2) - torch.max(b1_x1, b2_x1)).clamp(min=0, ) * (
+                torch.min(b1_y2, b2_y2) - torch.max(b1_y1, b2_y1)).clamp(min=0, )
     # union area 并集
     w1, h1 = b1_x2 - b1_x1, b1_y2 - b1_y1 + eps
     w2, h2 = b2_x2 - b2_x1, b2_y2 - b2_y1 + eps
@@ -138,7 +138,15 @@ def load_model(model, pretrain_dir):
         if key not in state_dict:
             print('No param {}.'.format(key))
             state_dict[key] = model_state_dict[key]
-    model.load_state_dict(state_dict, strict=False)
+    # 将权重的key与model的key统一
+    model_key = list(model_state_dict_.keys())
+    pretrained_key = list(state_dict.keys())
+    pre_state_dict = OrderedDict()
+    for k in range(len(model_key)):
+        if model_key[k] != pretrained_key[k]:
+            pre_state_dict[model_key[k]] = state_dict[pretrained_key[k]]
+
+    model.load_state_dict(pre_state_dict, strict=True)
 
     return model
 
