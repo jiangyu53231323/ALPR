@@ -235,25 +235,25 @@ class MobileNetV3_Large(nn.Module):
         self.fuse3 = nn.Conv2d(256, 128, kernel_size=1, stride=1, padding=0, bias=False)
         self.fuse2 = nn.Conv2d(128, 64, kernel_size=1, stride=1, padding=0, bias=False)
 
-        # self.hmap = nn.Sequential(nn.Conv2d(32, 64, kernel_size=3, padding=1, bias=True),
-        #                           hswish(),
-        #                           nn.Conv2d(64, num_classes, kernel_size=1, bias=True))
-        # self.hmap[-1].bias.data.fill_(-2.19)
-        # self.cors = nn.Sequential(nn.Conv2d(32, 64, kernel_size=3, padding=1, bias=True),
-        #                           hswish(),
-        #                           nn.Conv2d(64, 8, kernel_size=1, bias=True))
-        # self.w_h_ = nn.Sequential(nn.Conv2d(32, 64, kernel_size=3, padding=1, bias=True),
-        #                           hswish(),
-        #                           nn.Conv2d(64, 4, kernel_size=1, bias=True))
-        self.hmap = nn.Sequential(DP_Conv(3, 32, 64, hswish(), 1),
+        self.hmap = nn.Sequential(nn.Conv2d(32, 64, kernel_size=3, padding=1, bias=True),
                                   hswish(),
                                   nn.Conv2d(64, num_classes, kernel_size=1, bias=True))
-        self.cors = nn.Sequential(DP_Conv(3, 32, 64, hswish(), 1),
+        self.hmap[-1].bias.data.fill_(-2.19)
+        self.cors = nn.Sequential(nn.Conv2d(32, 64, kernel_size=3, padding=1, bias=True),
                                   hswish(),
                                   nn.Conv2d(64, 8, kernel_size=1, bias=True))
-        self.w_h_ = nn.Sequential(DP_Conv(3, 32, 64, hswish(), 1),
+        self.w_h_ = nn.Sequential(nn.Conv2d(32, 64, kernel_size=3, padding=1, bias=True),
                                   hswish(),
                                   nn.Conv2d(64, 4, kernel_size=1, bias=True))
+        # self.hmap = nn.Sequential(DP_Conv(3, 32, 64, hswish(), 1),
+        #                           hswish(),
+        #                           nn.Conv2d(64, num_classes, kernel_size=1, bias=True))
+        # self.cors = nn.Sequential(DP_Conv(3, 32, 64, hswish(), 1),
+        #                           hswish(),
+        #                           nn.Conv2d(64, 8, kernel_size=1, bias=True))
+        # self.w_h_ = nn.Sequential(DP_Conv(3, 32, 64, hswish(), 1),
+        #                           hswish(),
+        #                           nn.Conv2d(64, 4, kernel_size=1, bias=True))
 
         # self.conv2 = nn.Conv2d(160, 960, kernel_size=1, stride=1, padding=0, bias=False)
         # self.bn2 = nn.BatchNorm2d(960)
@@ -262,7 +262,7 @@ class MobileNetV3_Large(nn.Module):
         # self.bn3 = nn.BatchNorm1d(1280)
         # self.hs3 = hswish()
         # self.linear4 = nn.Linear(1280, num_classes)
-        self.init_params()
+        # self.init_params()
 
     def init_params(self):
         for m in self.modules():
@@ -358,6 +358,9 @@ class MobileNetV3_Small(nn.Module):
         self.deconv_layer3 = _make_deconv_layer(256, 128, 4)
         self.deconv_layer2 = _make_deconv_layer(128, 64, 4)
         self.deconv_layer1 = _make_deconv_layer(64, 32, 4)
+        # 融合特征图的逐点卷积
+        self.fuse3 = nn.Conv2d(256, 128, kernel_size=1, stride=1, padding=0, bias=False)
+        self.fuse2 = nn.Conv2d(128, 64, kernel_size=1, stride=1, padding=0, bias=False)
 
         self.hmap = nn.Sequential(nn.Conv2d(32, 64, kernel_size=3, padding=1, bias=True),
                                   hswish(),
@@ -452,8 +455,12 @@ class MobileNetV3_Small(nn.Module):
         c4 = self.bneck4(c3)
 
         p4 = self.conv_fpn4(c4)
-        p3 = self.deconv_layer3(p4) + self.conv_fpn3(c3)
-        p2 = self.deconv_layer2(p3) + self.conv_fpn2(c2)
+        p3 = torch.cat([self.deconv_layer3(p4), self.conv_fpn3(c3)], dim=1)
+        p3 = self.fuse3(p3)
+        p2 = torch.cat([self.deconv_layer2(p3), self.conv_fpn2(c2)], dim=1)
+        p2 = self.fuse2(p2)
+        # p3 = self.deconv_layer3(p4) + self.conv_fpn3(c3)
+        # p2 = self.deconv_layer2(p3) + self.conv_fpn2(c2)
         p1 = self.deconv_layer1(p2)
 
         out = [[self.hmap(p1), self.cors(p1), self.w_h_(p1)]]
@@ -467,7 +474,7 @@ class MobileNetV3_Small(nn.Module):
 
 
 def test():
-    net = MobileNetV3_Large(num_classes=1)
+    net = MobileNetV3_Small(num_classes=1)
     x = torch.randn(1, 3, 384, 256)
     flops, params = profile(net, inputs=(x,))
     net.eval()

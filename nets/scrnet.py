@@ -5,6 +5,7 @@ import torchvision
 import torchvision.transforms as transforms
 import matplotlib.pyplot as plt
 import numpy as np
+from thop import profile
 
 
 # 3x3 convolution
@@ -12,6 +13,17 @@ def conv3x3(in_channels, out_channels, stride=1):
     return nn.Conv2d(in_channels, out_channels, kernel_size=3,
                      stride=stride, padding=1, bias=False)
 
+
+class hsigmoid(nn.Module):
+    def forward(self, x):
+        out = F.relu6(x + 3, inplace=True) / 6
+        return out
+
+
+class hswish(nn.Module):
+    def forward(self, x):
+        out = x * F.relu6(x + 3, inplace=True) / 6
+        return out
 
 # Residual block 残差块
 class ResidualBlock(nn.Module):
@@ -82,16 +94,21 @@ class Res_block2_Conv_BN_ReLU(nn.Module):
 
         return out
 
+
 # 主干网络
 class SCRNet(nn.Module):
     def __init__(self):
         super(SCRNet, self).__init__()
-        self.conv1 = nn.Sequential(
-            nn.Conv2d(3, 16, kernel_size=4,
-                      stride=2, padding=1, bias=False),
-            nn.BatchNorm2d(16),
-            nn.ReLU(inplace=True),
-        )
+        # self.conv1 = nn.Sequential(
+        #     nn.Conv2d(3, 16, kernel_size=4,
+        #               stride=2, padding=1, bias=False),
+        #     nn.BatchNorm2d(16),
+        #     nn.ReLU(inplace=True),
+        # )
+        self.conv1 = nn.Conv2d(3, 16, kernel_size=3, stride=2, padding=1, bias=False)
+        self.bn1 = nn.BatchNorm2d(16)
+        self.hs1 = hswish()
+
         self.stage1 = nn.Sequential(
             BN_Conv3_BN_ReLU_Conv3_BN_Dy(16, 93),
             BN_Conv3_BN_ReLU_Conv3_BN_Dy(93, 93),
@@ -155,3 +172,18 @@ class SCRNet(nn.Module):
 
         return y1, y2, y3
 
+
+def test():
+    net = SCRNet()
+    x = torch.randn(1, 3, 64, 192)
+    flops, params = profile(net, inputs=(x,))
+    net.eval()
+    y = net(x)
+    print(y[0][0].size())
+    # print(y.size())
+    print('FLOPs = ' + str(flops / 1000 ** 3) + 'G')
+    print('Params = ' + str(params / 1000 ** 2) + 'M')
+
+
+if __name__ == '__main__':
+    test()

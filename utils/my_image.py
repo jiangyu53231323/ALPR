@@ -60,7 +60,7 @@ def new_image_affine(image, bboxes, segmentation, img_id):
     category_id_to_name = {1: 'licence plate'}
 
     transform = A.Compose([
-        A.RandomBrightnessContrast(p=0.2),
+        # A.RandomBrightnessContrast(p=0.2),
         A.ShiftScaleRotate(shift_limit=0.2, scale_limit=0.2, rotate_limit=20, p=0.5,
                            border_mode=cv2.BORDER_REPLICATE, ),
         A.Perspective(scale=(0.05, 0.15), p=0.25), ],
@@ -76,7 +76,7 @@ def new_image_affine(image, bboxes, segmentation, img_id):
         for (x, y) in transformed['keypoints']:
             keypoints_aug.append(x)
             keypoints_aug.append(y)
-        return transformed['image'], list(transformed['bboxes'][0]), keypoints_aug
+        return transformed['image'], np.array(list(transformed['bboxes'][0])), np.array(keypoints_aug)
 
 
 # 仿射+透视变换
