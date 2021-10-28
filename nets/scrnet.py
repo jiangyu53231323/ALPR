@@ -39,6 +39,9 @@ class SeModule(nn.Module):
             hsigmoid()
         )
 
+    def forward(self, x):
+        return x * self.se(x)
+
 
 class DP_Conv(nn.Module):
     def __init__(self, kernel_size, in_size, out_size, nolinear, stride):
@@ -53,6 +56,37 @@ class DP_Conv(nn.Module):
     def forward(self, x):
         out = self.nolinear1(self.bn1(self.conv1(x)))
         out = self.conv2(out)
+        return out
+
+
+class SAC(nn.Module):
+    def __init__(self, in_size, out_size):
+        super(SAC, self).__init__()
+        self.pre = nn.Sequential(
+            nn.AdaptiveAvgPool2d(1),
+            nn.Conv2d(in_size, in_size, kernel_size=1, stride=1),
+        )
+        self.switch = nn.Sequential(
+            nn.AdaptiveAvgPool2d(1),
+            nn.Conv2d(in_size, 1, kernel_size=1, stride=1),
+            hsigmoid()
+        )
+        self.big_field = nn.Conv2d(in_size, out_size, kernel_size=3, stride=1, padding=2, dilation=2)
+        self.small_field = nn.Conv2d(in_size, out_size, kernel_size=3, stride=1, padding=1, dilation=1)
+        self.post = nn.Sequential(
+            nn.AdaptiveAvgPool2d(1),
+            nn.Conv2d(out_size, out_size, kernel_size=1, stride=1),
+        )
+
+    def forward(self, x):
+        out = self.pre(x)
+        out = out + x
+        switch = self.switch(out)
+        big_field = self.big_field(out)
+        small_field = self.small_field(out)
+        out = (big_field * switch) + (small_field * (1 - switch))
+        out_post = self.post(out)
+        out = out_post + out
         return out
 
 
@@ -228,40 +262,37 @@ class SCRNet(nn.Module):
         #     Res_block2_Conv_BN_ReLU(256, 256),
         #     Res_block2_Conv_BN_ReLU(256, 256),
         # )
-        self.conv2 = DP_Conv(3, 96, 128, hswish(), 1)
+        self.conv2 = DP_Conv(3, 96, 128, hswish(), 2)
         self.bn2 = nn.BatchNorm2d(128)
         self.hs2 = hswish()
-        self.classifier1 = nn.Sequential(
-            nn.Conv2d(128, 34, kernel_size=(1, 8),
-                      stride=(1, 4), padding=0, bias=False),
-            nn.BatchNorm2d(34),
-            nn.ReLU(inplace=True),
-        )
-        self.classifier2 = nn.Sequential(
-            nn.Conv2d(128, 25, kernel_size=(1, 8),
-                      stride=(1, 4), padding=0, bias=False),
-            nn.BatchNorm2d(25),
-            nn.ReLU(inplace=True),
-        )
-        self.classifier3 = nn.Sequential(
-            nn.Conv2d(128, 35, kernel_size=(1, 8),
-                      stride=(1, 4), padding=0, bias=False),
-            nn.BatchNorm2d(35),
-            nn.ReLU(inplace=True),
-        )
+        # self.classifier1 = nn.Sequential(
+        #     nn.Conv2d(128, 34, kernel_size=(1, 8),
+        #               stride=(1, 4), padding=0, bias=False),
+        #     nn.BatchNorm2d(34),
+        #     nn.ReLU(inplace=True),
+        # )
+        # self.classifier2 = nn.Sequential(
+        #     nn.Conv2d(128, 25, kernel_size=(1, 8),
+        #               stride=(1, 4), padding=0, bias=False),
+        #     nn.BatchNorm2d(25),
+        #     nn.ReLU(inplace=True),
+        # )
+        # self.classifier3 = nn.Sequential(
+        #     nn.Conv2d(128, 35, kernel_size=(1, 8),
+        #               stride=(1, 4), padding=0, bias=False),
+        #     nn.BatchNorm2d(35),
+        #     nn.ReLU(inplace=True),
+        # )
 
     def forward(self, x):
-        out = self.conv1(x)
-        out = self.stage1(out)
-        out = self.stage2(out)
-        out = self.stage3(out)
-        out = self.conv2(out)
-        out = self.stage4(out)
-        y1 = self.classifier1(out)
-        y2 = self.classifier2(out)
-        y3 = self.classifier3(out)
+        out = self.hs1(self.bn1(self.conv1(x)))  # 32,96
+        out = self.bneck1(out)  # 16,48
+        out = self.bneck2(out)  # 8,24
+        out = self.bneck3(out)  # 4,12
+        out = self.bneck4(out)
+        out = self.hs2(self.bn2(self.conv2(out)))
 
-        return y1, y2, y3
+        return out
 
 
 def test():
@@ -270,10 +301,13 @@ def test():
     flops, params = profile(net, inputs=(x,))
     net.eval()
     y = net(x)
-    print(y[0][0].size())
-    # print(y.size())
+    print(y.size())
     print('FLOPs = ' + str(flops / 1000 ** 3) + 'G')
     print('Params = ' + str(params / 1000 ** 2) + 'M')
+    # sac = SAC(3, 16)
+    # sac.eval()
+    # out = sac(x)
+    # print(out.size())
 
 
 if __name__ == '__main__':
