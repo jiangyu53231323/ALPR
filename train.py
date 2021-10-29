@@ -39,7 +39,7 @@ parser.add_argument('--dist', action='store_true')  # 多GPU
 
 parser.add_argument('--root_dir', type=str, default='./')
 parser.add_argument('--data_dir', type=str, default='C:\data')
-parser.add_argument('--log_name', type=str, default='coco_mobilenet_large_384_se_fpn_centerness')
+parser.add_argument('--log_name', type=str, default='coco_mobilenet_small_384_se_fpn_centerness')
 parser.add_argument('--pretrain_name', type=str, default='pretrain')
 
 parser.add_argument('--dataset', type=str, default='coco', choices=['coco', 'yolo'])
@@ -142,7 +142,7 @@ def main():
     elif 'resdcn' in cfg.arch:
         model = get_pose_net(num_layers=int(cfg.arch.split('_')[-1]), num_classes=train_dataset.num_classes)
     elif 'mobilenet' in cfg.arch:
-        model = MobileNetV3_Large(num_classes=train_dataset.num_classes)
+        model = MobileNetV3_Small(num_classes=train_dataset.num_classes)
     else:
         raise NotImplementedError
 

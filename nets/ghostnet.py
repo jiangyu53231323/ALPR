@@ -163,6 +163,60 @@ class GhostBottleneck(nn.Module):
         return x
 
 
+# class GhostNet(nn.Module):
+#     def __init__(self, cfgs, num_classes=1000, width=1.0, dropout=0.2):
+#         super(GhostNet, self).__init__()
+#         # setting of inverted residual blocks
+#         self.cfgs = cfgs
+#         self.dropout = dropout
+#
+#         # building first layer
+#         output_channel = _make_divisible(16 * width, 4)
+#         self.conv_stem = nn.Conv2d(3, output_channel, 3, 2, 1, bias=False)
+#         self.bn1 = nn.BatchNorm2d(output_channel)
+#         self.act1 = nn.ReLU(inplace=True)
+#         input_channel = output_channel
+#
+#         # building inverted residual blocks
+#         stages = []
+#         block = GhostBottleneck
+#         for cfg in self.cfgs:
+#             layers = []
+#             for k, exp_size, c, se_ratio, s in cfg:
+#                 output_channel = _make_divisible(c * width, 4)
+#                 hidden_channel = _make_divisible(exp_size * width, 4)
+#                 layers.append(block(input_channel, hidden_channel, output_channel, k, s,
+#                                     se_ratio=se_ratio))
+#                 input_channel = output_channel
+#             stages.append(nn.Sequential(*layers))
+#
+#         output_channel = _make_divisible(exp_size * width, 4)
+#         stages.append(nn.Sequential(ConvBnAct(input_channel, output_channel, 1)))
+#         input_channel = output_channel
+#
+#         self.blocks = nn.Sequential(*stages)
+#
+#         # building last several layers
+#         output_channel = 1280
+#         self.global_pool = nn.AdaptiveAvgPool2d((1, 1))
+#         self.conv_head = nn.Conv2d(input_channel, output_channel, 1, 1, 0, bias=True)
+#         self.act2 = nn.ReLU(inplace=True)
+#         self.classifier = nn.Linear(output_channel, num_classes)
+#
+#     def forward(self, x):
+#         x = self.conv_stem(x)
+#         x = self.bn1(x)
+#         x = self.act1(x)
+#         x = self.blocks(x)
+#         x = self.global_pool(x)
+#         x = self.conv_head(x)
+#         x = self.act2(x)
+#         x = x.view(x.size(0), -1)
+#         if self.dropout > 0.:
+#             x = F.dropout(x, p=self.dropout, training=self.training)
+#         x = self.classifier(x)
+#         return x
+
 class GhostNet(nn.Module):
     def __init__(self, cfgs, num_classes=1000, width=1.0, dropout=0.2):
         super(GhostNet, self).__init__()
