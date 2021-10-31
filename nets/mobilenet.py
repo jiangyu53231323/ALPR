@@ -359,8 +359,8 @@ class MobileNetV3_Small(nn.Module):
         self.deconv_layer2 = _make_deconv_layer(128, 64, 4)
         self.deconv_layer1 = _make_deconv_layer(64, 32, 4)
         # 融合特征图的逐点卷积
-        self.fuse3 = nn.Conv2d(256, 128, kernel_size=1, stride=1, padding=0, bias=False)
-        self.fuse2 = nn.Conv2d(128, 64, kernel_size=1, stride=1, padding=0, bias=False)
+        # self.fuse3 = nn.Conv2d(256, 128, kernel_size=1, stride=1, padding=0, bias=False)
+        # self.fuse2 = nn.Conv2d(128, 64, kernel_size=1, stride=1, padding=0, bias=False)
 
         self.hmap = nn.Sequential(nn.Conv2d(32, 64, kernel_size=3, padding=1, bias=True),
                                   hswish(),
@@ -455,12 +455,12 @@ class MobileNetV3_Small(nn.Module):
         c4 = self.bneck4(c3)
 
         p4 = self.conv_fpn4(c4)
-        p3 = torch.cat([self.deconv_layer3(p4), self.conv_fpn3(c3)], dim=1)
-        p3 = self.fuse3(p3)
-        p2 = torch.cat([self.deconv_layer2(p3), self.conv_fpn2(c2)], dim=1)
-        p2 = self.fuse2(p2)
-        # p3 = self.deconv_layer3(p4) + self.conv_fpn3(c3)
-        # p2 = self.deconv_layer2(p3) + self.conv_fpn2(c2)
+        # p3 = torch.cat([self.deconv_layer3(p4), self.conv_fpn3(c3)], dim=1)
+        # p3 = self.fuse3(p3)
+        # p2 = torch.cat([self.deconv_layer2(p3), self.conv_fpn2(c2)], dim=1)
+        # p2 = self.fuse2(p2)
+        p3 = self.deconv_layer3(p4) + self.conv_fpn3(c3)
+        p2 = self.deconv_layer2(p3) + self.conv_fpn2(c2)
         p1 = self.deconv_layer1(p2)
 
         out = [[self.hmap(p1), self.cors(p1), self.w_h_(p1)]]

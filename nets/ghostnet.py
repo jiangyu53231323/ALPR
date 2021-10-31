@@ -234,26 +234,62 @@ class GhostNet(nn.Module):
         # building inverted residual blocks
         stages = []
         block = GhostBottleneck
-        for cfg in self.cfgs:
-            layers = []
-            for k, exp_size, c, se_ratio, s in cfg:
-                output_channel = _make_divisible(c * width, 4)
-                hidden_channel = _make_divisible(exp_size * width, 4)
-                layers.append(block(input_channel, hidden_channel, output_channel, k, s,
-                                    se_ratio=se_ratio))
-                input_channel = output_channel
-            stages.append(nn.Sequential(*layers))
+        # for cfg in self.cfgs:
+        #     layers = []
+        #     for k, exp_size, c, se_ratio, s in cfg:
+        #         output_channel = _make_divisible(c * width, 4)
+        #         hidden_channel = _make_divisible(exp_size * width, 4)
+        #         layers.append(block(input_channel, hidden_channel, output_channel, k, s,
+        #                             se_ratio=se_ratio))
+        #         input_channel = output_channel
+        #     stages.append(nn.Sequential(*layers))
+        #
+        # output_channel = _make_divisible(exp_size * width, 4)
+        # stages.append(nn.Sequential(ConvBnAct(input_channel, output_channel, 1)))
+        # input_channel = output_channel
+        #
+        # self.blocks = nn.Sequential(*stages)
 
-        output_channel = _make_divisible(exp_size * width, 4)
-        stages.append(nn.Sequential(ConvBnAct(input_channel, output_channel, 1)))
-        input_channel = output_channel
-
-        self.blocks = nn.Sequential(*stages)
+        self.block1 = nn.Sequential(
+            block(16, 16, 16, dw_kernel_size=3, stride=1, se_ratio=0),
+            ConvBnAct(16, 16, kernel_size=1),
+        )
+        self.block2 = nn.Sequential(
+            block(16, 48, 24, dw_kernel_size=3, stride=2, se_ratio=0),
+            ConvBnAct(24, 48, kernel_size=1),
+            block(48, 72, 24, dw_kernel_size=3, stride=1, se_ratio=0),
+            ConvBnAct(24, 72, kernel_size=1),
+        )
+        self.block3 = nn.Sequential(
+            block(72, 48, 24, dw_kernel_size=5, stride=2, se_ratio=0.25),
+            ConvBnAct(24, 48, kernel_size=1),
+            block(48, 72, 24, dw_kernel_size=5, stride=1, se_ratio=0.25),
+            ConvBnAct(24, 72, kernel_size=1),
+        )
+        self.block4 = nn.Sequential(
+            block(72, 240, 80, dw_kernel_size=3, stride=2, se_ratio=0),
+            ConvBnAct(80, 240, kernel_size=1),
+            block(240, 200, 80, dw_kernel_size=3, stride=1, se_ratio=0),
+            block(80, 184, 80, dw_kernel_size=3, stride=1, se_ratio=0),
+            block(80, 184, 80, dw_kernel_size=3, stride=1, se_ratio=0),
+            block(80, 480, 112, dw_kernel_size=3, stride=1, se_ratio=0.25),
+            block(112, 672, 112, dw_kernel_size=3, stride=1, se_ratio=0.25),
+            ConvBnAct(112, 672, kernel_size=1),
+        )
+        self.block5 = nn.Sequential(
+            block(672, 672, 160, dw_kernel_size=5, stride=2, se_ratio=0.25),
+            ConvBnAct(160, 672, kernel_size=1),
+            block(672, 960, 160, dw_kernel_size=5, stride=1, se_ratio=0),
+            block(160, 960, 160, dw_kernel_size=5, stride=1, se_ratio=0.25),
+            block(160, 960, 160, dw_kernel_size=5, stride=1, se_ratio=0),
+            block(160, 960, 160, dw_kernel_size=5, stride=1, se_ratio=0.25),
+            ConvBnAct(160, 960, kernel_size=1),
+        )
 
         # building last several layers
         output_channel = 1280
         self.global_pool = nn.AdaptiveAvgPool2d((1, 1))
-        self.conv_head = nn.Conv2d(input_channel, output_channel, 1, 1, 0, bias=True)
+        self.conv_head = nn.Conv2d(960, output_channel, 1, 1, 0, bias=True)
         self.act2 = nn.ReLU(inplace=True)
         self.classifier = nn.Linear(output_channel, num_classes)
 
@@ -261,7 +297,12 @@ class GhostNet(nn.Module):
         x = self.conv_stem(x)
         x = self.bn1(x)
         x = self.act1(x)
-        x = self.blocks(x)
+        # x = self.blocks(x)
+        x = self.block1(x)
+        x = self.block2(x)
+        x = self.block3(x)
+        x = self.block4(x)
+        x = self.block5(x)
         x = self.global_pool(x)
         x = self.conv_head(x)
         x = self.act2(x)
