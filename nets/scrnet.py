@@ -282,17 +282,17 @@ class Blue_ocr(nn.Module):
         self.classifier1 = nn.Sequential(
             nn.Conv2d(in_channel, 34, kernel_size=(1, 6),
                       stride=(1, 3), padding=0, bias=False),
-            nn.ReLU(inplace=True),
+            # nn.ReLU(inplace=True),
         )
         self.classifier2 = nn.Sequential(
             nn.Conv2d(in_channel, 25, kernel_size=(1, 6),
                       stride=(1, 3), padding=0, bias=False),
-            nn.ReLU(inplace=True),
+            # nn.ReLU(inplace=True),
         )
         self.classifier3 = nn.Sequential(
             nn.Conv2d(in_channel, 35, kernel_size=(1, 6),
                       stride=(1, 3), padding=0, bias=False),
-            nn.ReLU(inplace=True),
+            # nn.ReLU(inplace=True),
         )
 
     def forward(self, x):
@@ -317,17 +317,17 @@ class Green_ocr(nn.Module):
         self.classifier1 = nn.Sequential(
             nn.Conv2d(in_channel, 34, kernel_size=(1, 6),
                       stride=(1, 3), padding=2, bias=False),
-            nn.ReLU(inplace=True),
+            # nn.ReLU(inplace=True),
         )
         self.classifier2 = nn.Sequential(
             nn.Conv2d(in_channel, 25, kernel_size=(1, 6),
-                      stride=(1, 3), padding=2, bias=False),
-            nn.ReLU(inplace=True),
+                      stride=(1, 3), padding=(0, 2), bias=False),
+            # nn.ReLU(inplace=True),
         )
         self.classifier3 = nn.Sequential(
             nn.Conv2d(in_channel, 35, kernel_size=(1, 6),
                       stride=(1, 3), padding=2, bias=False),
-            nn.ReLU(inplace=True),
+            # nn.ReLU(inplace=True),
         )
 
     def forward(self, x):
@@ -387,13 +387,23 @@ class SCRNet(nn.Module):
         # self.deconv_layer1 = _make_deconv_layer(64, 32, 4)
 
         self.conv2 = nn.Sequential(
-            nn.Conv2d(64, 64, kernel_size=(8, 1), stride=3, padding=0, groups=64, bias=False),
+            nn.Conv2d(64, 64, kernel_size=(8, 1), stride=1, padding=0, groups=64, bias=False),
             nn.BatchNorm2d(64),
             hswish(),
             nn.Conv2d(64, 64, kernel_size=1, stride=1, padding=0, bias=False),
             nn.BatchNorm2d(64),
             hswish(),
         )
+
+        self.blue_classifier = Blue_ocr(64)
+        self.green_classifier = Green_ocr(64)
+        self.conv3 = nn.Sequential(
+            nn.AdaptiveAvgPool2d(1),
+            nn.Conv2d(64, 32, kernel_size=1, stride=1, padding=0),
+            nn.BatchNorm2d(32),
+            hswish(),
+        )
+        self.category = nn.Linear(32, 2)
 
     def forward(self, x):
         out = self.hs1(self.bn1(self.conv1(x)))  # out:32,96
@@ -406,8 +416,13 @@ class SCRNet(nn.Module):
         out = self.conv2(p2)
         # out4 = self.bneck4(out3)  # out:2,6
         # out = self.hs2(self.bn2(self.conv2(out4)))  # out:1,3
+        c = self.conv3(out)
+        c = c.view(c.size(0), -1)
+        c = self.category(c)
+        b = self.blue_classifier(out)
+        g = self.green_classifier(out)
 
-        return out
+        return [c, b, g]
 
 
 def test():
@@ -416,7 +431,9 @@ def test():
     flops, params = profile(net, inputs=(x,))
     net.eval()
     y = net(x)
-    print(y.size())
+    print(y[0].size())
+    print(y[1][0].size())
+    print(y[2][0].size())
     print('FLOPs = ' + str(flops / 1000 ** 3) + 'G')
     print('Params = ' + str(params / 1000 ** 2) + 'M')
     # sac = SAC(3, 16)
