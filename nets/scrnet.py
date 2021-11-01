@@ -316,7 +316,7 @@ class Green_ocr(nn.Module):
         super(Green_ocr, self).__init__()
         self.classifier1 = nn.Sequential(
             nn.Conv2d(in_channel, 34, kernel_size=(1, 6),
-                      stride=(1, 3), padding=2, bias=False),
+                      stride=(1, 3), padding=(0, 2), bias=False),
             # nn.ReLU(inplace=True),
         )
         self.classifier2 = nn.Sequential(
@@ -326,7 +326,7 @@ class Green_ocr(nn.Module):
         )
         self.classifier3 = nn.Sequential(
             nn.Conv2d(in_channel, 35, kernel_size=(1, 6),
-                      stride=(1, 3), padding=2, bias=False),
+                      stride=(1, 3), padding=(0, 2), bias=False),
             # nn.ReLU(inplace=True),
         )
 
