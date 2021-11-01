@@ -12,9 +12,54 @@ import torch.nn.functional as F
 import math
 
 from thop import profile
-
+from lib.DCNv2.dcn_v2 import DCN
 
 # __all__ = ['ghost_net']
+BN_MOMENTUM = 0.1
+
+class hswish(nn.Module):
+    def forward(self, x):
+        out = x * F.relu6(x + 3, inplace=True) / 6
+        return out
+
+
+class hsigmoid(nn.Module):
+    def forward(self, x):
+        out = F.relu6(x + 3, inplace=True) / 6
+        return out
+
+
+class SeModule(nn.Module):
+    def __init__(self, in_size, reduction=4):
+        super(SeModule, self).__init__()
+        self.se = nn.Sequential(
+            nn.AdaptiveAvgPool2d(1),
+            nn.Conv2d(in_size, in_size // reduction, kernel_size=1, stride=1, padding=0, bias=False),
+            nn.BatchNorm2d(in_size // reduction),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(in_size // reduction, in_size, kernel_size=1, stride=1, padding=0, bias=False),
+            nn.BatchNorm2d(in_size),
+            hsigmoid()
+        )
+
+    def forward(self, x):
+        return x * self.se(x)
+
+
+class DP_Conv(nn.Module):
+    def __init__(self, kernel_size, in_size, out_size, nolinear, stride):
+        super(DP_Conv, self).__init__()
+        self.conv1 = nn.Conv2d(in_size, in_size, kernel_size=kernel_size, stride=stride,
+                               padding=kernel_size // 2, groups=in_size, bias=False)
+        self.bn1 = nn.BatchNorm2d(in_size)
+        self.nolinear1 = nolinear
+        self.conv2 = nn.Conv2d(in_size, out_size, kernel_size=1, stride=1, padding=0, bias=False)
+        # self.bn2 = nn.BatchNorm2d(out_size)
+
+    def forward(self, x):
+        out = self.nolinear1(self.bn1(self.conv1(x)))
+        out = self.conv2(out)
+        return out
 
 
 def _make_divisible(v, divisor, min_value=None):
@@ -32,6 +77,77 @@ def _make_divisible(v, divisor, min_value=None):
         new_v += divisor
     return new_v
 
+# 填充转置卷积的weight
+def fill_up_weights(up):
+    w = up.weight.data
+    f = math.ceil(w.size(2) / 2)  # ceil()向上取整
+    c = (2 * f - 1 - f % 2) / (2. * f)
+    for i in range(w.size(2)):
+        for j in range(w.size(3)):
+            # fabs()返回绝对值
+            w[0, 0, i, j] = (1 - math.fabs(i / f - c)) * (1 - math.fabs(j / f - c))
+    for c in range(1, w.size(0)):
+        w[c, 0, :, :] = w[0, 0, :, :]
+
+
+# 填充回归预测的卷积 weight
+def fill_fc_weights(layers):
+    for m in layers.modules():
+        if isinstance(m, nn.Conv2d):
+            nn.init.normal_(m.weight, std=0.001)
+            # torch.nn.init.kaiming_normal_(m.weight.data, nonlinearity='relu')
+            # torch.nn.init.xavier_normal_(m.weight.data)
+            if m.bias is not None:
+                nn.init.constant_(m.bias, 0)
+
+
+def _get_deconv_cfg(deconv_kernel):
+    if deconv_kernel == 4:
+        padding = 1
+        output_padding = 0
+    elif deconv_kernel == 3:
+        padding = 1
+        output_padding = 1
+    elif deconv_kernel == 2:
+        padding = 0
+        output_padding = 0
+    return deconv_kernel, padding, output_padding
+
+
+# 创建可形变卷积层，kernel为转置卷积的卷积核大小，dcn的卷积核为固定的3×3
+def _make_deconv_layer(inplanes, filter, kernel):
+    layers = []
+    kernel, padding, output_padding = _get_deconv_cfg(kernel)
+    planes = filter
+    # self.inplanes记录了上一层网络的out通道数
+    fc = DCN(inplanes,
+             planes,
+             kernel_size=(3, 3),
+             stride=1,
+             padding=1,
+             dilation=1,
+             deformable_groups=1)
+    # fc = nn.Conv2d(self.inplanes, planes,
+    #         kernel_size=3, stride=1,
+    #         padding=1, dilation=1, bias=False)
+    # fill_fc_weights(fc)
+    # 转置卷积（逆卷积、反卷积）
+    up = nn.ConvTranspose2d(in_channels=planes,
+                            out_channels=planes,
+                            kernel_size=kernel,
+                            stride=2,
+                            padding=padding,
+                            output_padding=output_padding,
+                            bias=False)
+    fill_up_weights(up)
+    layers.append(fc)
+    layers.append(nn.BatchNorm2d(planes, momentum=BN_MOMENTUM))
+    layers.append(hswish())
+    # 上采样，最终将特征图恢复到layer1层之前的大小
+    layers.append(up)
+    layers.append(nn.BatchNorm2d(planes, momentum=BN_MOMENTUM))
+    layers.append(hswish())
+    return nn.Sequential(*layers)
 
 def hard_sigmoid(x, inplace: bool = False):
     if inplace:
@@ -218,38 +334,20 @@ class GhostBottleneck(nn.Module):
 #         return x
 
 class GhostNet(nn.Module):
-    def __init__(self, cfgs, num_classes=1000, width=1.0, dropout=0.2):
+    def __init__(self, num_classes=1000, width=1.0, dropout=0.2):
         super(GhostNet, self).__init__()
         # setting of inverted residual blocks
-        self.cfgs = cfgs
         self.dropout = dropout
 
         # building first layer
         output_channel = _make_divisible(16 * width, 4)
-        self.conv_stem = nn.Conv2d(3, output_channel, 3, 2, 1, bias=False)
-        self.bn1 = nn.BatchNorm2d(output_channel)
+        self.conv_stem = nn.Conv2d(3, 16, 3, 2, 1, bias=False)
+        self.bn1 = nn.BatchNorm2d(16)
         self.act1 = nn.ReLU(inplace=True)
         input_channel = output_channel
 
         # building inverted residual blocks
-        stages = []
         block = GhostBottleneck
-        # for cfg in self.cfgs:
-        #     layers = []
-        #     for k, exp_size, c, se_ratio, s in cfg:
-        #         output_channel = _make_divisible(c * width, 4)
-        #         hidden_channel = _make_divisible(exp_size * width, 4)
-        #         layers.append(block(input_channel, hidden_channel, output_channel, k, s,
-        #                             se_ratio=se_ratio))
-        #         input_channel = output_channel
-        #     stages.append(nn.Sequential(*layers))
-        #
-        # output_channel = _make_divisible(exp_size * width, 4)
-        # stages.append(nn.Sequential(ConvBnAct(input_channel, output_channel, 1)))
-        # input_channel = output_channel
-        #
-        # self.blocks = nn.Sequential(*stages)
-
         self.block1 = nn.Sequential(
             block(16, 16, 16, dw_kernel_size=3, stride=1, se_ratio=0),
             ConvBnAct(16, 16, kernel_size=1),
@@ -286,31 +384,61 @@ class GhostNet(nn.Module):
             ConvBnAct(160, 960, kernel_size=1),
         )
 
-        # building last several layers
-        output_channel = 1280
-        self.global_pool = nn.AdaptiveAvgPool2d((1, 1))
-        self.conv_head = nn.Conv2d(960, output_channel, 1, 1, 0, bias=True)
-        self.act2 = nn.ReLU(inplace=True)
-        self.classifier = nn.Linear(output_channel, num_classes)
+        self.conv_fpn2 = nn.Conv2d(72, 64, kernel_size=1, stride=1, padding=0, bias=False)
+        self.conv_fpn3 = nn.Conv2d(672, 128, kernel_size=1, stride=1, padding=0, bias=False)
+        self.conv_fpn4 = nn.Conv2d(960, 256, kernel_size=1, stride=1, padding=0, bias=False)
+
+        # used for deconv layers 可形变卷积
+        # 将主干网最终输出channel控制在64
+        self.deconv_layer3 = _make_deconv_layer(256, 128, 4)
+        self.deconv_layer2 = _make_deconv_layer(128, 64, 4)
+        self.deconv_layer1 = _make_deconv_layer(64, 32, 4)
+
+        self.hmap = nn.Sequential(nn.Conv2d(32, 64, kernel_size=3, padding=1, bias=True),
+                                  hswish(),
+                                  nn.Conv2d(64, num_classes, kernel_size=1, bias=True))
+        self.hmap[-1].bias.data.fill_(-2.19)
+        self.cors = nn.Sequential(nn.Conv2d(32, 64, kernel_size=3, padding=1, bias=True),
+                                  hswish(),
+                                  nn.Conv2d(64, 8, kernel_size=1, bias=True))
+        self.w_h_ = nn.Sequential(nn.Conv2d(32, 64, kernel_size=3, padding=1, bias=True),
+                                  hswish(),
+                                  nn.Conv2d(64, 4, kernel_size=1, bias=True))
+
+
+    # building last several layers
+        # output_channel = 1280
+        # self.global_pool = nn.AdaptiveAvgPool2d((1, 1))
+        # self.conv_head = nn.Conv2d(960, output_channel, 1, 1, 0, bias=True)
+        # self.act2 = nn.ReLU(inplace=True)
+        # self.classifier = nn.Linear(output_channel, num_classes)
 
     def forward(self, x):
         x = self.conv_stem(x)
         x = self.bn1(x)
         x = self.act1(x)
         # x = self.blocks(x)
-        x = self.block1(x)
-        x = self.block2(x)
-        x = self.block3(x)
-        x = self.block4(x)
-        x = self.block5(x)
-        x = self.global_pool(x)
-        x = self.conv_head(x)
-        x = self.act2(x)
-        x = x.view(x.size(0), -1)
-        if self.dropout > 0.:
-            x = F.dropout(x, p=self.dropout, training=self.training)
-        x = self.classifier(x)
-        return x
+        x1 = self.block1(x)
+        x2 = self.block2(x1)
+        x3 = self.block3(x2)
+        x4 = self.block4(x3)
+        x5 = self.block5(x4)
+
+        p5 = self.conv_fpn4(x5)
+        p4 = self.deconv_layer3(p5) + self.conv_fpn3(x4)
+        p3 = self.deconv_layer2(p4) + self.conv_fpn2(x3)
+        p2 = self.deconv_layer1(p3)
+
+        out = [[self.hmap(p2), self.cors(p2), self.w_h_(p2)]]
+
+        # x = self.global_pool(x)
+        # x = self.conv_head(x)
+        # x = self.act2(x)
+        # x = x.view(x.size(0), -1)
+        # if self.dropout > 0.:
+        #     x = F.dropout(x, p=self.dropout, training=self.training)
+        # x = self.classifier(x)
+        return out
 
 
 def ghostnet(**kwargs):
@@ -354,6 +482,6 @@ if __name__ == '__main__':
     print(model)
 
     y = model(input)
-    print(y.size())
+    print(y[0][0].size())
     print('FLOPs = ' + str(flops / 1000 ** 3) + 'G')
     print('Params = ' + str(params / 1000 ** 2) + 'M')

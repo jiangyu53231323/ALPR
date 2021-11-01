@@ -382,55 +382,6 @@ class MobileNetV3_Small(nn.Module):
         # self.linear4 = nn.Linear(1280, num_classes)
         # self.init_params()
 
-    # def _get_deconv_cfg(self, deconv_kernel):
-    #     if deconv_kernel == 4:
-    #         padding = 1
-    #         output_padding = 0
-    #     elif deconv_kernel == 3:
-    #         padding = 1
-    #         output_padding = 1
-    #     elif deconv_kernel == 2:
-    #         padding = 0
-    #         output_padding = 0
-    #
-    #     return deconv_kernel, padding, output_padding
-    #
-    # # 创建可形变卷积层，kernel为转置卷积的卷积核大小，dcn的卷积核为固定的3×3
-    # def _make_deconv_layer(self, inplanes, filter, kernel):
-    #     layers = []
-    #     kernel, padding, output_padding = self._get_deconv_cfg(kernel)
-    #     planes = filter
-    #     # self.inplanes记录了上一层网络的out通道数
-    #     fc = DCN(inplanes,
-    #              planes,
-    #              kernel_size=(3, 3),
-    #              stride=1,
-    #              padding=1,
-    #              dilation=1,
-    #              deformable_groups=1)
-    #     # fc = nn.Conv2d(self.inplanes, planes,
-    #     #         kernel_size=3, stride=1,
-    #     #         padding=1, dilation=1, bias=False)
-    #     # fill_fc_weights(fc)
-    #     # 转置卷积（逆卷积、反卷积）
-    #     up = nn.ConvTranspose2d(in_channels=planes,
-    #                             out_channels=planes,
-    #                             kernel_size=kernel,
-    #                             stride=2,
-    #                             padding=padding,
-    #                             output_padding=output_padding,
-    #                             bias=self.deconv_with_bias)
-    #     fill_up_weights(up)
-    #     layers.append(fc)
-    #     layers.append(nn.BatchNorm2d(planes, momentum=BN_MOMENTUM))
-    #     layers.append(hswish())
-    #     # 上采样，最终将特征图恢复到layer1层之前的大小
-    #     layers.append(up)
-    #     layers.append(nn.BatchNorm2d(planes, momentum=BN_MOMENTUM))
-    #     layers.append(hswish())
-    #     self.inplanes = planes
-    #
-    #     return nn.Sequential(*layers)
 
     def init_params(self):
         for m in self.modules():

@@ -5,6 +5,7 @@ import time
 import argparse
 
 # os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+from nets.ghostnet import GhostNet
 from nets.mobilenet import MobileNetV3_Small, MobileNetV3_Large
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'lib'))
@@ -39,18 +40,18 @@ parser.add_argument('--dist', action='store_true')  # 多GPU
 
 parser.add_argument('--root_dir', type=str, default='./')
 parser.add_argument('--data_dir', type=str, default='C:\data')
-parser.add_argument('--log_name', type=str, default='coco_mobilenet_small_384_se_fpn_centerness')
+parser.add_argument('--log_name', type=str, default='coco_ghostnet_384_se_fpn_centerness')
 parser.add_argument('--pretrain_name', type=str, default='pretrain')
 
 parser.add_argument('--dataset', type=str, default='coco', choices=['coco', 'yolo'])
-parser.add_argument('--arch', type=str, default='mobilenet')
+parser.add_argument('--arch', type=str, default='ghostnet')
 
 parser.add_argument('--img_size', type=int, default=384)
 parser.add_argument('--split_ratio', type=float, default=1.0)
 
 parser.add_argument('--lr', type=float, default=1.25e-4)
 parser.add_argument('--lr_step', type=str, default='2,4,6')
-parser.add_argument('--batch_size', type=int, default=6)
+parser.add_argument('--batch_size', type=int, default=2)
 parser.add_argument('--num_epochs', type=int, default=20)
 
 parser.add_argument('--test_topk', type=int, default=10)
@@ -143,6 +144,8 @@ def main():
         model = get_pose_net(num_layers=int(cfg.arch.split('_')[-1]), num_classes=train_dataset.num_classes)
     elif 'mobilenet' in cfg.arch:
         model = MobileNetV3_Small(num_classes=train_dataset.num_classes)
+    elif 'ghostnet' in cfg.arch:
+        model = GhostNet()
     else:
         raise NotImplementedError
 

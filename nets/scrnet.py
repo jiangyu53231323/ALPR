@@ -1,3 +1,5 @@
+import math
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -6,6 +8,9 @@ import torchvision.transforms as transforms
 import matplotlib.pyplot as plt
 import numpy as np
 from thop import profile
+from lib.DCNv2.dcn_v2 import DCN
+
+BN_MOMENTUM = 0.1
 
 
 # 3x3 convolution
@@ -88,6 +93,79 @@ class SAC(nn.Module):
         out_post = self.post(out)
         out = out_post + out
         return out
+
+
+# 填充转置卷积的weight
+def fill_up_weights(up):
+    w = up.weight.data
+    f = math.ceil(w.size(2) / 2)  # ceil()向上取整
+    c = (2 * f - 1 - f % 2) / (2. * f)
+    for i in range(w.size(2)):
+        for j in range(w.size(3)):
+            # fabs()返回绝对值
+            w[0, 0, i, j] = (1 - math.fabs(i / f - c)) * (1 - math.fabs(j / f - c))
+    for c in range(1, w.size(0)):
+        w[c, 0, :, :] = w[0, 0, :, :]
+
+
+# 填充回归预测的卷积 weight
+def fill_fc_weights(layers):
+    for m in layers.modules():
+        if isinstance(m, nn.Conv2d):
+            nn.init.normal_(m.weight, std=0.001)
+            # torch.nn.init.kaiming_normal_(m.weight.data, nonlinearity='relu')
+            # torch.nn.init.xavier_normal_(m.weight.data)
+            if m.bias is not None:
+                nn.init.constant_(m.bias, 0)
+
+
+def _get_deconv_cfg(deconv_kernel):
+    if deconv_kernel == 4:
+        padding = 1
+        output_padding = 0
+    elif deconv_kernel == 3:
+        padding = 1
+        output_padding = 1
+    elif deconv_kernel == 2:
+        padding = 0
+        output_padding = 0
+    return deconv_kernel, padding, output_padding
+
+
+# 创建可形变卷积层，kernel为转置卷积的卷积核大小，dcn的卷积核为固定的3×3
+def _make_deconv_layer(inplanes, filter, kernel):
+    layers = []
+    kernel, padding, output_padding = _get_deconv_cfg(kernel)
+    planes = filter
+    # self.inplanes记录了上一层网络的out通道数
+    fc = DCN(inplanes,
+             planes,
+             kernel_size=(3, 3),
+             stride=1,
+             padding=1,
+             dilation=1,
+             deformable_groups=1)
+    # fc = nn.Conv2d(self.inplanes, planes,
+    #         kernel_size=3, stride=1,
+    #         padding=1, dilation=1, bias=False)
+    # fill_fc_weights(fc)
+    # 转置卷积（逆卷积、反卷积）
+    up = nn.ConvTranspose2d(in_channels=planes,
+                            out_channels=planes,
+                            kernel_size=kernel,
+                            stride=2,
+                            padding=padding,
+                            output_padding=output_padding,
+                            bias=False)
+    fill_up_weights(up)
+    layers.append(fc)
+    layers.append(nn.BatchNorm2d(planes, momentum=BN_MOMENTUM))
+    layers.append(hswish())
+    # 上采样，最终将特征图恢复到layer1层之前的大小
+    layers.append(up)
+    layers.append(nn.BatchNorm2d(planes, momentum=BN_MOMENTUM))
+    layers.append(hswish())
+    return nn.Sequential(*layers)
 
 
 # Residual block 残差块
@@ -198,43 +276,93 @@ class Block(nn.Module):
         return out
 
 
+class Blue_ocr(nn.Module):
+    def __init__(self):
+        super(Blue_ocr, self).__init__()
+        self.classifier1 = nn.Sequential(
+            nn.Conv2d(64, 34, kernel_size=(1, 6),
+                      stride=(1, 3), padding=0, bias=False),
+            nn.ReLU(inplace=True),
+        )
+        self.classifier2 = nn.Sequential(
+            nn.Conv2d(64, 25, kernel_size=(1, 6),
+                      stride=(1, 3), padding=0, bias=False),
+            nn.ReLU(inplace=True),
+        )
+        self.classifier3 = nn.Sequential(
+            nn.Conv2d(64, 35, kernel_size=(1, 6),
+                      stride=(1, 3), padding=0, bias=False),
+            nn.ReLU(inplace=True),
+        )
+
+    def forward(self, x):
+        out1 = self.classifier1(x)
+        out2 = self.classifier2(x)
+        out3 = self.classifier3(x)
+        # 格式化输出
+        y1 = out1[:, :, :, 0].view([out1.size()[0], -1])
+        y2 = out2[:, :, :, 1].view([out2.size()[0], -1])
+        y3 = out3[:, :, :, 2].view([out3.size()[0], -1])
+        y4 = out3[:, :, :, 3].view([out3.size()[0], -1])
+        y5 = out3[:, :, :, 4].view([out3.size()[0], -1])
+        y6 = out3[:, :, :, 5].view([out3.size()[0], -1])
+        y7 = out3[:, :, :, 6].view([out3.size()[0], -1])
+
+        return [y1, y2, y3, y4, y5, y6, y7]
+
+
+class Green_ocr(nn.Module):
+    def __init__(self):
+        super(Green_ocr, self).__init__()
+        self.classifier1 = nn.Sequential(
+            nn.Conv2d(64, 34, kernel_size=(1, 6),
+                      stride=(1, 3), padding=2, bias=False),
+            nn.ReLU(inplace=True),
+        )
+        self.classifier2 = nn.Sequential(
+            nn.Conv2d(64, 25, kernel_size=(1, 6),
+                      stride=(1, 3), padding=2, bias=False),
+            nn.ReLU(inplace=True),
+        )
+        self.classifier3 = nn.Sequential(
+            nn.Conv2d(64, 35, kernel_size=(1, 6),
+                      stride=(1, 3), padding=2, bias=False),
+            nn.ReLU(inplace=True),
+        )
+
+    def forward(self, x):
+        out1 = self.classifier1(x)
+        out2 = self.classifier2(x)
+        out3 = self.classifier3(x)
+        # 格式化输出
+        y1 = out1[:, :, :, 0].view([out1.size()[0], -1])
+        y2 = out2[:, :, :, 1].view([out2.size()[0], -1])
+        y3 = out3[:, :, :, 2].view([out3.size()[0], -1])
+        y4 = out3[:, :, :, 3].view([out3.size()[0], -1])
+        y5 = out3[:, :, :, 4].view([out3.size()[0], -1])
+        y6 = out3[:, :, :, 5].view([out3.size()[0], -1])
+        y7 = out3[:, :, :, 6].view([out3.size()[0], -1])
+        y8 = out3[:, :, :, 7].view([out3.size()[0], -1])
+
+        return [y1, y2, y3, y4, y5, y6, y7, y8]
+
+
 # 主干网络
 class SCRNet(nn.Module):
     def __init__(self):
         super(SCRNet, self).__init__()
-        # self.conv1 = nn.Sequential(
-        #     nn.Conv2d(3, 16, kernel_size=4,
-        #               stride=2, padding=1, bias=False),
-        #     nn.BatchNorm2d(16),
-        #     nn.ReLU(inplace=True),
-        # )
         self.conv1 = nn.Conv2d(3, 16, kernel_size=3, stride=2, padding=1, bias=False)
         self.bn1 = nn.BatchNorm2d(16)
         self.hs1 = hswish()
 
-        # self.stage1 = nn.Sequential(
-        #     BN_Conv3_BN_ReLU_Conv3_BN_Dy(16, 93),
-        #     BN_Conv3_BN_ReLU_Conv3_BN_Dy(93, 93),
-        #     BN_Conv3_BN_ReLU_Conv3_BN_Dy(93, 93),
-        #     BN_Conv3_BN_ReLU_Conv3_BN_Dy(93, 93),
-        # )
-        # self.stage2 = nn.Sequential(
-        #     BN_Conv3_BN_ReLU_Conv3_BN_Dy(93, 176, stride=2),
-        #     BN_Conv3_BN_ReLU_Conv3_BN_Dy(176, 176),
-        #     BN_Conv3_BN_ReLU_Conv3_BN_Dy(176, 176),
-        #     BN_Conv3_BN_ReLU_Conv3_BN_Dy(176, 176),
-        # )
-        # self.stage3 = nn.Sequential(
-        #     BN_Conv3_BN_ReLU_Conv3_BN_Dy(176, 256, stride=2),
-        #     BN_Conv3_BN_ReLU_Conv3_BN_Dy(256, 256),
-        #     BN_Conv3_BN_ReLU_Conv3_BN_Dy(256, 256),
-        #     BN_Conv3_BN_ReLU_Conv3_BN_Dy(256, 256),
-        # )
         self.bneck1 = nn.Sequential(
-            Block(3, 16, 16, 16, nn.ReLU(inplace=True), SeModule, 2),
+            Block(3, 16, 16, 16, nn.ReLU(inplace=True), None, 2),
+            Block(3, 16, 32, 16, nn.ReLU(inplace=True), None, 1),
+            Block(3, 16, 64, 16, nn.ReLU(inplace=True), None, 1),
         )
         self.bneck2 = nn.Sequential(
             Block(3, 16, 72, 24, nn.ReLU(inplace=True), None, 2),
+            Block(3, 24, 88, 24, nn.ReLU(inplace=True), None, 1),
             Block(3, 24, 88, 24, nn.ReLU(inplace=True), None, 1),
         )
         self.bneck3 = nn.Sequential(
@@ -244,53 +372,40 @@ class SCRNet(nn.Module):
             Block(5, 40, 120, 48, hswish(), SeModule, 1),
             Block(5, 48, 144, 48, hswish(), SeModule, 1),
         )
-        self.bneck4 = nn.Sequential(
-            Block(5, 48, 288, 96, hswish(), SeModule, 2),
-            Block(5, 96, 576, 96, hswish(), SeModule, 1),
-            Block(5, 96, 576, 96, hswish(), SeModule, 1),
-        )
-        # self.conv2 = nn.Sequential(
-        #     conv3x3(256, 256),
-        #     nn.BatchNorm2d(256),
-        #     nn.ReLU(inplace=True),
-        #     nn.Conv2d(256, 256, kernel_size=(8, 1),
-        #               stride=1, padding=0, bias=False),
-        #     nn.BatchNorm2d(256),
-        #     nn.ReLU(inplace=True),
-        # )
-        # self.stage4 = nn.Sequential(
-        #     Res_block2_Conv_BN_ReLU(256, 256),
-        #     Res_block2_Conv_BN_ReLU(256, 256),
-        # )
-        self.conv2 = DP_Conv(3, 96, 128, hswish(), 2)
-        self.bn2 = nn.BatchNorm2d(128)
-        self.hs2 = hswish()
-        # self.classifier1 = nn.Sequential(
-        #     nn.Conv2d(128, 34, kernel_size=(1, 8),
-        #               stride=(1, 4), padding=0, bias=False),
-        #     nn.BatchNorm2d(34),
-        #     nn.ReLU(inplace=True),
-        # )
-        # self.classifier2 = nn.Sequential(
-        #     nn.Conv2d(128, 25, kernel_size=(1, 8),
-        #               stride=(1, 4), padding=0, bias=False),
-        #     nn.BatchNorm2d(25),
-        #     nn.ReLU(inplace=True),
-        # )
-        # self.classifier3 = nn.Sequential(
-        #     nn.Conv2d(128, 35, kernel_size=(1, 8),
-        #               stride=(1, 4), padding=0, bias=False),
-        #     nn.BatchNorm2d(35),
-        #     nn.ReLU(inplace=True),
+        # self.bneck4 = nn.Sequential(
+        #     Block(5, 48, 288, 96, hswish(), SeModule, 2),
+        #     Block(5, 96, 576, 96, hswish(), SeModule, 1),
+        #     Block(5, 96, 576, 96, hswish(), SeModule, 1),
         # )
 
+        # self.conv_fpn1 = nn.Conv2d(24, 64, kernel_size=1, stride=1, padding=0, bias=False)
+        self.conv_fpn2 = nn.Conv2d(24, 64, kernel_size=1, stride=1, padding=0, bias=False)
+        self.conv_fpn3 = nn.Conv2d(48, 64, kernel_size=1, stride=1, padding=0, bias=False)
+
+        # self.deconv_layer3 = _make_deconv_layer(128, 64, 4)
+        self.deconv_layer2 = _make_deconv_layer(64, 64, 4)
+        # self.deconv_layer1 = _make_deconv_layer(64, 32, 4)
+
+        self.conv2 = nn.Sequential(
+            nn.Conv2d(64, 64, kernel_size=(8, 1), stride=3, padding=0, groups=64, bias=False),
+            nn.BatchNorm2d(64),
+            hswish(),
+            nn.Conv2d(64, 64, kernel_size=1, stride=1, padding=0, bias=False),
+            nn.BatchNorm2d(64),
+            hswish(),
+        )
+
     def forward(self, x):
-        out = self.hs1(self.bn1(self.conv1(x)))  # 32,96
-        out = self.bneck1(out)  # 16,48
-        out = self.bneck2(out)  # 8,24
-        out = self.bneck3(out)  # 4,12
-        out = self.bneck4(out)
-        out = self.hs2(self.bn2(self.conv2(out)))
+        out = self.hs1(self.bn1(self.conv1(x)))  # out:32,96
+        out1 = self.bneck1(out)  # out:16,48
+        out2 = self.bneck2(out1)  # out:8,24
+        out3 = self.bneck3(out2)  # out:4,12
+
+        p3 = self.conv_fpn3(out3)
+        p2 = self.deconv_layer2(p3) + self.conv_fpn2(out2)
+        out = self.conv2(p2)
+        # out4 = self.bneck4(out3)  # out:2,6
+        # out = self.hs2(self.bn2(self.conv2(out4)))  # out:1,3
 
         return out
 
