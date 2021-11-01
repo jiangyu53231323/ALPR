@@ -277,20 +277,20 @@ class Block(nn.Module):
 
 
 class Blue_ocr(nn.Module):
-    def __init__(self):
+    def __init__(self, in_channel):
         super(Blue_ocr, self).__init__()
         self.classifier1 = nn.Sequential(
-            nn.Conv2d(64, 34, kernel_size=(1, 6),
+            nn.Conv2d(in_channel, 34, kernel_size=(1, 6),
                       stride=(1, 3), padding=0, bias=False),
             nn.ReLU(inplace=True),
         )
         self.classifier2 = nn.Sequential(
-            nn.Conv2d(64, 25, kernel_size=(1, 6),
+            nn.Conv2d(in_channel, 25, kernel_size=(1, 6),
                       stride=(1, 3), padding=0, bias=False),
             nn.ReLU(inplace=True),
         )
         self.classifier3 = nn.Sequential(
-            nn.Conv2d(64, 35, kernel_size=(1, 6),
+            nn.Conv2d(in_channel, 35, kernel_size=(1, 6),
                       stride=(1, 3), padding=0, bias=False),
             nn.ReLU(inplace=True),
         )
@@ -312,20 +312,20 @@ class Blue_ocr(nn.Module):
 
 
 class Green_ocr(nn.Module):
-    def __init__(self):
+    def __init__(self, in_channel):
         super(Green_ocr, self).__init__()
         self.classifier1 = nn.Sequential(
-            nn.Conv2d(64, 34, kernel_size=(1, 6),
+            nn.Conv2d(in_channel, 34, kernel_size=(1, 6),
                       stride=(1, 3), padding=2, bias=False),
             nn.ReLU(inplace=True),
         )
         self.classifier2 = nn.Sequential(
-            nn.Conv2d(64, 25, kernel_size=(1, 6),
+            nn.Conv2d(in_channel, 25, kernel_size=(1, 6),
                       stride=(1, 3), padding=2, bias=False),
             nn.ReLU(inplace=True),
         )
         self.classifier3 = nn.Sequential(
-            nn.Conv2d(64, 35, kernel_size=(1, 6),
+            nn.Conv2d(in_channel, 35, kernel_size=(1, 6),
                       stride=(1, 3), padding=2, bias=False),
             nn.ReLU(inplace=True),
         )
