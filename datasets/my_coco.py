@@ -105,7 +105,6 @@ class COCO(data.Dataset):
         # 读取图片
         image = cv2.imread(img_path)[:, :, ::-1]  # BGR to RGB
         # 调整图片大小并填充，返回调整后的图片和缩小的比例
-        # image, scale, bboxes, segmentation = resize_and_padding(image, self.img_size['h'], bboxes, segmentation)
         resize_out = resize_and_padding(image, self.img_size['h'], bboxes, segmentation)
         image = resize_out['new_image']
         scale = resize_out['scale']

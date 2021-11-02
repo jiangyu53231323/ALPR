@@ -26,6 +26,18 @@ def cv_imread(file_path):
     return cv_img
 
 
+def get_image_path(image_dir, image_name):
+    path_list = os.listdir(image_dir)
+    p = ''
+    for p in path_list:
+        img_dir = os.path.join(image_dir, p)
+        img_path = os.path.join(img_dir, image_name)
+        if os.path.exists(img_path):
+            p = img_path
+            return img_path
+    assert p != ''
+
+
 class trainDataLoader(Dataset):
     def __init__(self, data_dir, img_size, split):
         super(trainDataLoader, self).__init__()
@@ -47,6 +59,25 @@ class trainDataLoader(Dataset):
         return self.num_samples
 
     def __getitem__(self, index):
+        img_id = self.images[index]
+        img_path = get_image_path(self.data_dir, self.coco.loadImgs(ids=[img_id])[0]['file_name'])
+        # 根据image id 获取 annotion id
+        ann_ids = self.coco.getAnnIds(imgIds=[img_id])
+        annotations = self.coco.loadAnns(ids=ann_ids)
+
+        bboxes = np.array([anno['bbox'] for anno in annotations], dtype=np.float32).squeeze()  # 降维
+        if len(bboxes) == 0:
+            bboxes = np.array([[0., 0., 0., 0.]], dtype=np.float32)
+            labels = np.array([[0]])
+        if bboxes[0]>=bboxes[2] or bboxes[1]>=bboxes[3]:
+            bboxes = np.array([[0., 0., 0., 0.]], dtype=np.float32)
+        bboxes[2:] += bboxes[:2]  # xywh to xyxy
+        # 读取图片
+        image = cv2.imread(img_path)[:, :, ::-1]  # BGR to RGB
+        image = image[bboxes[1]:bboxes[3] + 1, bboxes[0], bboxes[2] + 1, :]
+
+
+
         img_name = self.img_paths[index]
         img = cv_imread(img_name)
         # img = img.astype('float32')
@@ -67,7 +98,7 @@ def trainandsave():
     ads = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'J', 'K', 'L', 'M', 'N', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X',
            'Y', 'Z', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'O']
 
-    args = {'input': 'C:\\data\\CCPD2019'}
+    args = {'input': 'C:\\data'}
     model_path = './models/net_params9.pth'
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     print(device)
