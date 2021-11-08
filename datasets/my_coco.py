@@ -182,7 +182,7 @@ class COCO_eval(COCO):
         super(COCO_eval, self).__init__(data_dir, split)
         self.test_flip = test_flip  #
         self.test_scales = test_scales
-        self.fix_size = fix_size
+        self.fix_size = fix_size  # 固定图片尺寸
 
     def __getitem__(self, index):
         # 根据index得到image对应的id，再由id得到图片文件名，拼接成路径

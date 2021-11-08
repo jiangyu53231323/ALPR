@@ -39,7 +39,7 @@ parser.add_argument('--local_rank', type=int, default=0)
 parser.add_argument('--dist', action='store_true')  # 多GPU
 
 parser.add_argument('--root_dir', type=str, default='./')
-parser.add_argument('--data_dir', type=str, default='C:\data')
+parser.add_argument('--data_dir', type=str, default='E:\CodeDownload\data')
 parser.add_argument('--log_name', type=str, default='coco_ghostnet_384_se_fpn_centerness')
 parser.add_argument('--pretrain_name', type=str, default='pretrain')
 
@@ -51,14 +51,14 @@ parser.add_argument('--split_ratio', type=float, default=1.0)
 
 parser.add_argument('--lr', type=float, default=1.25e-4)
 parser.add_argument('--lr_step', type=str, default='2,4,6')
-parser.add_argument('--batch_size', type=int, default=2)
+parser.add_argument('--batch_size', type=int, default=8)
 parser.add_argument('--num_epochs', type=int, default=20)
 
 parser.add_argument('--test_topk', type=int, default=10)
 
 parser.add_argument('--log_interval', type=int, default=1000)
 parser.add_argument('--val_interval', type=int, default=1)
-parser.add_argument('--num_workers', type=int, default=4)
+parser.add_argument('--num_workers', type=int, default=2)
 
 cfg = parser.parse_args()
 
