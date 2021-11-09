@@ -5,7 +5,7 @@ import time
 import argparse
 
 # os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
-from nets.ghostnet import GhostNet
+from nets.ghostnet import My_GhostNet
 from nets.mobilenet import MobileNetV3_Small, MobileNetV3_Large
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'lib'))
@@ -58,7 +58,7 @@ parser.add_argument('--test_topk', type=int, default=10)
 
 parser.add_argument('--log_interval', type=int, default=1000)
 parser.add_argument('--val_interval', type=int, default=1)
-parser.add_argument('--num_workers', type=int, default=2)
+parser.add_argument('--num_workers', type=int, default=4)
 
 cfg = parser.parse_args()
 
@@ -145,7 +145,7 @@ def main():
     elif 'mobilenet' in cfg.arch:
         model = MobileNetV3_Small(num_classes=train_dataset.num_classes)
     elif 'ghostnet' in cfg.arch:
-        model = GhostNet()
+        model = My_GhostNet(num_classes=1, w=0.5)
     else:
         raise NotImplementedError
 

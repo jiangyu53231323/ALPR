@@ -17,6 +17,7 @@ from lib.DCNv2.dcn_v2 import DCN
 # __all__ = ['ghost_net']
 BN_MOMENTUM = 0.1
 
+
 class hswish(nn.Module):
     def forward(self, x):
         out = x * F.relu6(x + 3, inplace=True) / 6
@@ -76,6 +77,23 @@ def _make_divisible(v, divisor, min_value=None):
     if new_v < 0.9 * v:
         new_v += divisor
     return new_v
+
+
+def _c(v, divisor=4, min_value=None):
+    """
+    This function is taken from the original tf repo.
+    It ensures that all layers have a channel number that is divisible by 8
+    It can be seen here:
+    https://github.com/tensorflow/models/blob/master/research/slim/nets/mobilenet/mobilenet.py
+    """
+    if min_value is None:
+        min_value = divisor
+    new_v = max(min_value, int(v + divisor / 2) // divisor * divisor)
+    # Make sure that round down does not go down by more than 10%.
+    if new_v < 0.9 * v:
+        new_v += divisor
+    return new_v
+
 
 # 填充转置卷积的weight
 def fill_up_weights(up):
@@ -148,6 +166,7 @@ def _make_deconv_layer(inplanes, filter, kernel):
     layers.append(nn.BatchNorm2d(planes, momentum=BN_MOMENTUM))
     layers.append(hswish())
     return nn.Sequential(*layers)
+
 
 def hard_sigmoid(x, inplace: bool = False):
     if inplace:
@@ -279,114 +298,102 @@ class GhostBottleneck(nn.Module):
         return x
 
 
-# class GhostNet(nn.Module):
-#     def __init__(self, cfgs, num_classes=1000, width=1.0, dropout=0.2):
-#         super(GhostNet, self).__init__()
-#         # setting of inverted residual blocks
-#         self.cfgs = cfgs
-#         self.dropout = dropout
-#
-#         # building first layer
-#         output_channel = _make_divisible(16 * width, 4)
-#         self.conv_stem = nn.Conv2d(3, output_channel, 3, 2, 1, bias=False)
-#         self.bn1 = nn.BatchNorm2d(output_channel)
-#         self.act1 = nn.ReLU(inplace=True)
-#         input_channel = output_channel
-#
-#         # building inverted residual blocks
-#         stages = []
-#         block = GhostBottleneck
-#         for cfg in self.cfgs:
-#             layers = []
-#             for k, exp_size, c, se_ratio, s in cfg:
-#                 output_channel = _make_divisible(c * width, 4)
-#                 hidden_channel = _make_divisible(exp_size * width, 4)
-#                 layers.append(block(input_channel, hidden_channel, output_channel, k, s,
-#                                     se_ratio=se_ratio))
-#                 input_channel = output_channel
-#             stages.append(nn.Sequential(*layers))
-#
-#         output_channel = _make_divisible(exp_size * width, 4)
-#         stages.append(nn.Sequential(ConvBnAct(input_channel, output_channel, 1)))
-#         input_channel = output_channel
-#
-#         self.blocks = nn.Sequential(*stages)
-#
-#         # building last several layers
-#         output_channel = 1280
-#         self.global_pool = nn.AdaptiveAvgPool2d((1, 1))
-#         self.conv_head = nn.Conv2d(input_channel, output_channel, 1, 1, 0, bias=True)
-#         self.act2 = nn.ReLU(inplace=True)
-#         self.classifier = nn.Linear(output_channel, num_classes)
-#
-#     def forward(self, x):
-#         x = self.conv_stem(x)
-#         x = self.bn1(x)
-#         x = self.act1(x)
-#         x = self.blocks(x)
-#         x = self.global_pool(x)
-#         x = self.conv_head(x)
-#         x = self.act2(x)
-#         x = x.view(x.size(0), -1)
-#         if self.dropout > 0.:
-#             x = F.dropout(x, p=self.dropout, training=self.training)
-#         x = self.classifier(x)
-#         return x
-
 class GhostNet(nn.Module):
-    def __init__(self, num_classes=1000, width=1.0, dropout=0.2):
+    def __init__(self, cfgs, num_classes=1000, width=1.0, dropout=0.2):
         super(GhostNet, self).__init__()
         # setting of inverted residual blocks
+        self.cfgs = cfgs
         self.dropout = dropout
 
         # building first layer
         output_channel = _make_divisible(16 * width, 4)
-        self.conv_stem = nn.Conv2d(3, 16, 3, 2, 1, bias=False)
-        self.bn1 = nn.BatchNorm2d(16)
+        self.conv_stem = nn.Conv2d(3, output_channel, 3, 2, 1, bias=False)
+        self.bn1 = nn.BatchNorm2d(output_channel)
         self.act1 = nn.ReLU(inplace=True)
         input_channel = output_channel
 
         # building inverted residual blocks
+        stages = []
+        block = GhostBottleneck
+        for cfg in self.cfgs:
+            layers = []
+            for k, exp_size, c, se_ratio, s in cfg:
+                output_channel = _make_divisible(c * width, 4)
+                hidden_channel = _make_divisible(exp_size * width, 4)
+                layers.append(block(input_channel, hidden_channel, output_channel, k, s,
+                                    se_ratio=se_ratio))
+                input_channel = output_channel
+            stages.append(nn.Sequential(*layers))
+
+        output_channel = _make_divisible(exp_size * width, 4)
+        stages.append(nn.Sequential(ConvBnAct(input_channel, output_channel, 1)))
+        input_channel = output_channel
+
+        self.blocks = nn.Sequential(*stages)
+
+        # building last several layers
+        output_channel = 1280
+        self.global_pool = nn.AdaptiveAvgPool2d((1, 1))
+        self.conv_head = nn.Conv2d(input_channel, output_channel, 1, 1, 0, bias=True)
+        self.act2 = nn.ReLU(inplace=True)
+        self.classifier = nn.Linear(output_channel, num_classes)
+
+    def forward(self, x):
+        x = self.conv_stem(x)
+        x = self.bn1(x)
+        x = self.act1(x)
+        x = self.blocks(x)
+        x = self.global_pool(x)
+        x = self.conv_head(x)
+        x = self.act2(x)
+        x = x.view(x.size(0), -1)
+        if self.dropout > 0.:
+            x = F.dropout(x, p=self.dropout, training=self.training)
+        x = self.classifier(x)
+        return x
+
+
+class My_GhostNet(nn.Module):
+    def __init__(self, num_classes=1, w=1.0):
+        super(My_GhostNet, self).__init__()
+
+        # building first layer
+        self.conv_stem = nn.Conv2d(3, 16, kernel_size=3, stride=2, padding=1, bias=False)
+        self.bn1 = nn.BatchNorm2d(16)
+        self.act1 = nn.ReLU(inplace=True)
+
+        # building inverted residual blocks
         block = GhostBottleneck
         self.block1 = nn.Sequential(
-            block(16, 16, 16, dw_kernel_size=3, stride=1, se_ratio=0),
-            ConvBnAct(16, 16, kernel_size=1),
+            block(16, _c(16 * w), _c(16 * w), dw_kernel_size=3, stride=1, se_ratio=0),
         )
         self.block2 = nn.Sequential(
-            block(16, 48, 24, dw_kernel_size=3, stride=2, se_ratio=0),
-            ConvBnAct(24, 48, kernel_size=1),
-            block(48, 72, 24, dw_kernel_size=3, stride=1, se_ratio=0),
-            ConvBnAct(24, 72, kernel_size=1),
+            block(_c(16 * w), _c(48 * w), _c(24 * w), dw_kernel_size=3, stride=2, se_ratio=0),
+            block(_c(24 * w), _c(72 * w), _c(24 * w), dw_kernel_size=3, stride=1, se_ratio=0),
         )
         self.block3 = nn.Sequential(
-            block(72, 48, 24, dw_kernel_size=5, stride=2, se_ratio=0.25),
-            ConvBnAct(24, 48, kernel_size=1),
-            block(48, 72, 24, dw_kernel_size=5, stride=1, se_ratio=0.25),
-            ConvBnAct(24, 72, kernel_size=1),
+            block(_c(24 * w), _c(72 * w), _c(40 * w), dw_kernel_size=5, stride=2, se_ratio=0.25),
+            block(_c(40 * w), _c(120 * w), _c(40 * w), dw_kernel_size=5, stride=1, se_ratio=0.25),
         )
         self.block4 = nn.Sequential(
-            block(72, 240, 80, dw_kernel_size=3, stride=2, se_ratio=0),
-            ConvBnAct(80, 240, kernel_size=1),
-            block(240, 200, 80, dw_kernel_size=3, stride=1, se_ratio=0),
-            block(80, 184, 80, dw_kernel_size=3, stride=1, se_ratio=0),
-            block(80, 184, 80, dw_kernel_size=3, stride=1, se_ratio=0),
-            block(80, 480, 112, dw_kernel_size=3, stride=1, se_ratio=0.25),
-            block(112, 672, 112, dw_kernel_size=3, stride=1, se_ratio=0.25),
-            ConvBnAct(112, 672, kernel_size=1),
+            block(_c(40 * w), _c(240 * w), _c(80 * w), dw_kernel_size=3, stride=2, se_ratio=0),
+            block(_c(80 * w), _c(200 * w), _c(80 * w), dw_kernel_size=3, stride=1, se_ratio=0),
+            block(_c(80 * w), _c(184 * w), _c(80 * w), dw_kernel_size=3, stride=1, se_ratio=0),
+            block(_c(80 * w), _c(184 * w), _c(80 * w), dw_kernel_size=3, stride=1, se_ratio=0),
+            block(_c(80 * w), _c(480 * w), _c(112 * w), dw_kernel_size=3, stride=1, se_ratio=0.25),
+            block(_c(112 * w), _c(672 * w), _c(112 * w), dw_kernel_size=3, stride=1, se_ratio=0.25),
         )
         self.block5 = nn.Sequential(
-            block(672, 672, 160, dw_kernel_size=5, stride=2, se_ratio=0.25),
-            ConvBnAct(160, 672, kernel_size=1),
-            block(672, 960, 160, dw_kernel_size=5, stride=1, se_ratio=0),
-            block(160, 960, 160, dw_kernel_size=5, stride=1, se_ratio=0.25),
-            block(160, 960, 160, dw_kernel_size=5, stride=1, se_ratio=0),
-            block(160, 960, 160, dw_kernel_size=5, stride=1, se_ratio=0.25),
-            ConvBnAct(160, 960, kernel_size=1),
+            block(_c(112 * w), _c(672 * w), _c(160 * w), dw_kernel_size=5, stride=2, se_ratio=0.25),
+            block(_c(160 * w), _c(960 * w), _c(160 * w), dw_kernel_size=5, stride=1, se_ratio=0),
+            block(_c(160 * w), _c(960 * w), _c(160 * w), dw_kernel_size=5, stride=1, se_ratio=0.25),
+            block(_c(160 * w), _c(960 * w), _c(160 * w), dw_kernel_size=5, stride=1, se_ratio=0),
+            block(_c(160 * w), _c(960 * w), _c(160 * w), dw_kernel_size=5, stride=1, se_ratio=0.25),
         )
 
-        self.conv_fpn2 = nn.Conv2d(72, 64, kernel_size=1, stride=1, padding=0, bias=False)
-        self.conv_fpn3 = nn.Conv2d(672, 128, kernel_size=1, stride=1, padding=0, bias=False)
-        self.conv_fpn4 = nn.Conv2d(960, 256, kernel_size=1, stride=1, padding=0, bias=False)
+        self.conv_fpn2 = nn.Conv2d(_c(40 * w), 64, kernel_size=1, stride=1, padding=0, bias=False)
+        self.conv_fpn3 = nn.Conv2d(_c(112 * w), 128, kernel_size=1, stride=1, padding=0, bias=False)
+        self.conv_fpn4 = nn.Conv2d(_c(160 * w), 256, kernel_size=1, stride=1, padding=0, bias=False)
 
         # used for deconv layers 可形变卷积
         # 将主干网最终输出channel控制在64
@@ -395,23 +402,18 @@ class GhostNet(nn.Module):
         self.deconv_layer1 = _make_deconv_layer(64, 32, 4)
 
         self.hmap = nn.Sequential(nn.Conv2d(32, 64, kernel_size=3, padding=1, bias=True),
-                                  hswish(),
+                                  # hswish(),
+                                  nn.ReLU(inplace=True),
                                   nn.Conv2d(64, num_classes, kernel_size=1, bias=True))
         self.hmap[-1].bias.data.fill_(-2.19)
         self.cors = nn.Sequential(nn.Conv2d(32, 64, kernel_size=3, padding=1, bias=True),
-                                  hswish(),
+                                  # hswish(),
+                                  nn.ReLU(inplace=True),
                                   nn.Conv2d(64, 8, kernel_size=1, bias=True))
         self.w_h_ = nn.Sequential(nn.Conv2d(32, 64, kernel_size=3, padding=1, bias=True),
-                                  hswish(),
+                                  # hswish(),
+                                  nn.ReLU(inplace=True),
                                   nn.Conv2d(64, 4, kernel_size=1, bias=True))
-
-
-    # building last several layers
-        # output_channel = 1280
-        # self.global_pool = nn.AdaptiveAvgPool2d((1, 1))
-        # self.conv_head = nn.Conv2d(960, output_channel, 1, 1, 0, bias=True)
-        # self.act2 = nn.ReLU(inplace=True)
-        # self.classifier = nn.Linear(output_channel, num_classes)
 
     def forward(self, x):
         x = self.conv_stem(x)
@@ -431,13 +433,6 @@ class GhostNet(nn.Module):
 
         out = [[self.hmap(p2), self.cors(p2), self.w_h_(p2)]]
 
-        # x = self.global_pool(x)
-        # x = self.conv_head(x)
-        # x = self.act2(x)
-        # x = x.view(x.size(0), -1)
-        # if self.dropout > 0.:
-        #     x = F.dropout(x, p=self.dropout, training=self.training)
-        # x = self.classifier(x)
         return out
 
 
@@ -475,8 +470,8 @@ def ghostnet(**kwargs):
 
 
 if __name__ == '__main__':
-    input = torch.randn(1, 3, 320, 256)
-    model = ghostnet()
+    input = torch.randn(1, 3, 384, 192)
+    model = My_GhostNet(num_classes=1, w=0.5)
     flops, params = profile(model, inputs=(input,))
     model.eval()
     print(model)
