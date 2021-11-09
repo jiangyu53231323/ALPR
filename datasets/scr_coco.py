@@ -52,7 +52,7 @@ class SCR_COCO(Dataset):
         image = image.astype('float32') / 255.
         img_name = self.coco.loadImgs(ids=[img_id])[0]['file_name'].split('.')[0]  # 分割图片名称，rsplit作用是去除.jpg后缀
         labels = [int(c) for c in img_name.split('-')[-3].split('_')[:7]]
-        return image, labels
+        return {'image': image, 'labels': labels}
 
     @staticmethod
     def collate_fn(batch):
