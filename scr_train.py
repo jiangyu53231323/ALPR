@@ -42,7 +42,7 @@ parser.add_argument('--dist', action='store_true')  # 多GPU
 
 parser.add_argument('--root_dir', type=str, default='./')
 parser.add_argument('--data_dir', type=str, default='E:\CodeDownload\data')
-parser.add_argument('--log_name', type=str, default='scr_coco_64_192_se_fpn')
+parser.add_argument('--log_name', type=str, default='scr_coco_64x192_se_fpn')
 parser.add_argument('--pretrain_name', type=str, default='scr_pretrain')
 
 parser.add_argument('--dataset', type=str, default='coco', choices=['coco', 'yolo'])
@@ -53,7 +53,7 @@ parser.add_argument('--split_ratio', type=float, default=1.0)
 
 parser.add_argument('--lr', type=float, default=1.25e-4)
 parser.add_argument('--lr_step', type=str, default='2,4,6')
-parser.add_argument('--batch_size', type=int, default=8)
+parser.add_argument('--batch_size', type=int, default=128)
 parser.add_argument('--num_epochs', type=int, default=20)
 
 parser.add_argument('--test_topk', type=int, default=10)
@@ -136,8 +136,7 @@ def main():
                                              batch_size=1,
                                              shuffle=False,
                                              num_workers=1,
-                                             pin_memory=True,
-                                             collate_fn=val_dataset.collate_fn)
+                                             pin_memory=True, )
     # 网络模型建立
     print('Creating model...')
     if 'scrnet' in cfg.arch:
@@ -162,6 +161,8 @@ def main():
     # 设置优化算法，lr衰减区间
     optimizer = torch.optim.Adam(model.parameters(), cfg.lr)
     lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, cfg.lr_step, gamma=0.1)
+    # 损失函数
+    crossentropyloss = nn.CrossEntropyLoss()
 
     def train(epoch):
         print('\n Epoch: %d' % epoch)
@@ -172,9 +173,9 @@ def main():
         tic = time.perf_counter()
         for batch_idx, batch in enumerate(train_loader):
             for k in batch:
-                if k == 'labels':
-                    batch[k] = torch.LongTensor(batch[k]).to(cfg.device)
-                elif k != 'meta':
+                # if k == 'labels':
+                #     batch[k] = torch.LongTensor(batch[k]).to(cfg.device)
+                if k == 'image':
                     # 数据送入GPU
                     batch[k] = batch[k].to(device=cfg.device, non_blocking=True)
 
@@ -182,8 +183,9 @@ def main():
 
             loss = 0.0
             for j in range(7):
-                l = batch['labels'][j]
-                loss += nn.CrossEntropyLoss()(outputs[1][j], l)  # 交叉熵损失函数
+                l = batch['labels'][:, j].to(cfg.device).long()
+                # l = l.long()
+                loss += crossentropyloss(outputs[1][j], l)  # 交叉熵损失函数
 
             optimizer.zero_grad()
             loss.backward()
@@ -194,68 +196,52 @@ def main():
                 tic = time.perf_counter()
                 print('[%d/%d-%d/%d] ' % (epoch, cfg.num_epochs, batch_idx, len(train_loader)) +
                       ' loss= %.5f' % loss.item() + ' (%d samples/sec)' % (
-                                  cfg.batch_size * cfg.log_interval / duration))
+                              cfg.batch_size * cfg.log_interval / duration))
 
                 step = len(train_loader) * epoch + batch_idx
                 summary_writer.add_scalar('loss', loss.item(), step)
 
         return
 
-    def val_map(epoch):
+    def val(epoch):
         print('\n Val@Epoch: %d' % epoch)
         model.eval()
         torch.cuda.empty_cache()  # 释放cuda缓存
         max_per_image = 100
-
+        amount = val_loader.dataset.num_samples
         results = {}
+        num = 0
         with torch.no_grad():  # 不跟踪梯度，减少内存占用
-            for inputs in val_loader:
-                img_id, inputs = inputs[0]
-                detections = []
-                # 不同的图片缩放比例
-                for scale in inputs:  # 多个尺度如0.5,,0.75,1,1.25等
-                    inputs[scale]['image'] = inputs[scale]['image'].to(cfg.device)
-                    image_scale = torch.from_numpy(inputs[scale]['image_scale'])
-                    padding_w = torch.from_numpy(inputs[scale]['padding_w'])
-                    padding_h = torch.from_numpy(inputs[scale]['padding_h'])
-                    output = model(inputs[scale]['image'])[-1]
-                    # 对检测结果进行后处理， *output表示列表元素作为多个元素传入
-                    dets = ctdet_decode(*output, [padding_w, padding_h], image_scale=image_scale, K=cfg.test_topk)
-                    dets = dets.detach().cpu().numpy().reshape(1, -1, dets.shape[2])[0]
+            for i, inputs in enumerate(val_loader):
+                # img_id, inputs = inputs[0]
+                inputs['image'] = inputs['image'].to(cfg.device)
+                inputs['labels'] = inputs['labels'].to(cfg.device)
+                outputs = model(inputs['image'])
+                out = [torch.topk(ee, 1)[1].squeeze(1) for ee in outputs[1]]
+                isTure = 1
+                for j in range(7):
+                    if inputs['labels'][0][j] == out[j]:
+                        isTure = 1
+                        continue
+                    else:
+                        isTure = 0
+                        break
+                if isTure == 0:
+                    continue
+                else:
+                    num = num + 1
 
-                    top_preds = {}
-                    # 合并同类
-                    clses = dets[:, -1]
-                    for j in range(val_dataset.num_classes):
-                        inds = (clses == j)
-                        top_preds[j + 1] = dets[inds, 8:13].astype(np.float32)  # 提取bboxes和scores
-                        top_preds[j + 1][:, :4] /= scale  # 恢复缩放
-
-                    detections.append(top_preds)
-
-                bbox_and_scores = {j: np.concatenate([d[j] for d in detections], axis=0)
-                                   for j in range(1, val_dataset.num_classes + 1)}
-                # hstack为横向上的拼接，等效与沿第二轴的串联
-                scores = np.hstack([bbox_and_scores[j][:, 4] for j in range(1, val_dataset.num_classes + 1)])
-                if len(scores) > max_per_image:
-                    kth = len(scores) - max_per_image
-                    thresh = np.partition(scores, kth)[kth]
-                    for j in range(1, val_dataset.num_classes + 1):
-                        keep_inds = (bbox_and_scores[j][:, 4] >= thresh)
-                        bbox_and_scores[j] = bbox_and_scores[j][keep_inds]
-
-                results[img_id] = bbox_and_scores
-
-        eval_results = val_dataset.run_eval(results, save_dir=cfg.ckpt_dir)
-        print(eval_results)
-        summary_writer.add_scalar('val_mAP/mAP', eval_results[0], epoch)
+        accuracy = float(num) / float(amount)
+        print('amount = %d' % amount)
+        print('accuracy = %f' % accuracy)
+        summary_writer.add_scalar('val_mAP/mAP', accuracy, epoch)
 
     print('Starting training...')
     for epoch in range(1, cfg.num_epochs + 1):
         train_sampler.set_epoch(epoch)
         train(epoch)
         if cfg.val_interval > 0 and epoch % cfg.val_interval == 0:
-            val_map(epoch)
+            val(epoch)
         print(saver.save(model.module.state_dict(), 'checkpoint'))
         lr_scheduler.step()  # move to here after pytorch1.1.0
 

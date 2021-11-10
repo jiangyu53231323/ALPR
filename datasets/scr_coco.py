@@ -51,7 +51,7 @@ class SCR_COCO(Dataset):
         image = np.transpose(image, (2, 0, 1))
         image = image.astype('float32') / 255.
         img_name = self.coco.loadImgs(ids=[img_id])[0]['file_name'].split('.')[0]  # 分割图片名称，rsplit作用是去除.jpg后缀
-        labels = [int(c) for c in img_name.split('-')[-3].split('_')[:7]]
+        labels = np.array([int(c) for c in img_name.split('-')[-3].split('_')[:7]])
         return {'image': image, 'labels': labels}
 
     @staticmethod
@@ -68,11 +68,12 @@ class SCR_COCO_eval(SCR_COCO):
     def __init__(self, data_dir, img_size, split):
         super(SCR_COCO_eval, self).__init__(data_dir, img_size, split)
 
-    @staticmethod
-    def collate_fn(batch):
-        out = []
-        for img_id, sample in batch:
-            # 将image从array转换为tensor
-            out.append((img_id, {s: {k: torch.from_numpy(sample[s][k]).float()
-            if k == 'image' else np.array(sample[s][k]) for k in sample[s]} for s in sample}))
-        return out
+    # @staticmethod
+    # def collate_fn(batch):
+    #     out = []
+    #     for img_id, sample in batch:
+    #         # 将image从array转换为tensor
+    #         out.append((img_id,
+    #                     {k: torch.from_numpy(sample[k]).float() if k == 'image' else np.array(sample[k]) for k in
+    #                      sample}))
+    #     return out
