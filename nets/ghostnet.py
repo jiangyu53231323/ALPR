@@ -470,7 +470,7 @@ def ghostnet(**kwargs):
 
 
 if __name__ == '__main__':
-    input = torch.randn(1, 3, 384, 192)
+    input = torch.randn(1, 3, 384, 256)
     model = My_GhostNet(num_classes=1, w=0.5)
     flops, params = profile(model, inputs=(input,))
     model.eval()

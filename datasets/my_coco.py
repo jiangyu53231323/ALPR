@@ -65,6 +65,7 @@ class COCO(data.Dataset):
         self.down_ratio = 4  # 特征图缩小倍数
         # 缩放后的image大小
         self.img_size = {'h': img_size, 'w': img_size}
+        self.lp_img_size = (192,64)
         # 特征图大小
         self.fmap_size = {'h': img_size // self.down_ratio, 'w': img_size // self.down_ratio}  # // 为向下取整
         self.rand_scales = np.arange(0.6, 1.4, 0.1)  # [0.6,0.7,0.8,...,1.2,1.3]
@@ -102,8 +103,21 @@ class COCO(data.Dataset):
             bboxes = np.array([[0., 0., 0., 0.]], dtype=np.float32)
             labels = np.array([[0]])
         bboxes[2:] += bboxes[:2]  # xywh to xyxy
+        # 判断bbox边界是否合法
+        if bboxes[0] >= bboxes[2] or bboxes[1] >= bboxes[3]:
+            bboxes = np.array([[0., 0., 0., 0.]], dtype=np.float32)
+
         # 读取图片
         image = cv2.imread(img_path)[:, :, ::-1]  # BGR to RGB
+
+        # 将车牌部分裁切出来
+        lp_image = image[int(bboxes[1]):int(bboxes[3]) + 1, int(bboxes[0]):int(bboxes[2]) + 1, :]
+        lp_image = cv2.resize(lp_image, self.lp_img_size)
+        lp_image = lp_image.astype(np.float32) / 255.
+        lp_image = np.transpose(lp_image, (2, 0, 1))
+        lp_img_name = self.coco.loadImgs(ids=[img_id])[0]['file_name'].split('.')[0]  # 分割图片名称，rsplit作用是去除.jpg后缀
+        lp_labels = np.array([int(c) for c in lp_img_name.split('-')[-3].split('_')[:7]])
+
         # 调整图片大小并填充，返回调整后的图片和缩小的比例
         resize_out = resize_and_padding(image, self.img_size['h'], bboxes, segmentation)
         image = resize_out['new_image']

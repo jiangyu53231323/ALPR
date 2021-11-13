@@ -351,7 +351,7 @@ class Green_ocr(nn.Module):
 class SCRNet(nn.Module):
     def __init__(self):
         super(SCRNet, self).__init__()
-        self.conv1 = nn.Conv2d(3, 16, kernel_size=3, stride=2, padding=1, bias=False)
+        self.conv1 = nn.Conv2d(3, 16, kernel_size=3, stride=1, padding=1, bias=False)
         self.bn1 = nn.BatchNorm2d(16)
         self.hs1 = hswish()
 
@@ -374,21 +374,27 @@ class SCRNet(nn.Module):
             Block(3, 112, 672, 112, hswish(), SeModule, 1),
             Block(5, 112, 672, 160, hswish(), SeModule, 1),
         )
-        # self.bneck4 = nn.Sequential(
-        #     Block(5, 48, 288, 96, hswish(), SeModule, 2),
-        #     Block(5, 96, 576, 96, hswish(), SeModule, 1),
-        #     Block(5, 96, 576, 96, hswish(), SeModule, 1),
-        # )
+        self.bneck4 = nn.Sequential(
+            Block(5, 160, 672, 160, hswish(), SeModule, 2),
+            Block(5, 160, 960, 160, hswish(), SeModule, 1),
+        )
 
         # self.conv_fpn1 = nn.Conv2d(24, 64, kernel_size=1, stride=1, padding=0, bias=False)
         self.conv_fpn2 = nn.Conv2d(40, 64, kernel_size=1, stride=1, padding=0, bias=False)
         self.conv_fpn3 = nn.Conv2d(160, 64, kernel_size=1, stride=1, padding=0, bias=False)
+        self.conv_fpn4 = nn.Conv2d(160, 64, kernel_size=1, stride=1, padding=0, bias=False)
 
-        # self.deconv_layer3 = _make_deconv_layer(128, 64, 4)
+        self.deconv_layer3 = _make_deconv_layer(64, 64, 4)
         self.deconv_layer2 = _make_deconv_layer(64, 64, 4)
         # self.deconv_layer1 = _make_deconv_layer(64, 32, 4)
 
         self.conv2 = nn.Sequential(
+            nn.Conv2d(64, 64, kernel_size=(3, 3), stride=2, padding=1, groups=64, bias=False),
+            nn.BatchNorm2d(64),
+            hswish(),
+            nn.Conv2d(64, 64, kernel_size=1, stride=1, padding=0, bias=False),
+            nn.BatchNorm2d(64),
+            hswish(),
             nn.Conv2d(64, 64, kernel_size=(8, 1), stride=1, padding=0, groups=64, bias=False),
             nn.BatchNorm2d(64),
             hswish(),
@@ -408,12 +414,14 @@ class SCRNet(nn.Module):
         self.category = nn.Linear(32, 2)
 
     def forward(self, x):
-        out = self.hs1(self.bn1(self.conv1(x)))  # out:32,96
-        out1 = self.bneck1(out)  # out:16,48
-        out2 = self.bneck2(out1)  # out:8,24
-        out3 = self.bneck3(out2)  # out:4,12
+        out = self.hs1(self.bn1(self.conv1(x)))  # out:64,192
+        out1 = self.bneck1(out)  # out:32,96
+        out2 = self.bneck2(out1)  # out:16,48
+        out3 = self.bneck3(out2)  # out:8,24
+        out4 = self.bneck4(out3)  # out:4,12
 
-        p3 = self.conv_fpn3(out3)
+        p4 = self.conv_fpn4(out4)
+        p3 = self.deconv_layer3(p4) + self.conv_fpn3(out3)
         p2 = self.deconv_layer2(p3) + self.conv_fpn2(out2)
         out = self.conv2(p2)  # out:1,24
         # out4 = self.bneck4(out3)  # out:2,6
