@@ -40,7 +40,7 @@ parser.add_argument('--dist', action='store_true')  # 多GPU
 
 parser.add_argument('--root_dir', type=str, default='./')
 parser.add_argument('--data_dir', type=str, default='E:\CodeDownload\data')
-parser.add_argument('--log_name', type=str, default='coco_ghostnet0.75_384_se_fpn_centerness')
+parser.add_argument('--log_name', type=str, default='coco_ghostnet1.3_384_se_fpn_centerness')
 parser.add_argument('--pretrain_name', type=str, default='pretrain')
 
 parser.add_argument('--dataset', type=str, default='coco', choices=['coco', 'yolo'])
@@ -51,13 +51,13 @@ parser.add_argument('--split_ratio', type=float, default=1.0)
 
 parser.add_argument('--lr', type=float, default=1.25e-4)
 parser.add_argument('--lr_step', type=str, default='2,4,6')
-parser.add_argument('--batch_size', type=int, default=48)
+parser.add_argument('--batch_size', type=int, default=32)
 parser.add_argument('--num_epochs', type=int, default=20)
 
 parser.add_argument('--test_topk', type=int, default=10)
 
 parser.add_argument('--log_interval', type=int, default=1000)
-parser.add_argument('--val_interval', type=int, default=1)
+parser.add_argument('--val_interval', type=int, default=2)
 parser.add_argument('--num_workers', type=int, default=4)
 
 cfg = parser.parse_args()
@@ -145,7 +145,7 @@ def main():
     elif 'mobilenet' in cfg.arch:
         model = MobileNetV3_Small(num_classes=train_dataset.num_classes)
     elif 'ghostnet' in cfg.arch:
-        model = My_GhostNet(num_classes=1, w=0.75)
+        model = My_GhostNet(num_classes=1, w=1.3)
     else:
         raise NotImplementedError
 
@@ -185,12 +185,10 @@ def main():
             '''------------------------------------------------------------'''
             # 得到 heat map, reg, wh 三个变量
             hmap, corner, w_h_ = zip(*outputs)
-            # hmap = [h.permute(0, 2, 3, 1).contiguous() for h in hmap]  # from [bs c h w] to [bs, h, w, c]
-            # corner = [c.permute(0, 2, 3, 1).contiguous() for c in corner]  # from [bs c h w] to [bs, h, w, c]
             # 分别计算 loss
             hmap_loss = _heatmap_loss(hmap, batch['heat_map'])
             corner_loss = _corner_loss(corner, batch['corner_map'], batch['reg_mask'])
-            w_h_loss = _w_h_loss(w_h_, batch['bboxes_map'], batch['reg_mask'])
+            # w_h_loss = _w_h_loss(w_h_, batch['bboxes_map'], batch['reg_mask'])
             b_loss = bboxes_loss(w_h_, batch['bboxes_map'], batch['reg_mask'])
             # 进行 loss 加权，得到最终 loss
             # loss = hmap_loss + 0.1 * corner_loss + 0.2 * w_h_loss

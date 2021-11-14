@@ -255,15 +255,6 @@ class MobileNetV3_Large(nn.Module):
         #                           hswish(),
         #                           nn.Conv2d(64, 4, kernel_size=1, bias=True))
 
-        # self.conv2 = nn.Conv2d(160, 960, kernel_size=1, stride=1, padding=0, bias=False)
-        # self.bn2 = nn.BatchNorm2d(960)
-        # self.hs2 = hswish()
-        # self.linear3 = nn.Linear(960, 1280)
-        # self.bn3 = nn.BatchNorm1d(1280)
-        # self.hs3 = hswish()
-        # self.linear4 = nn.Linear(1280, num_classes)
-        # self.init_params()
-
     def init_params(self):
         for m in self.modules():
             if isinstance(m, nn.Conv2d):

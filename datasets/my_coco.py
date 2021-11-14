@@ -20,7 +20,7 @@ from utils.my_image import resize_and_padding, image_affine, draw_heatmap_gaussi
 from utils.utils import get_image_path
 
 COCO_NAMES = ['__background__', 'License Plate']
-COCO_IDS = [1]
+COCO_IDS = [0, 1]
 # CCPD all 数据集的平均值和标准差,RGB顺序
 COCO_MEAN = [0.41250753, 0.46157351, 0.4346494]
 COCO_STD = [0.2468385, 0.2403439, 0.24371054]
@@ -65,7 +65,7 @@ class COCO(data.Dataset):
         self.down_ratio = 4  # 特征图缩小倍数
         # 缩放后的image大小
         self.img_size = {'h': img_size, 'w': img_size}
-        self.lp_img_size = (192,64)
+        self.lp_img_size = (192, 64)
         # 特征图大小
         self.fmap_size = {'h': img_size // self.down_ratio, 'w': img_size // self.down_ratio}  # // 为向下取整
         self.rand_scales = np.arange(0.6, 1.4, 0.1)  # [0.6,0.7,0.8,...,1.2,1.3]
@@ -150,8 +150,6 @@ class COCO(data.Dataset):
         这样做的好处是如果物体间有重合的地方，则能够保留较小目标的全部特征。
         '''
         # 角点坐标
-        # corner = np.zeros((self.max_objs, math.ceil(fmap_h / self.down_ratio),
-        #                    math.ceil(fmap_w / self.down_ratio), 8), dtype=np.float32)
         corner_map = np.zeros((8, math.ceil(fmap_h / self.down_ratio), math.ceil(fmap_w / self.down_ratio)),
                               dtype=np.float32)
         bboxes_map = np.zeros((4, math.ceil(fmap_h / self.down_ratio), math.ceil(fmap_w / self.down_ratio)),
@@ -163,13 +161,18 @@ class COCO(data.Dataset):
         # 在这里是单目标检测，情况会简单很多
         ind_masks = np.zeros((self.max_objs,), dtype=np.uint8)
         # 将高斯分布画到heatmap上
-        masked_gaussian, center = draw_heatmap_gaussian(heat_map[0], segmentation, self.gaussian_scale,
-                                                        self.down_ratio)
-        draw_corner_gaussian(corner_map, segmentation, masked_gaussian, self.down_ratio)
-        draw_bboxes_gaussian(bboxes_map, bboxes, segmentation, masked_gaussian, self.down_ratio)
-        # inds保存heatmap中目标点的索引，也就是正样本的位置索引
-        inds[0] = center[1] * heat_map.shape[1] + center[0]
-        ind_masks[0] = 1
+        if labels == 0:
+            # 只有背景，将ind_masks设置为0，即没有目标
+            inds[0] = 0
+            ind_masks[0] = 0
+        else:
+            masked_gaussian, center = draw_heatmap_gaussian(heat_map[0], segmentation, self.gaussian_scale,
+                                                            self.down_ratio)
+            draw_corner_gaussian(corner_map, segmentation, masked_gaussian, self.down_ratio)
+            draw_bboxes_gaussian(bboxes_map, bboxes, segmentation, masked_gaussian, self.down_ratio)
+            # inds保存heatmap中目标点的索引，也就是正样本的位置索引
+            inds[0] = center[1] * heat_map.shape[1] + center[0]
+            ind_masks[0] = 1
 
         # 设置角点和边界框loss计算的的mask
         reg_mask = copy.deepcopy(heat_map)
@@ -185,7 +188,7 @@ class COCO(data.Dataset):
 
         return {'image': image, 'heat_map': heat_map, 'corner_map': corner_map, 'bboxes_map': bboxes_map, 'inds': inds,
                 'ind_masks': ind_masks, 'scale': scale, 'img_id': img_id, 'reg_mask': reg_mask, 'bboxes': bboxes,
-                'segmentation': segmentation}
+                'segmentation': segmentation, 'lp_image': lp_image, 'lp_labelse': lp_labels}
 
     def __len__(self):
         return self.num_samples

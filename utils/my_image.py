@@ -136,20 +136,20 @@ def image_affine(image, bboxes, segmentation, img_id, img_aug=True):
     return image_aug2, bbs_aug2, kpsoi_aug2
 
 
-def draw_heatmap_gaussian(heatmap, kpsoi_aug, scale, down_ratio):
+def draw_heatmap_gaussian(heatmap, seg, scale, down_ratio):
     # 计算缩小down_ratio后的车牌中心点坐标
-    center_x = math.ceil((kpsoi_aug[0] + kpsoi_aug[2] + kpsoi_aug[4] + kpsoi_aug[6]) / (4.0 * down_ratio))
-    center_y = math.ceil((kpsoi_aug[1] + kpsoi_aug[3] + kpsoi_aug[5] + kpsoi_aug[7]) / (4.0 * down_ratio))
+    center_x = math.ceil((seg[0] + seg[2] + seg[4] + seg[6]) / (4.0 * down_ratio))
+    center_y = math.ceil((seg[1] + seg[3] + seg[5] + seg[7]) / (4.0 * down_ratio))
     center = [center_x, center_y]
     # 寻找四边形的几何属性（倾斜角度、长边、短边）
-    x1 = kpsoi_aug[0] / down_ratio
-    y1 = kpsoi_aug[1] / down_ratio
-    x2 = kpsoi_aug[2] / down_ratio
-    y2 = kpsoi_aug[3] / down_ratio
-    x3 = kpsoi_aug[4] / down_ratio
-    y3 = kpsoi_aug[5] / down_ratio
-    x4 = kpsoi_aug[6] / down_ratio
-    y4 = kpsoi_aug[7] / down_ratio
+    x1 = seg[0] / down_ratio
+    y1 = seg[1] / down_ratio
+    x2 = seg[2] / down_ratio
+    y2 = seg[3] / down_ratio
+    x3 = seg[4] / down_ratio
+    y3 = seg[5] / down_ratio
+    x4 = seg[6] / down_ratio
+    y4 = seg[7] / down_ratio
     # 长、短边长
     l1 = math.sqrt(pow((x4 - x1), 2) + pow((y4 - y1), 2))
     l2 = math.sqrt(pow((x3 - x2), 2) + pow((y3 - y2), 2))
@@ -202,15 +202,15 @@ def draw_heatmap_gaussian(heatmap, kpsoi_aug, scale, down_ratio):
     return masked_gaussian, center
 
 
-def draw_corner_gaussian(corner, kpsoi_aug, masked_gaussian, down_ratio):
-    x1 = kpsoi_aug[0] / down_ratio
-    y1 = kpsoi_aug[1] / down_ratio
-    x2 = kpsoi_aug[2] / down_ratio
-    y2 = kpsoi_aug[3] / down_ratio
-    x3 = kpsoi_aug[4] / down_ratio
-    y3 = kpsoi_aug[5] / down_ratio
-    x4 = kpsoi_aug[6] / down_ratio
-    y4 = kpsoi_aug[7] / down_ratio
+def draw_corner_gaussian(corner, seg, masked_gaussian, down_ratio):
+    x1 = seg[0] / down_ratio
+    y1 = seg[1] / down_ratio
+    x2 = seg[2] / down_ratio
+    y2 = seg[3] / down_ratio
+    x3 = seg[4] / down_ratio
+    y3 = seg[5] / down_ratio
+    x4 = seg[6] / down_ratio
+    y4 = seg[7] / down_ratio
     # 对边界进行约束，防止越界
     left, right = math.floor(min(x1, x2)), math.ceil(max(x3, x4))
     top, bottom = math.floor(min(y1, y4)), math.ceil(max(y2, y3))
@@ -244,15 +244,15 @@ def draw_corner_gaussian(corner, kpsoi_aug, masked_gaussian, down_ratio):
     return corner
 
 
-def draw_bboxes_gaussian(bboxes_map, bbs, kpsoi_aug, masked_gaussian, down_ratio):
-    x1 = kpsoi_aug[0] / down_ratio
-    y1 = kpsoi_aug[1] / down_ratio
-    x2 = kpsoi_aug[2] / down_ratio
-    y2 = kpsoi_aug[3] / down_ratio
-    x3 = kpsoi_aug[4] / down_ratio
-    y3 = kpsoi_aug[5] / down_ratio
-    x4 = kpsoi_aug[6] / down_ratio
-    y4 = kpsoi_aug[7] / down_ratio
+def draw_bboxes_gaussian(bboxes_map, bbs, seg, masked_gaussian, down_ratio):
+    x1 = seg[0] / down_ratio
+    y1 = seg[1] / down_ratio
+    x2 = seg[2] / down_ratio
+    y2 = seg[3] / down_ratio
+    x3 = seg[4] / down_ratio
+    y3 = seg[5] / down_ratio
+    x4 = seg[6] / down_ratio
+    y4 = seg[7] / down_ratio
     # 对边界进行约束，防止越界
     left, right = math.floor(min(x1, x2)), math.ceil(max(x3, x4))
     top, bottom = math.floor(min(y1, y4)), math.ceil(max(y2, y3))
