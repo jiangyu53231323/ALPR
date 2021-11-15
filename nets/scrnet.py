@@ -359,11 +359,17 @@ class SCRNet(nn.Module):
             Block(3, 16, 16, 16, nn.ReLU(inplace=True), None, 1),
             Block(3, 16, 64, 24, nn.ReLU(inplace=True), None, 2),
             Block(3, 24, 72, 24, nn.ReLU(inplace=True), None, 1),
+            # SAC(24, 24),
+            # nn.BatchNorm2d(24),
+            # nn.ReLU(inplace=True),
         )
         self.bneck2 = nn.Sequential(
             Block(3, 24, 72, 40, nn.ReLU(inplace=True), SeModule, 2),
             Block(3, 40, 120, 40, nn.ReLU(inplace=True), SeModule, 1),
             Block(3, 40, 120, 40, nn.ReLU(inplace=True), SeModule, 1),
+            # SAC(40, 40),
+            # nn.BatchNorm2d(40),
+            # nn.ReLU(inplace=True),
         )
         self.bneck3 = nn.Sequential(
             Block(3, 40, 240, 80, hswish(), None, 2),
@@ -373,6 +379,9 @@ class SCRNet(nn.Module):
             Block(3, 80, 480, 112, hswish(), SeModule, 1),
             Block(3, 112, 672, 112, hswish(), SeModule, 1),
             Block(5, 112, 672, 160, hswish(), SeModule, 1),
+            # SAC(160, 160),
+            # nn.BatchNorm2d(160),
+            # hswish(),
         )
         self.bneck4 = nn.Sequential(
             Block(5, 160, 672, 160, hswish(), SeModule, 2),
@@ -384,9 +393,22 @@ class SCRNet(nn.Module):
         self.conv_fpn3 = nn.Conv2d(160, 64, kernel_size=1, stride=1, padding=0, bias=False)
         self.conv_fpn4 = nn.Conv2d(160, 64, kernel_size=1, stride=1, padding=0, bias=False)
 
-        self.deconv_layer3 = _make_deconv_layer(64, 64, 4)
-        self.deconv_layer2 = _make_deconv_layer(64, 64, 4)
+        # self.deconv_layer3 = _make_deconv_layer(64, 64, 4)
+        # self.deconv_layer2 = _make_deconv_layer(64, 64, 4)
         # self.deconv_layer1 = _make_deconv_layer(64, 32, 4)
+
+        self.up4 = nn.Sequential(
+            nn.ConvTranspose2d(in_channels=64, out_channels=64, kernel_size=4, stride=2, padding=1, output_padding=0,
+                               bias=False),
+            nn.BatchNorm2d(64),
+            hswish(),
+        )
+        self.up3 = nn.Sequential(
+            nn.ConvTranspose2d(in_channels=64, out_channels=64, kernel_size=4, stride=2, padding=1, output_padding=0,
+                               bias=False),
+            nn.BatchNorm2d(64),
+            hswish(),
+        )
 
         self.conv2 = nn.Sequential(
             nn.Conv2d(64, 64, kernel_size=(3, 3), stride=2, padding=1, groups=64, bias=False),
@@ -421,8 +443,8 @@ class SCRNet(nn.Module):
         out4 = self.bneck4(out3)  # out:4,12
 
         p4 = self.conv_fpn4(out4)
-        p3 = self.deconv_layer3(p4) + self.conv_fpn3(out3)
-        p2 = self.deconv_layer2(p3) + self.conv_fpn2(out2)
+        p3 = self.up4(p4) + self.conv_fpn3(out3)
+        p2 = self.up3(p3) + self.conv_fpn2(out2)
         out = self.conv2(p2)  # out:1,24
         # out4 = self.bneck4(out3)  # out:2,6
         # out = self.hs2(self.bn2(self.conv2(out4)))  # out:1,3

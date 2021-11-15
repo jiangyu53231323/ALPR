@@ -66,7 +66,7 @@ def _heatmap_loss(preds, targets):
     return loss / len(preds)  #
 
 
-def _corner_loss(regs, gt_regs, mask):
+def _corner_loss(regs, gt_regs, mask, ind_masks):
     # expand_as 将输入tensor的维度扩展为与指定tensor相同的size
     # mask = mask[:, :, None].expand_as(gt_regs).float()
     '''
@@ -80,27 +80,31 @@ def _corner_loss(regs, gt_regs, mask):
     num[num > 0] = 1
     batch, cat, height, width = mask.size()
     loss = 0
+    count = 0
     # 单独计算每一个图片的loss
     for b in range(batch):
-        # 按照heat-map值的大小顺序，获取当前图片的mask
-        topk_score, topk_ind = torch.topk(mask[b].view(cat, -1), num[b].sum().int())
-        total = topk_score.sum()
-        topk_ind = topk_ind.expand(8, topk_ind.size(1))  # 将mask的维度调整到与reg相同
-        topk_score = topk_score.expand(8, topk_score.size(1))
-        reg = regs[0][b].view(8, -1).gather(1, topk_ind)  # 沿给定轴，将索引向量mask中值在reg上进行聚合
-        gt_reg = gt_regs[b].view(8, -1).gather(1, topk_ind)
+        if ind_masks[b][0] == 0:
+            continue
+        else:
+            # 按照heat-map值的大小顺序，获取当前图片的mask
+            topk_score, topk_ind = torch.topk(mask[b].view(cat, -1), num[b].sum().int())
+            total = topk_score.sum()
+            topk_ind = topk_ind.expand(8, topk_ind.size(1))  # 将mask的维度调整到与reg相同
+            topk_score = topk_score.expand(8, topk_score.size(1))
+            reg = regs[0][b].view(8, -1).gather(1, topk_ind)  # 沿给定轴，将索引向量mask中值在reg上进行聚合
+            gt_reg = gt_regs[b].view(8, -1).gather(1, topk_ind)
 
-        # 计算L1损失的值，除以参与计算的总点数
-        # loss = loss + (F.smooth_l1_loss(reg, gt_reg, reduction='sum') / (num[b].sum() + 1e-4))
+            # 计算L1损失的值，除以参与计算的总点数
+            # loss = loss + (F.smooth_l1_loss(reg, gt_reg, reduction='sum') / (num[b].sum() + 1e-4))
+            # 将点按照离物体中心的程度作为权重，乘以对应点的loss值
+            loss_centerness = F.smooth_l1_loss(reg, gt_reg, reduction='none') * topk_score
+            loss = loss + (loss_centerness.sum() / total)
+            count += 1
 
-        # 将点按照离物体中心的程度作为权重，乘以对应点的loss值
-        loss_centerness = F.smooth_l1_loss(reg, gt_reg, reduction='none') * topk_score
-        loss = loss + (loss_centerness.sum() / total)
-
-    return loss / batch
+    return loss / count
 
 
-def _w_h_loss(regs, gt_regs, mask):
+def _w_h_loss(regs, gt_regs, mask, ind_masks):
     # expand_as 将输入tensor的维度扩展为与指定tensor相同的size
     # mask = mask[:, :, None].expand_as(gt_regs).float()
     '''
@@ -115,55 +119,65 @@ def _w_h_loss(regs, gt_regs, mask):
     # topk_scores, topk_inds = torch.topk(mask.view(batch, cat, -1), num.sum().int() // batch)
     loss = 0
     iou_loss = 0
+    count = 0
     for b in range(batch):
-        # 按照高斯概率进行排序，总数为heat_map中有效数字的点
-        topk_score, topk_ind = torch.topk(mask[b].view(cat, -1), num[b].sum().int())
-        total = topk_score.sum()
-        topk_ind = topk_ind.expand(4, topk_ind.size(1))
-        topk_score = topk_score.expand(4, topk_score.size(1))
-        reg = regs[0][b].view(4, -1).gather(1, topk_ind)
-        gt_reg = gt_regs[b].view(4, -1).gather(1, topk_ind)
+        if ind_masks[b][0] == 0:
+            continue
+        else:
+            # 按照高斯概率进行排序，总数为heat_map中有效数字的点
+            topk_score, topk_ind = torch.topk(mask[b].view(cat, -1), num[b].sum().int())
+            total = topk_score.sum()
+            topk_ind = topk_ind.expand(4, topk_ind.size(1))
+            topk_score = topk_score.expand(4, topk_score.size(1))
+            reg = regs[0][b].view(4, -1).gather(1, topk_ind)
+            gt_reg = gt_regs[b].view(4, -1).gather(1, topk_ind)
 
-        # loss = loss + (F.smooth_l1_loss(reg, gt_reg, reduction='sum') / (num[b].sum() + 1e-4))
-        # iou_loss = iou_loss + (1 - bbox_iou(reg, gt_reg, DIoU=True)).sum() / (num[b].sum() + 1e-4)
+            # loss = loss + (F.smooth_l1_loss(reg, gt_reg, reduction='sum') / (num[b].sum() + 1e-4))
+            # iou_loss = iou_loss + (1 - bbox_iou(reg, gt_reg, DIoU=True)).sum() / (num[b].sum() + 1e-4)
 
-        # 将点按照离物体中心的程度作为权重，乘以对应点的loss值
-        loss_centerness = F.smooth_l1_loss(reg, gt_reg, reduction='none') * topk_score
-        loss = loss + (loss_centerness.sum() / total)
+            # 将点按照离物体中心的程度作为权重，乘以对应点的loss值
+            loss_centerness = F.smooth_l1_loss(reg, gt_reg, reduction='none') * topk_score
+            loss = loss + (loss_centerness.sum() / total)
+            count += 1
 
-    return loss / batch
+    return loss / count
 
 
-def bboxes_loss(regs, gt_regs, mask):
+def bboxes_loss(regs, gt_regs, mask, ind_masks):
     batch, cat, height, width = mask.size()
     num = copy.deepcopy(mask)
     num[num > 0] = 1
     loss = 0
+    count = 0
     for b in range(batch):
-        topk_score, topk_ind = torch.topk(mask[b].view(cat, -1), num[b].sum().int())
-        # x和y都是一维tensor，长度为所有点的个数
-        x = (topk_ind[0] % width)
-        y = (topk_ind[0] // width)
-        total = topk_score.sum()
-        topk_ind = topk_ind.expand(4, topk_ind.size(1))
-        # topk_score = topk_score.expand(4, topk_score.size(1))
-        # transpose对tensor的两个维度进行交换，view则是以行序对所有元素重新排列
-        reg = regs[0][b].view(4, -1).gather(1, topk_ind)
-        # reg = reg.transpose(0, 1).contiguous()
-        gt_reg = gt_regs[b].view(4, -1).gather(1, topk_ind)
-        # gt_reg = gt_reg.transpose(0, 1).contiguous()
-        pre_bx1 = (x - reg[0, :] * 1).unsqueeze(0)
-        pre_bx2 = (x + reg[2, :] * 1).unsqueeze(0)
-        pre_by1 = (y - reg[1, :] * 1).unsqueeze(0)
-        pre_by2 = (y + reg[3, :] * 1).unsqueeze(0)
-        gt_bx1 = (x - gt_reg[0, :] * 1).unsqueeze(0)
-        gt_bx2 = (x + gt_reg[2, :] * 1).unsqueeze(0)
-        gt_by1 = (y - gt_reg[1, :] * 1).unsqueeze(0)
-        gt_by2 = (y + gt_reg[3, :] * 1).unsqueeze(0)
-        pre_bboxes = torch.cat([pre_bx1, pre_by1, pre_bx2, pre_by2], dim=0)
-        gt_bboxes = torch.cat([gt_bx1, gt_by1, gt_bx2, gt_by2], dim=0)
-        weight = topk_score[0]
-        iou_loss = ((1 - bbox_iou(pre_bboxes, gt_bboxes, DIoU=True)) * weight).sum() / (total + 1e-4)
-        loss = loss + iou_loss
+        if ind_masks[b][0] == 0:
+            continue
+        else:
+            topk_score, topk_ind = torch.topk(mask[b].view(cat, -1), num[b].sum().int())
+            # x和y都是一维tensor，长度为所有点的个数
+            x = (topk_ind[0] % width)
+            y = (topk_ind[0] // width)
+            total = topk_score.sum()
+            topk_ind = topk_ind.expand(4, topk_ind.size(1))
+            # topk_score = topk_score.expand(4, topk_score.size(1))
+            # transpose对tensor的两个维度进行交换，view则是以行序对所有元素重新排列
+            reg = regs[0][b].view(4, -1).gather(1, topk_ind)
+            # reg = reg.transpose(0, 1).contiguous()
+            gt_reg = gt_regs[b].view(4, -1).gather(1, topk_ind)
+            # gt_reg = gt_reg.transpose(0, 1).contiguous()
+            pre_bx1 = (x - reg[0, :] * 1).unsqueeze(0)
+            pre_bx2 = (x + reg[2, :] * 1).unsqueeze(0)
+            pre_by1 = (y - reg[1, :] * 1).unsqueeze(0)
+            pre_by2 = (y + reg[3, :] * 1).unsqueeze(0)
+            gt_bx1 = (x - gt_reg[0, :] * 1).unsqueeze(0)
+            gt_bx2 = (x + gt_reg[2, :] * 1).unsqueeze(0)
+            gt_by1 = (y - gt_reg[1, :] * 1).unsqueeze(0)
+            gt_by2 = (y + gt_reg[3, :] * 1).unsqueeze(0)
+            pre_bboxes = torch.cat([pre_bx1, pre_by1, pre_bx2, pre_by2], dim=0)
+            gt_bboxes = torch.cat([gt_bx1, gt_by1, gt_bx2, gt_by2], dim=0)
+            weight = topk_score[0]
+            iou_loss = ((1 - bbox_iou(pre_bboxes, gt_bboxes, DIoU=True)) * weight).sum() / (total + 1e-4)
+            loss = loss + iou_loss
+            count += 1
 
-    return loss / batch
+    return loss / count

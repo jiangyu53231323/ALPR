@@ -37,7 +37,7 @@ class COCO(data.Dataset):
     def __init__(self, data_dir, split, split_ratio=1.0, img_size=384):
         super(COCO, self).__init__()
         # 数据集类别总数、类别名、有效ID
-        self.num_classes = len(COCO_IDS)
+        self.num_classes = len(COCO_IDS) - 1  # 减去背景的类别数
         self.class_name = COCO_NAMES
         self.valid_ids = COCO_IDS
         # cat_ids 将类别list转换成字典形式
@@ -161,7 +161,7 @@ class COCO(data.Dataset):
         # 在这里是单目标检测，情况会简单很多
         ind_masks = np.zeros((self.max_objs,), dtype=np.uint8)
         # 将高斯分布画到heatmap上
-        if labels == 0:
+        if labels[0] == 0:
             # 只有背景，将ind_masks设置为0，即没有目标
             inds[0] = 0
             ind_masks[0] = 0

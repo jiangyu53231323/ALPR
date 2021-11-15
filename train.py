@@ -187,9 +187,9 @@ def main():
             hmap, corner, w_h_ = zip(*outputs)
             # 分别计算 loss
             hmap_loss = _heatmap_loss(hmap, batch['heat_map'])
-            corner_loss = _corner_loss(corner, batch['corner_map'], batch['reg_mask'])
+            corner_loss = _corner_loss(corner, batch['corner_map'], batch['reg_mask'], batch['ind_masks'])
             # w_h_loss = _w_h_loss(w_h_, batch['bboxes_map'], batch['reg_mask'])
-            b_loss = bboxes_loss(w_h_, batch['bboxes_map'], batch['reg_mask'])
+            b_loss = bboxes_loss(w_h_, batch['bboxes_map'], batch['reg_mask'], batch['ind_masks'])
             # 进行 loss 加权，得到最终 loss
             # loss = hmap_loss + 0.1 * corner_loss + 0.2 * w_h_loss
             loss = hmap_loss + 0.1 * corner_loss + 5 * b_loss

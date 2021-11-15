@@ -53,13 +53,13 @@ parser.add_argument('--split_ratio', type=float, default=1.0)
 
 parser.add_argument('--lr', type=float, default=1.25e-4)
 parser.add_argument('--lr_step', type=str, default='2,4,6')
-parser.add_argument('--batch_size', type=int, default=64)
+parser.add_argument('--batch_size', type=int, default=48)
 parser.add_argument('--num_epochs', type=int, default=20)
 
 parser.add_argument('--test_topk', type=int, default=10)
 
 parser.add_argument('--log_interval', type=int, default=1000)
-parser.add_argument('--val_interval', type=int, default=1)
+parser.add_argument('--val_interval', type=int, default=2)
 parser.add_argument('--num_workers', type=int, default=4)
 
 cfg = parser.parse_args()
@@ -123,19 +123,14 @@ def main():
                                                drop_last=True,
                                                sampler=train_sampler if cfg.dist else None
                                                )
-    # train_loader = MultiEpochsDataLoader(train_dataset,
-    #                                      batch_size=cfg.batch_size // num_gpus if cfg.dist else cfg.batch_size,
-    #                                      shuffle=not cfg.dist, num_workers=cfg.num_workers,
-    #                                      pin_memory=True)
-    # train_loader = CudaDataLoader(train_loader, device=0)
-    # list(train_loader)
     dataset_eval = SCR_COCO_eval if cfg.dataset == 'coco' else YOLO_eval
     val_dataset = dataset_eval(cfg.data_dir, cfg.img_size, 'val')
     # collate_fn 将一个list的sample组成一个mini-batch的函数
     val_loader = torch.utils.data.DataLoader(val_dataset,
-                                             batch_size=1,
+                                             batch_size=cfg.batch_size // num_gpus
+                                             if cfg.dist else cfg.batch_size,
                                              shuffle=False,
-                                             num_workers=1,
+                                             num_workers=cfg.num_workers,
                                              pin_memory=True, )
     # 网络模型建立
     print('Creating model...')
