@@ -48,7 +48,7 @@ parser.add_argument('--pretrain_name', type=str, default='scr_pretrain')
 parser.add_argument('--dataset', type=str, default='coco', choices=['coco', 'yolo'])
 parser.add_argument('--arch', type=str, default='scrnet')
 
-parser.add_argument('--img_size', type=int, default=(192, 64))  # 长×宽
+parser.add_argument('--img_size', type=int, default=(224, 64))  # 长×宽
 parser.add_argument('--split_ratio', type=float, default=1.0)
 
 parser.add_argument('--lr', type=float, default=1.25e-4)
@@ -214,17 +214,18 @@ def main():
                 outputs = model(inputs['image'])
                 out = [torch.topk(ee, 1)[1].squeeze(1) for ee in outputs[1]]
                 isTure = 1
-                for j in range(7):
-                    if inputs['labels'][0][j] == out[j]:
-                        isTure = 1
+                for b in range(len(inputs['labels'])):
+                    for j in range(7):
+                        if inputs['labels'][b][j] == out[j][b]:
+                            isTure = 1
+                            continue
+                        else:
+                            isTure = 0
+                            break
+                    if isTure == 0:
                         continue
                     else:
-                        isTure = 0
-                        break
-                if isTure == 0:
-                    continue
-                else:
-                    num = num + 1
+                        num = num + 1
 
         accuracy = float(num) / float(amount)
         print('amount = %d' % amount)

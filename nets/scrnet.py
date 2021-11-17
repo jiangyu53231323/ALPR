@@ -168,6 +168,39 @@ def _make_deconv_layer(inplanes, filter, kernel):
     return nn.Sequential(*layers)
 
 
+def deconv(inplanes, filter):
+    layers = []
+    fc = DCN(inplanes,
+             filter,
+             kernel_size=(3, 3),
+             stride=1,
+             padding=1,
+             dilation=1,
+             deformable_groups=1)
+    fill_fc_weights(fc)
+    layers.append(fc)
+    layers.append(nn.BatchNorm2d(filter, momentum=BN_MOMENTUM))
+    layers.append(hswish())
+    return nn.Sequential(*layers)
+
+
+def upsampling(inplanes, filter, kernel):
+    layers = []
+    kernel, padding, output_padding = _get_deconv_cfg(kernel)
+    up = nn.ConvTranspose2d(in_channels=inplanes,
+                            out_channels=filter,
+                            kernel_size=kernel,
+                            stride=2,
+                            padding=padding,
+                            output_padding=output_padding,
+                            bias=False)
+    fill_up_weights(up)
+    layers.append(up)
+    layers.append(nn.BatchNorm2d(filter, momentum=BN_MOMENTUM))
+    layers.append(hswish())
+    return nn.Sequential(*layers)
+
+
 # Residual block 残差块
 class ResidualBlock(nn.Module):
     def __init__(self, in_channels, out_channels, stride=1, downsample=None):
@@ -279,6 +312,11 @@ class Block(nn.Module):
 class Blue_ocr(nn.Module):
     def __init__(self, in_channel):
         super(Blue_ocr, self).__init__()
+        self.conv = nn.Sequential(
+            nn.Conv2d(in_channel, in_channel, kernel_size=(1, 3), stride=1, padding=(0, 1)),
+            nn.BatchNorm2d(in_channel),
+            nn.ReLU(inplace=True),
+        )
         self.classifier1 = nn.Sequential(
             nn.Conv2d(in_channel, 34, kernel_size=(1, 6),
                       stride=(1, 3), padding=0, bias=False),
@@ -296,9 +334,10 @@ class Blue_ocr(nn.Module):
         )
 
     def forward(self, x):
-        out1 = self.classifier1(x)
-        out2 = self.classifier2(x)
-        out3 = self.classifier3(x)
+        out = self.conv(x)
+        out1 = self.classifier1(out)
+        out2 = self.classifier2(out)
+        out3 = self.classifier3(out)
         # 格式化输出
         y1 = out1[:, :, :, 0].view([out1.size()[0], -1])
         y2 = out2[:, :, :, 1].view([out2.size()[0], -1])
@@ -314,6 +353,11 @@ class Blue_ocr(nn.Module):
 class Green_ocr(nn.Module):
     def __init__(self, in_channel):
         super(Green_ocr, self).__init__()
+        self.conv = nn.Sequential(
+            nn.Conv2d(in_channel, in_channel, kernel_size=(1, 3), stride=1, padding=(0, 1)),
+            nn.BatchNorm2d(in_channel),
+            nn.ReLU(inplace=True),
+        )
         self.classifier1 = nn.Sequential(
             nn.Conv2d(in_channel, 34, kernel_size=(1, 6),
                       stride=(1, 3), padding=(0, 2), bias=True),
@@ -331,9 +375,10 @@ class Green_ocr(nn.Module):
         )
 
     def forward(self, x):
-        out1 = self.classifier1(x)
-        out2 = self.classifier2(x)
-        out3 = self.classifier3(x)
+        out = self.conv(x)
+        out1 = self.classifier1(out)
+        out2 = self.classifier2(out)
+        out3 = self.classifier3(out)
         # 格式化输出
         y1 = out1[:, :, :, 0].view([out1.size()[0], -1])
         y2 = out2[:, :, :, 1].view([out2.size()[0], -1])
@@ -345,6 +390,24 @@ class Green_ocr(nn.Module):
         y8 = out3[:, :, :, 7].view([out3.size()[0], -1])
 
         return [y1, y2, y3, y4, y5, y6, y7, y8]
+
+
+class Classifier(nn.Module):
+    def __init__(self, in_channel, filter, cls):
+        super(Classifier, self).__init__()
+        self.conv = nn.Sequential(
+            nn.AdaptiveAvgPool2d(1),
+            nn.Conv2d(in_channel, filter, kernel_size=1, stride=1, padding=0),
+            nn.BatchNorm2d(filter),
+            hswish(),
+        )
+        self.category = nn.Linear(filter, cls)
+
+    def forward(self, x):
+        out = self.conv(x)
+        out = out.view(out.size(0), -1)
+        out = self.category(out)
+        return out
 
 
 # 主干网络
@@ -386,29 +449,22 @@ class SCRNet(nn.Module):
         self.bneck4 = nn.Sequential(
             Block(5, 160, 672, 160, hswish(), SeModule, 2),
             Block(5, 160, 960, 160, hswish(), SeModule, 1),
+            deconv(160, 128),
+            deconv(128, 128),
+            deconv(128, 128),
         )
 
         # self.conv_fpn1 = nn.Conv2d(24, 64, kernel_size=1, stride=1, padding=0, bias=False)
         self.conv_fpn2 = nn.Conv2d(40, 64, kernel_size=1, stride=1, padding=0, bias=False)
-        self.conv_fpn3 = nn.Conv2d(160, 64, kernel_size=1, stride=1, padding=0, bias=False)
-        self.conv_fpn4 = nn.Conv2d(160, 64, kernel_size=1, stride=1, padding=0, bias=False)
+        self.conv_fpn3 = nn.Conv2d(160, 128, kernel_size=1, stride=1, padding=0, bias=False)
+        self.conv_fpn4 = nn.Conv2d(128, 128, kernel_size=1, stride=1, padding=0, bias=False)
 
         # self.deconv_layer3 = _make_deconv_layer(64, 64, 4)
         # self.deconv_layer2 = _make_deconv_layer(64, 64, 4)
         # self.deconv_layer1 = _make_deconv_layer(64, 32, 4)
 
-        self.up4 = nn.Sequential(
-            nn.ConvTranspose2d(in_channels=64, out_channels=64, kernel_size=4, stride=2, padding=1, output_padding=0,
-                               bias=False),
-            nn.BatchNorm2d(64),
-            hswish(),
-        )
-        self.up3 = nn.Sequential(
-            nn.ConvTranspose2d(in_channels=64, out_channels=64, kernel_size=4, stride=2, padding=1, output_padding=0,
-                               bias=False),
-            nn.BatchNorm2d(64),
-            hswish(),
-        )
+        self.up4 = upsampling(128, 128, 4)
+        self.up3 = upsampling(128, 64, 4)
 
         self.conv2 = nn.Sequential(
             nn.Conv2d(64, 64, kernel_size=(3, 3), stride=2, padding=1, groups=64, bias=False),
@@ -427,30 +483,33 @@ class SCRNet(nn.Module):
 
         self.blue_classifier = Blue_ocr(64)
         self.green_classifier = Green_ocr(64)
-        self.conv3 = nn.Sequential(
-            nn.AdaptiveAvgPool2d(1),
-            nn.Conv2d(64, 32, kernel_size=1, stride=1, padding=0),
-            nn.BatchNorm2d(32),
-            hswish(),
-        )
-        self.category = nn.Linear(32, 2)
+        self.category = Classifier(64, 32, 2)
+        # self.conv3 = nn.Sequential(
+        #     nn.AdaptiveAvgPool2d(1),
+        #     nn.Conv2d(64, 32, kernel_size=1, stride=1, padding=0),
+        #     nn.BatchNorm2d(32),
+        #     hswish(),
+        # )
+        # self.category = nn.Linear(32, 2)
 
     def forward(self, x):
-        out = self.hs1(self.bn1(self.conv1(x)))  # out:64,192
-        out1 = self.bneck1(out)  # out:32,96
-        out2 = self.bneck2(out1)  # out:16,48
-        out3 = self.bneck3(out2)  # out:8,24
-        out4 = self.bneck4(out3)  # out:4,12
+        out = self.hs1(self.bn1(self.conv1(x)))  # out:64,192  out:64,224
+        out1 = self.bneck1(out)  # out:32,96  out:32,112
+        out2 = self.bneck2(out1)  # out:16,48  out:16,56
+        out3 = self.bneck3(out2)  # out:8,24  out:8,28
+        out4 = self.bneck4(out3)  # out:4,12  out:4,14
 
         p4 = self.conv_fpn4(out4)
         p3 = self.up4(p4) + self.conv_fpn3(out3)
         p2 = self.up3(p3) + self.conv_fpn2(out2)
-        out = self.conv2(p2)  # out:1,24
+        out = self.conv2(p2)  # out:1,24  out:1,28
         # out4 = self.bneck4(out3)  # out:2,6
         # out = self.hs2(self.bn2(self.conv2(out4)))  # out:1,3
-        c = self.conv3(out)
-        c = c.view(c.size(0), -1)
-        c = self.category(c)
+        # c = self.conv3(out)
+        # c = c.view(c.size(0), -1)
+        # c = self.category(c)
+
+        c = self.category(out)
         b = self.blue_classifier(out)
         g = self.green_classifier(out)
 
@@ -459,7 +518,7 @@ class SCRNet(nn.Module):
 
 def test():
     net = SCRNet()
-    x = torch.randn(1, 3, 64, 192)
+    x = torch.randn(1, 3, 64, 224)
     flops, params = profile(net, inputs=(x,))
     net.eval()
     y = net(x)

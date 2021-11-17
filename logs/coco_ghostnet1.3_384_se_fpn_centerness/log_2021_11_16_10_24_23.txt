@@ -1,0 +1,11 @@
+Namespace(arch='ghostnet', batch_size=28, ckpt_dir='./ckpt\\coco_ghostnet1.3_384_se_fpn_centerness', data_dir='E:\\CodeDownload\\data', dataset='coco', dist=False, img_size=384, local_rank=0, log_dir='./logs\\coco_ghostnet1.3_384_se_fpn_centerness', log_interval=1000, log_name='coco_ghostnet1.3_384_se_fpn_centerness', lr=0.000125, lr_step=[2, 4, 6], num_epochs=20, num_workers=4, pretrain_dir='./ckpt\\pretrain\\checkpoint.t7', pretrain_name='pretrain', root_dir='./', split_ratio=1.0, test_topk=10, val_interval=1) [2021-11-16 10:24:23,888]
+Setting up data... [2021-11-16 10:24:23,889]
+Creating model... [2021-11-16 10:24:26,985]
+Starting training... [2021-11-16 10:24:29,522]
+
+ Val@Epoch: 1 [2021-11-16 10:24:29,522]
+[ 0.74491249  0.98977402  0.92756934 -1.          0.67176908  0.74759143
+  0.81473845  0.81532066  0.81532066 -1.          0.75222309  0.81833887] [2021-11-16 10:40:28,462]
+checkpoint saved in ./ckpt\coco_ghostnet1.3_384_se_fpn_centerness\checkpoint ! [2021-11-16 10:40:28,588]
+
+ Val@Epoch: 2 [2021-11-16 10:40:28,589]

@@ -279,7 +279,7 @@ class COCO_eval(COCO):
         detections = []
         for image_id in all_bboxes:
             for cls_ind in all_bboxes[image_id]:
-                category_id = self.valid_ids[cls_ind - 1]
+                category_id = self.valid_ids[cls_ind]
                 for bbox in all_bboxes[image_id][cls_ind]:
                     bbox[2] -= bbox[0]
                     bbox[3] -= bbox[1]
