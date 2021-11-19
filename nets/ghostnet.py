@@ -399,18 +399,18 @@ class My_GhostNet(nn.Module):
         # 将主干网最终输出channel控制在64
         self.deconv_layer3 = _make_deconv_layer(256, 128, 4)
         self.deconv_layer2 = _make_deconv_layer(128, 64, 4)
-        self.deconv_layer1 = _make_deconv_layer(64, 32, 4)
+        self.deconv_layer1 = _make_deconv_layer(64, 64, 4)
 
-        self.hmap = nn.Sequential(nn.Conv2d(32, 64, kernel_size=3, padding=1, bias=True),
+        self.hmap = nn.Sequential(nn.Conv2d(64, 64, kernel_size=3, padding=1, bias=True),
                                   # hswish(),
                                   nn.ReLU(inplace=True),
                                   nn.Conv2d(64, num_classes, kernel_size=1, bias=True))
         self.hmap[-1].bias.data.fill_(-2.19)
-        self.cors = nn.Sequential(nn.Conv2d(32, 64, kernel_size=3, padding=1, bias=True),
+        self.cors = nn.Sequential(nn.Conv2d(64, 64, kernel_size=3, padding=1, bias=True),
                                   # hswish(),
                                   nn.ReLU(inplace=True),
                                   nn.Conv2d(64, 8, kernel_size=1, bias=True))
-        self.w_h_ = nn.Sequential(nn.Conv2d(32, 64, kernel_size=3, padding=1, bias=True),
+        self.w_h_ = nn.Sequential(nn.Conv2d(64, 64, kernel_size=3, padding=1, bias=True),
                                   # hswish(),
                                   nn.ReLU(inplace=True),
                                   nn.Conv2d(64, 4, kernel_size=1, bias=True))
@@ -471,7 +471,7 @@ def ghostnet(**kwargs):
 
 if __name__ == '__main__':
     input = torch.randn(1, 3, 384, 256)
-    model = My_GhostNet(num_classes=1, w=0.5)
+    model = My_GhostNet(num_classes=1, w=1.1)
     flops, params = profile(model, inputs=(input,))
     model.eval()
     print(model)

@@ -181,3 +181,19 @@ def bboxes_loss(regs, gt_regs, mask, ind_masks):
             count += 1
 
     return loss / count
+
+
+def scr_loss(inputs, targets, target_size, cfg):
+    batch = targets.size()[0]
+    # logsoftmax = nn.LogSoftmax(dim=2)
+
+    # province_loss = nn.CrossEntropyLoss(inputs[0], targets[:, 0].to(cfg.device).long())
+    ctc_loss = nn.CTCLoss(blank=35 - 1, reduction='mean')
+    # 将网络输出的[B,C,1,W]的格式转换成[T,B,N]其中 T为ctc的输入长度，B为batch size， N为包含空白标签的所有要预测的字符集的总长度
+    ctc_input = inputs[1].squeeze(2).permute(2, 0, 1).log_softmax(2)
+    ctc_targets = targets[:, 1:].to(cfg.device)  # 省份字符单独计算loss
+    input_lengths = torch.full((batch,), 19, dtype=torch.long)
+    target_lengths = target_size - 1  # 减去省份字符
+    ctc_loss = ctc_loss(ctc_input, ctc_targets, input_lengths, target_lengths)
+    # loss = ctc_loss / batch
+    return ctc_loss

@@ -28,7 +28,7 @@ from nets.resdcn_cbam_fpn import get_pose_net
 
 from utils.utils import _tranpose_and_gather_feature, load_model
 from utils.image import transform_preds
-from utils.my_losses import _heatmap_loss, _corner_loss, _w_h_loss, bboxes_loss
+from utils.my_losses import _heatmap_loss, _corner_loss, _w_h_loss, bboxes_loss, scr_loss
 from utils.summary import create_summary, create_logger, create_saver, DisablePrint
 from utils.post_process import ctdet_decode
 from datasets.CudaDataLoader import CudaDataLoader, MultiEpochsDataLoader
@@ -42,7 +42,7 @@ parser.add_argument('--dist', action='store_true')  # 多GPU
 
 parser.add_argument('--root_dir', type=str, default='./')
 parser.add_argument('--data_dir', type=str, default='E:\CodeDownload\data')
-parser.add_argument('--log_name', type=str, default='scr_coco_ml_64x192_se_fpn')
+parser.add_argument('--log_name', type=str, default='scr_coco_ml_64x224_se_fpn')
 parser.add_argument('--pretrain_name', type=str, default='scr_pretrain')
 
 parser.add_argument('--dataset', type=str, default='coco', choices=['coco', 'yolo'])
@@ -167,20 +167,23 @@ def main():
         # 返回值的参考点未定义，因此只有连续调用结果之间的差异有效
         tic = time.perf_counter()
         for batch_idx, batch in enumerate(train_loader):
-            for k in batch:
-                # if k == 'labels':
-                #     batch[k] = torch.LongTensor(batch[k]).to(cfg.device)
-                if k == 'image':
-                    # 数据送入GPU
-                    batch[k] = batch[k].to(device=cfg.device, non_blocking=True)
+            # for k in batch:
+            #     # if k == 'labels':
+            #     #     batch[k] = torch.LongTensor(batch[k]).to(cfg.device)
+            #     if k == 'image':
+            #         # 数据送入GPU
+            #         batch[k] = batch[k].to(device=cfg.device, non_blocking=True)
 
-            outputs = model(batch['image'])
+            outputs = model(batch['image'].to(device=cfg.device, non_blocking=True))
 
-            loss = 0.0
-            for j in range(7):
-                l = batch['labels'][:, j].to(cfg.device).long()
-                # l = l.long()
-                loss += crossentropyloss(outputs[1][j], l)  # 交叉熵损失函数
+            # loss = 0.0
+            # for j in range(7):
+            #     l = batch['labels'][:, j].to(cfg.device).long()
+            #     # l = l.long()
+            #     loss += crossentropyloss(outputs[1][j], l)  # 交叉熵损失函数
+            province_loss = crossentropyloss(outputs[0], batch['labels'][:, 0].to(cfg.device).long())
+            ctc_loss = scr_loss(outputs, batch['labels'], batch['labels_size'], cfg)
+            loss = province_loss + ctc_loss
 
             optimizer.zero_grad()
             loss.backward()
