@@ -41,18 +41,27 @@ class SCR_COCO(Dataset):
         if len(bboxes) == 0:
             bboxes = np.array([[0., 0., 0., 0.]], dtype=np.float32)
             labels = np.array([[0]])
-        bboxes[2:] += bboxes[:2]  # xywh to xyxy
-        if bboxes[0] >= bboxes[2] or bboxes[1] >= bboxes[3]:
-            bboxes = np.array([[0., 0., 0., 0.]], dtype=np.float32)
+            labels_size = 0
+        else:
+            bboxes[2:] += bboxes[:2]  # xywh to xyxy
+            img_name = self.coco.loadImgs(ids=[img_id])[0]['file_name'].split('.')[0]  # 分割图片名称，rsplit作用是去除.jpg后缀
+            labels = [int(c) for c in img_name.split('-')[-3].split('_')]
+            if len(labels) < 8:
+                labels.append(0)
+                labels_size = 7
+            else:
+                labels_size = 8
+            labels = np.array(labels)
+        # if bboxes[0] >= bboxes[2] or bboxes[1] >= bboxes[3]:
+        #     bboxes = np.array([[0., 0., 0., 0.]], dtype=np.float32)
         # 读取图片
         image = cv2.imread(img_path)[:, :, ::-1]  # BGR to RGB
         image = image[int(bboxes[1]):int(bboxes[3]) + 1, int(bboxes[0]):int(bboxes[2]) + 1, :]
         image = cv2.resize(image, self.img_size)
         image = np.transpose(image, (2, 0, 1))
         image = image.astype('float32') / 255.
-        img_name = self.coco.loadImgs(ids=[img_id])[0]['file_name'].split('.')[0]  # 分割图片名称，rsplit作用是去除.jpg后缀
-        labels = np.array([int(c) for c in img_name.split('-')[-3].split('_')[:7]])
-        return {'image': image, 'labels': labels}
+
+        return {'image': image, 'labels': labels, 'labels_size': labels_size}
 
     @staticmethod
     def collate_fn(batch):
