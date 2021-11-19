@@ -212,23 +212,28 @@ def main():
         with torch.no_grad():  # 不跟踪梯度，减少内存占用
             for i, inputs in enumerate(val_loader):
                 # img_id, inputs = inputs[0]
-                inputs['image'] = inputs['image'].to(cfg.device)
-                inputs['labels'] = inputs['labels'].to(cfg.device)
+                for k in inputs:
+                    inputs[k] = inputs[k].to(cfg.device)
                 outputs = model(inputs['image'])
-                out = [torch.topk(ee, 1)[1].squeeze(1) for ee in outputs[1]]
-                isTure = 1
+                outputs[1] = outputs[1].squeeze(2).transpose(1,2)  # [B,W,C]
+                out = [torch.topk(e,1)[1] for e in outputs[1]]
                 for b in range(len(inputs['labels'])):
-                    for j in range(7):
-                        if inputs['labels'][b][j] == out[j][b]:
-                            isTure = 1
-                            continue
-                        else:
-                            isTure = 0
-                            break
-                    if isTure == 0:
-                        continue
-                    else:
-                        num = num + 1
+                    pass
+                #------------------------------------------------------------
+                # out = [torch.topk(ee, 1)[1].squeeze(1) for ee in outputs[1]]
+                # isTure = 1
+                # for b in range(len(inputs['labels'])):
+                #     for j in range(7):
+                #         if inputs['labels'][b][j] == out[j][b]:
+                #             isTure = 1
+                #             continue
+                #         else:
+                #             isTure = 0
+                #             break
+                #     if isTure == 0:
+                #         continue
+                #     else:
+                #         num = num + 1
 
         accuracy = float(num) / float(amount)
         print('amount = %d' % amount)

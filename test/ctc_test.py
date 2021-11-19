@@ -11,3 +11,12 @@ input_lengths = torch.full((16,), 18, dtype=torch.long)
 target_lengths = torch.randint(4, 8, (16,), dtype=torch.long)
 loss = ctc_loss(log_probs, targets, input_lengths, target_lengths)
 loss.backward()
+
+outputs = torch.randn(16, 19, 35)
+out = [torch.topk(e, 1)[1] for e in outputs]
+for b in range(16):
+    output = out[b].squeeze()
+    for i in output:
+        pass
+
+print(out)
