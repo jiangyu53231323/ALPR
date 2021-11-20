@@ -257,7 +257,6 @@ def main():
                         else:
                             num = num + 1
                     else:
-                        print('---------')
                         continue
                 # ------------------------------------------------------------
                 # out = [torch.topk(ee, 1)[1].squeeze(1) for ee in outputs[1]]
