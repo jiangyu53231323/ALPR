@@ -183,7 +183,7 @@ def main():
             #     loss += crossentropyloss(outputs[1][j], l)  # 交叉熵损失函数
             province_loss = crossentropyloss(outputs[0], batch['labels'][:, 0].to(cfg.device).long())
             ctc_loss = scr_loss(outputs, batch['labels'], batch['labels_size'], cfg)
-            loss = province_loss + ctc_loss
+            loss = 2 * province_loss + ctc_loss
 
             optimizer.zero_grad()
             loss.backward()
@@ -193,8 +193,9 @@ def main():
                 duration = time.perf_counter() - tic
                 tic = time.perf_counter()
                 print('[%d/%d-%d/%d] ' % (epoch, cfg.num_epochs, batch_idx, len(train_loader)) +
-                      ' loss= %.5f' % loss.item() + ' (%d samples/sec)' % (
-                              cfg.batch_size * cfg.log_interval / duration))
+                      ' province loss= %.5f ctc_loss= %.5f' % (
+                      province_loss.item(), ctc_loss.item()) + ' (%d samples/sec)' % (
+                                  cfg.batch_size * cfg.log_interval / duration))
 
                 step = len(train_loader) * epoch + batch_idx
                 summary_writer.add_scalar('loss', loss.item(), step)
@@ -215,11 +216,50 @@ def main():
                 for k in inputs:
                     inputs[k] = inputs[k].to(cfg.device)
                 outputs = model(inputs['image'])
-                outputs[1] = outputs[1].squeeze(2).transpose(1,2)  # [B,W,C]
-                out = [torch.topk(e,1)[1] for e in outputs[1]]
+                outputs[1] = outputs[1].squeeze(2).transpose(1, 2).to('cpu')  # [B,W,C]
+                outputs[0] = outputs[0].to('cpu')
+                for k in inputs:
+                    inputs[k] = inputs[k].to('cpu')
+                ctc = [torch.topk(e, 1)[1] for e in outputs[1]]
+                province = [torch.topk(e, 1)[1] for e in outputs[0]]
+                result = []
                 for b in range(len(inputs['labels'])):
-                    pass
-                #------------------------------------------------------------
+                    out = ctc[b].squeeze()
+                    pro = province[b].squeeze()
+                    res = []
+                    pre = -1
+                    for i in out:
+                        if i != pre:
+                            pre = i
+                            if i != 34:
+                                res.append(i)
+                    # if len(res) > 7:
+                    #     res = res[:7]
+                    for i in range(7 - len(res)):
+                        res.append(-1)
+                    res = torch.from_numpy(np.array(res[:7]))
+                    result.append(res)
+                    isTure = 1
+                    # x1 = pro.int()
+                    # x2 = inputs['labels'][b][0]
+                    # x3 = res[0].int()
+                    # x4 = inputs['labels'][b][1]
+                    if pro == inputs['labels'][b][0]:
+                        for k in range(inputs['labels_size'][b] - 1):
+                            if res[k] == inputs['labels'][b][k + 1]:
+                                isTure = 1
+                                continue
+                            else:
+                                isTure = 0
+                                break
+                        if isTure == 0:
+                            continue
+                        else:
+                            num = num + 1
+                    else:
+                        print('---------')
+                        continue
+                # ------------------------------------------------------------
                 # out = [torch.topk(ee, 1)[1].squeeze(1) for ee in outputs[1]]
                 # isTure = 1
                 # for b in range(len(inputs['labels'])):

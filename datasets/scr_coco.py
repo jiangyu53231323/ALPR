@@ -47,7 +47,7 @@ class SCR_COCO(Dataset):
             img_name = self.coco.loadImgs(ids=[img_id])[0]['file_name'].split('.')[0]  # 分割图片名称，rsplit作用是去除.jpg后缀
             labels = [int(c) for c in img_name.split('-')[-3].split('_')]
             if len(labels) < 8:
-                labels.append(0)
+                labels.append(-1)
                 labels_size = 7
             else:
                 labels_size = 8

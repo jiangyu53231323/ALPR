@@ -1,3 +1,4 @@
+import numpy as np
 import torch
 import torch.nn as nn
 
@@ -14,9 +15,24 @@ loss.backward()
 
 outputs = torch.randn(16, 19, 35)
 out = [torch.topk(e, 1)[1] for e in outputs]
+result = []
 for b in range(16):
     output = out[b].squeeze()
+    output = np.array([1,2,2,0,34,34,4,34,4,5,6,6,6])
+    output = torch.from_numpy(output)
+    res = []
+    s = 0
+    pre = -1
     for i in output:
-        pass
+        if i != pre:
+            pre = i
+            if i != 34:
+                res.append(i)
+    if len(res) > 7:
+        res = res[:7]
+    result.append(res)
+
+for j in range(1):
+    pass
 
 print(out)
