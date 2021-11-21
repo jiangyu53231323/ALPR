@@ -233,17 +233,11 @@ def main():
                             pre = i
                             if i != 34:
                                 res.append(i)
-                    # if len(res) > 7:
-                    #     res = res[:7]
                     for i in range(7 - len(res)):
                         res.append(-1)
                     res = torch.from_numpy(np.array(res[:7]))
                     result.append(res)
                     isTure = 1
-                    # x1 = pro.int()
-                    # x2 = inputs['labels'][b][0]
-                    # x3 = res[0].int()
-                    # x4 = inputs['labels'][b][1]
                     if pro == inputs['labels'][b][0]:
                         for k in range(inputs['labels_size'][b] - 1):
                             if res[k] == inputs['labels'][b][k + 1]:

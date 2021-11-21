@@ -17,6 +17,7 @@ class SCR_COCO(Dataset):
         # 数据集路径 data/CCPD2019
         self.data_dir = os.path.join(data_dir, 'CCPD2019')
         self.img_dir = os.path.join(self.data_dir, 'ccpd')
+        # self.annot_path = os.path.join(self.data_dir, 'annotations', 'ccpd_green_val2020.json' )
         self.annot_path = os.path.join(self.data_dir, 'annotations', 'ccpd_%s2020.json' % split)
         self.img_size = img_size
 
