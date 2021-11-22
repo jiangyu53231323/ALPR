@@ -28,7 +28,7 @@ def bbox_iou(box1, box2, x1y1x2y2=True, GIoU=False, DIoU=False, CIoU=False, eps=
         b2_x1, b2_y1, b2_x2, b2_y2 = box2[0], box2[1], box2[2] - box2[0], box2[3] - box2[1]
     # intersection area 交集
     inter = (torch.min(b1_x2, b2_x2) - torch.max(b1_x1, b2_x1)).clamp(min=0, ) * (
-                torch.min(b1_y2, b2_y2) - torch.max(b1_y1, b2_y1)).clamp(min=0, )
+            torch.min(b1_y2, b2_y2) - torch.max(b1_y1, b2_y1)).clamp(min=0, )
     # union area 并集
     w1, h1 = b1_x2 - b1_x1, b1_y2 - b1_y1 + eps
     w2, h2 = b2_x2 - b2_x1, b2_y2 - b2_y1 + eps
@@ -182,3 +182,41 @@ def count_flops(model, input_size=384):
 
     for h in handles:
         h.remove()
+
+
+def scr_decoder(pre, target):
+    for k in target:
+        target[k] = target[k].to('cpu')
+    cls = pre[0].to('cpu')
+    topk_score, topk_ind = torch.topk(cls, 1)
+    num = 0
+    for b in range(pre[0].size()[0]):
+        # blue车牌检测
+        if topk_ind[b] == 0:
+            for k in range(7):
+                p = pre[1][k][b].topk(1)
+                if p == target['labels'][b][k]:
+                    isTure = 1
+                    continue
+                else:
+                    isTure = 0
+                    break
+            if isTure == 0:
+                continue
+            else:
+                num = num + 1
+        # green车牌检测
+        else:
+            for k in range(8):
+                p = pre[2][k][b].topk(1)
+                if p == target['labels'][b][k]:
+                    isTure = 1
+                    continue
+                else:
+                    isTure = 0
+                    break
+            if isTure == 0:
+                continue
+            else:
+                num = num + 1
+    return num

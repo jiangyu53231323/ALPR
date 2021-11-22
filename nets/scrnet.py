@@ -319,33 +319,35 @@ class Blue_ocr(nn.Module):
         # )
         self.classifier1 = nn.Sequential(
             nn.Conv2d(in_channel, 34, kernel_size=(1, 6),
-                      stride=(1, 3), padding=0, bias=False),
+                      stride=1, padding=0, bias=True),
             # nn.ReLU(inplace=True),
         )
-        self.classifier2 = nn.Sequential(
-            nn.Conv2d(in_channel, 25, kernel_size=(1, 6),
-                      stride=(1, 3), padding=0, bias=False),
-            # nn.ReLU(inplace=True),
-        )
+        # self.classifier2 = nn.Sequential(
+        #     nn.Conv2d(in_channel, 25, kernel_size=(1, 6),
+        #               stride=(1, 3), padding=0, bias=True),
+        #     # nn.ReLU(inplace=True),
+        # )
         self.classifier3 = nn.Sequential(
             nn.Conv2d(in_channel, 35, kernel_size=(1, 6),
-                      stride=(1, 3), padding=0, bias=False),
+                      stride=(1, 4), padding=(0, 1), bias=True),
             # nn.ReLU(inplace=True),
         )
 
     def forward(self, x):
         # x = self.conv(x)
-        out1 = self.classifier1(x)
-        out2 = self.classifier2(x)
-        out3 = self.classifier3(x)
+        x1 = x[:, :, :, :6]
+        x3 = x[:, :, :, 4:]
+        out1 = self.classifier1(x1)
+        # out2 = self.classifier2(x)
+        out3 = self.classifier3(x3)
         # 格式化输出
         y1 = out1[:, :, :, 0].view([out1.size()[0], -1])
-        y2 = out2[:, :, :, 1].view([out2.size()[0], -1])
-        y3 = out3[:, :, :, 2].view([out3.size()[0], -1])
-        y4 = out3[:, :, :, 3].view([out3.size()[0], -1])
-        y5 = out3[:, :, :, 4].view([out3.size()[0], -1])
-        y6 = out3[:, :, :, 5].view([out3.size()[0], -1])
-        y7 = out3[:, :, :, 6].view([out3.size()[0], -1])
+        y2 = out3[:, :, :, 0].view([out3.size()[0], -1])
+        y3 = out3[:, :, :, 1].view([out3.size()[0], -1])
+        y4 = out3[:, :, :, 2].view([out3.size()[0], -1])
+        y5 = out3[:, :, :, 3].view([out3.size()[0], -1])
+        y6 = out3[:, :, :, 4].view([out3.size()[0], -1])
+        y7 = out3[:, :, :, 5].view([out3.size()[0], -1])
 
         return [y1, y2, y3, y4, y5, y6, y7]
 
@@ -360,41 +362,37 @@ class Green_ocr(nn.Module):
         # )
         self.classifier1 = nn.Sequential(
             nn.Conv2d(in_channel, 34, kernel_size=(1, 6),
-                      stride=(1, 3), padding=(0, 2), bias=True),
+                      stride=1, padding=0, bias=True),
             # nn.ReLU(inplace=True),
         )
-        self.classifier2 = nn.Sequential(
-            nn.Conv2d(in_channel, 25, kernel_size=(1, 6),
-                      stride=(1, 3), padding=(0, 2), bias=True),
-            # nn.ReLU(inplace=True),
-        )
+        # self.classifier2 = nn.Sequential(
+        #     nn.Conv2d(in_channel, 25, kernel_size=(1, 6),
+        #               stride=(1, 3), padding=(0, 2), bias=True),
+        #     # nn.ReLU(inplace=True),
+        # )
         self.classifier3 = nn.Sequential(
             nn.Conv2d(in_channel, 35, kernel_size=(1, 6),
-                      stride=(1, 3), padding=(0, 2), bias=True),
+                      stride=(1, 3), padding=0, bias=True),
             # nn.ReLU(inplace=True),
         )
-        # self.classifier4 = nn.Sequential(
-        #     nn.Conv2d(in_channel, 34, kernel_size=(1, 6), stride=1, padding=0, bias=True),
-        # )
-        # self.classifier5 = nn.Sequential(
-        #     nn.Conv2d(in_channel, 35, kernel_size=(1, 6), stride=1, padding=(0, 3))
-        # )
 
     def forward(self, x):
         # x = self.conv(x)
-        out1 = self.classifier1(x)
-        out2 = self.classifier2(x)
-        out3 = self.classifier3(x)
+        x1 = x[:, :, :, :6]
+        x3 = x[:, :, :, 4:]
+        out1 = self.classifier1(x1)
+        # out2 = self.classifier2(x)
+        out3 = self.classifier3(x3)
 
         # 格式化输出
         y1 = out1[:, :, :, 0].view([out1.size()[0], -1])
-        y2 = out2[:, :, :, 1].view([out2.size()[0], -1])
-        y3 = out3[:, :, :, 2].view([out3.size()[0], -1])
-        y4 = out3[:, :, :, 3].view([out3.size()[0], -1])
-        y5 = out3[:, :, :, 4].view([out3.size()[0], -1])
-        y6 = out3[:, :, :, 5].view([out3.size()[0], -1])
-        y7 = out3[:, :, :, 6].view([out3.size()[0], -1])
-        y8 = out3[:, :, :, 7].view([out3.size()[0], -1])
+        y2 = out3[:, :, :, 0].view([out3.size()[0], -1])
+        y3 = out3[:, :, :, 1].view([out3.size()[0], -1])
+        y4 = out3[:, :, :, 2].view([out3.size()[0], -1])
+        y5 = out3[:, :, :, 3].view([out3.size()[0], -1])
+        y6 = out3[:, :, :, 4].view([out3.size()[0], -1])
+        y7 = out3[:, :, :, 5].view([out3.size()[0], -1])
+        y8 = out3[:, :, :, 6].view([out3.size()[0], -1])
 
         return [y1, y2, y3, y4, y5, y6, y7, y8]
 
@@ -405,7 +403,7 @@ class Classifier(nn.Module):
         self.conv = nn.Sequential(
             nn.AdaptiveAvgPool2d(1),
             nn.Conv2d(in_channel, filter, kernel_size=1, stride=1, padding=0),
-            nn.BatchNorm2d(filter),
+            # nn.BatchNorm2d(filter),
             hswish(),
         )
         self.category = nn.Linear(filter, cls)
@@ -509,6 +507,12 @@ class SCRNet(nn.Module):
             nn.Conv2d(64, 64, kernel_size=1, stride=1, padding=0, bias=False),
             nn.BatchNorm2d(64),
             hswish(),
+            # nn.Conv2d(64, 64, kernel_size=3, stride=(2, 1), padding=1, groups=64, bias=False),
+            # nn.BatchNorm2d(64),
+            # hswish(),
+            # nn.Conv2d(64, 64, kernel_size=1, stride=1, padding=0, bias=False),
+            # nn.BatchNorm2d(64),
+            # hswish(),
             nn.Conv2d(64, 64, kernel_size=(8, 1), stride=1, padding=0, groups=64, bias=False),
             nn.BatchNorm2d(64),
             hswish(),
@@ -517,18 +521,11 @@ class SCRNet(nn.Module):
             hswish(),
         )
 
-        # self.blue_classifier = Blue_ocr(64)
-        # self.green_classifier = Green_ocr(64)
-        # self.category = Classifier(64, 32, 2)
-        self.province = Province_ocr(64, 32)
-        self.ctc_ocr = CTC_orc(64)
-        # self.conv3 = nn.Sequential(
-        #     nn.AdaptiveAvgPool2d(1),
-        #     nn.Conv2d(64, 32, kernel_size=1, stride=1, padding=0),
-        #     nn.BatchNorm2d(32),
-        #     hswish(),
-        # )
-        # self.category = nn.Linear(32, 2)
+        self.blue_classifier = Blue_ocr(64)
+        self.green_classifier = Green_ocr(64)
+        self.category = Classifier(64, 32, 2)
+        # self.province = Province_ocr(64, 32)
+        # self.ctc_ocr = CTC_orc(64)
 
     def forward(self, x):
         out = self.hs1(self.bn1(self.conv1(x)))  # out:64,192  out:64,224
@@ -541,24 +538,20 @@ class SCRNet(nn.Module):
         p3 = self.up4(p4) + self.conv_fpn3(out3)
         p2 = self.up3(p3) + self.conv_fpn2(out2)
         out = self.conv2(p2)  # out:1,24  out:1,28
-        # out4 = self.bneck4(out3)  # out:2,6
-        # out = self.hs2(self.bn2(self.conv2(out4)))  # out:1,3
-        # c = self.conv3(out)
-        # c = c.view(c.size(0), -1)
-        # c = self.category(c)
 
-        province = self.province(out)
-        ctc_orc = self.ctc_ocr(out)
-        # c = self.category(out)
-        # b = self.blue_classifier(out)
-        # g = self.green_classifier(out)
+        # province = self.province(out)
+        # ctc_orc = self.ctc_ocr(out)
+        c = self.category(out)
+        b = self.blue_classifier(out)
+        g = self.green_classifier(out)
 
-        return [province, ctc_orc]
+        # return [province, ctc_orc]
+        return [c, b, g]
 
 
 def test():
     net = SCRNet()
-    x = torch.randn(1, 3, 64, 224)
+    x = torch.randn(2, 3, 64, 224)
     flops, params = profile(net, inputs=(x,))
     net.eval()
     y = net(x)

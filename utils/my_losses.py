@@ -4,6 +4,7 @@ import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+
 from utils.utils import bbox_iou
 
 
@@ -183,7 +184,7 @@ def bboxes_loss(regs, gt_regs, mask, ind_masks):
     return loss / count
 
 
-def scr_loss(inputs, targets, target_size, cfg):
+def scr_ctc_loss(inputs, targets, target_size, cfg):
     batch = targets.size()[0]
     # logsoftmax = nn.LogSoftmax(dim=2)
 
@@ -197,3 +198,65 @@ def scr_loss(inputs, targets, target_size, cfg):
     ctc_loss = ctc_loss(ctc_input, ctc_targets, input_lengths, target_lengths)
     # loss = ctc_loss / batch
     return ctc_loss
+
+
+def cross_entropy_loss(pred, target, label_smooth=None):
+    '''
+    :param pred: shape[B,H]
+    :param target: shape[B]
+    :param label_smooth: 标签平滑度
+    :return: loss
+    '''
+    class_num = pred.size(1)
+    eps = 1e-12
+    # logprobs = F.log_softmax(pred, dim=1)
+    # target = F.one_hot(target, class_num)
+    if label_smooth is not None:
+        # 只有在标签平滑时才需要计算softmax
+        logprobs = F.log_softmax(pred, dim=1)
+        target = F.one_hot(target, class_num)
+        # 将one-hot标签平滑化
+        # 论文 “When Does Label Smoothing Help” 中的实现
+        target = (1.0 - label_smooth) * target + label_smooth / class_num
+        # 下面的方法标签平滑后相加和为1
+        # target = torch.clamp(target.float(), min=label_smooth / (class_num - 1), max=1.0 - label_smooth)
+        loss = -1 * torch.sum(target * logprobs, 1)
+    else:
+        # pytorch文档中计算交叉熵的方法，避免了softmax的计算
+        loss = -1 * pred.gather(1, target.unsqueeze(-1)) + torch.log(torch.exp(pred + eps).sum(dim=1))
+        # loss = -1 *torch.sum(target * logprobs, 1)
+    return loss.mean()
+
+
+def unify_loss(pre, target, cfg):
+    loss = 0.0
+    batch = pre[0].size()[0]
+    # cls_score, cls_ind = torch.topk(target[0].view(batch, -1))
+    for b in range(batch):
+        # blue车牌
+        if target['labels_class'][b] == 0:
+            for j in range(7):
+                l = target['labels'][b][j].to(cfg.device).long().unsqueeze(0)
+                p = pre[1][j][b].unsqueeze(0)
+                loss += cross_entropy_loss(p, l)
+
+        # green车牌
+        else:
+            for j in range(8):
+                l = target['labels'][b][j].to(cfg.device).long().unsqueeze(0)
+                p = pre[2][j][b].unsqueeze(0)
+                loss += cross_entropy_loss(p, l)
+    loss = loss / batch
+    loss += 5 * cross_entropy_loss(pre[0], target['labels_class'].to(cfg.device).long(), label_smooth=0.05)
+
+    # for j in range(7):
+    #     l = target[:, j].to('cuda:0').long()
+    #     loss += F.cross_entropy(pre[1][j], l)  # 交叉熵损失函数
+    return loss
+
+
+if __name__ == '__main__':
+    loss1 = nn.CrossEntropyLoss()
+    x = torch.tensor([[1, 8, 1], [1, 1, 8]], dtype=torch.float)
+    y = torch.tensor([1, 2])
+    print(loss1(x, y), cross_entropy_loss(x, y, label_smooth=0.05))

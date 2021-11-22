@@ -16,6 +16,7 @@ import numpy as np
 import torch.nn as nn
 import torch.utils.data
 import torch.distributed as dist
+import torch.nn.functional as F
 
 from datasets.my_coco import COCO, COCO_eval
 from datasets.scr_coco import SCR_COCO, SCR_COCO_eval
@@ -26,9 +27,10 @@ from nets.hourglass import get_hourglass
 # from nets.resdcn_cbam import get_pose_net
 from nets.resdcn_cbam_fpn import get_pose_net
 
-from utils.utils import _tranpose_and_gather_feature, load_model
+from utils.utils import _tranpose_and_gather_feature, load_model, scr_decoder
 from utils.image import transform_preds
-from utils.my_losses import _heatmap_loss, _corner_loss, _w_h_loss, bboxes_loss, scr_loss
+from utils.my_losses import _heatmap_loss, _corner_loss, _w_h_loss, bboxes_loss, scr_ctc_loss, cross_entropy_loss, \
+    unify_loss
 from utils.summary import create_summary, create_logger, create_saver, DisablePrint
 from utils.post_process import ctdet_decode
 from datasets.CudaDataLoader import CudaDataLoader, MultiEpochsDataLoader
@@ -156,7 +158,8 @@ def main():
     # 设置优化算法，lr衰减区间
     optimizer = torch.optim.Adam(model.parameters(), cfg.lr)
     lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, cfg.lr_step, gamma=0.1)
-    # 损失函数
+
+    # 损失函数  label_smoothing为标签平滑的平滑量，推荐为0.1
     crossentropyloss = nn.CrossEntropyLoss()
 
     def train(epoch):
@@ -166,7 +169,7 @@ def main():
         # perf_counter() 返回性能计数器的值（以分秒为单位），即具有最高可用分辨率的时钟，以测量短持续时间。
         # 返回值的参考点未定义，因此只有连续调用结果之间的差异有效
         tic = time.perf_counter()
-        for batch_idx, batch in enumerate(train_loader):
+        for batch_idx, targets in enumerate(train_loader):
             # for k in batch:
             #     # if k == 'labels':
             #     #     batch[k] = torch.LongTensor(batch[k]).to(cfg.device)
@@ -174,16 +177,16 @@ def main():
             #         # 数据送入GPU
             #         batch[k] = batch[k].to(device=cfg.device, non_blocking=True)
 
-            outputs = model(batch['image'].to(device=cfg.device, non_blocking=True))
+            outputs = model(targets['image'].to(device=cfg.device, non_blocking=True))
 
-            # loss = 0.0
-            # for j in range(7):
-            #     l = batch['labels'][:, j].to(cfg.device).long()
-            #     # l = l.long()
-            #     loss += crossentropyloss(outputs[1][j], l)  # 交叉熵损失函数
-            province_loss = crossentropyloss(outputs[0], batch['labels'][:, 0].to(cfg.device).long())
-            ctc_loss = scr_loss(outputs, batch['labels'], batch['labels_size'], cfg)
-            loss = 2 * province_loss + ctc_loss
+            # nn.CrossEntropyLoss()中自带softmax-log 操作
+            # province_loss = crossentropyloss(outputs[0], batch['labels'][:, 0].to(cfg.device).long())
+            # province_loss = cross_entropy_loss(outputs[0], batch['labels'][:, 0].to(cfg.device).long(),
+            #                                    label_smooth=0.05)
+            # ctc_loss = scr_ctc_loss(outputs, batch['labels'], batch['labels_size'], cfg)
+            # loss = 2 * province_loss + ctc_loss
+
+            loss = unify_loss(outputs, targets, cfg)
 
             optimizer.zero_grad()
             loss.backward()
@@ -193,9 +196,8 @@ def main():
                 duration = time.perf_counter() - tic
                 tic = time.perf_counter()
                 print('[%d/%d-%d/%d] ' % (epoch, cfg.num_epochs, batch_idx, len(train_loader)) +
-                      ' province loss= %.5f ctc_loss= %.5f' % (
-                      province_loss.item(), ctc_loss.item()) + ' (%d samples/sec)' % (
-                                  cfg.batch_size * cfg.log_interval / duration))
+                      ' loss= %.5f ' % (loss.item(),) + ' (%d samples/sec)' % (
+                              cfg.batch_size * cfg.log_interval / duration))
 
                 step = len(train_loader) * epoch + batch_idx
                 summary_writer.add_scalar('loss', loss.item(), step)
@@ -216,57 +218,48 @@ def main():
                 for k in inputs:
                     inputs[k] = inputs[k].to(cfg.device)
                 outputs = model(inputs['image'])
-                outputs[1] = outputs[1].squeeze(2).transpose(1, 2).to('cpu')  # [B,W,C]
-                outputs[0] = outputs[0].to('cpu')
-                for k in inputs:
-                    inputs[k] = inputs[k].to('cpu')
-                ctc = [torch.topk(e, 1)[1] for e in outputs[1]]
-                province = [torch.topk(e, 1)[1] for e in outputs[0]]
-                result = []
-                for b in range(len(inputs['labels'])):
-                    out = ctc[b].squeeze()
-                    pro = province[b].squeeze()
-                    res = []
-                    pre = -1
-                    for i in out:
-                        if i != pre:
-                            pre = i
-                            if i != 34:
-                                res.append(i)
-                    for i in range(7 - len(res)):
-                        res.append(-1)
-                    res = torch.from_numpy(np.array(res[:7]))
-                    result.append(res)
-                    isTure = 1
-                    if pro == inputs['labels'][b][0]:
-                        for k in range(inputs['labels_size'][b] - 1):
-                            if res[k] == inputs['labels'][b][k + 1]:
-                                isTure = 1
-                                continue
-                            else:
-                                isTure = 0
-                                break
-                        if isTure == 0:
-                            continue
-                        else:
-                            num = num + 1
-                    else:
-                        continue
-                # ------------------------------------------------------------
-                # out = [torch.topk(ee, 1)[1].squeeze(1) for ee in outputs[1]]
-                # isTure = 1
+
+                num_s = scr_decoder(outputs, inputs)
+                num += num_s
+
+                # outputs[1] = outputs[1].squeeze(2).transpose(1, 2).to('cpu')  # [B,W,C]
+                # outputs[0] = outputs[0].to('cpu')
+                # for k in inputs:
+                #     inputs[k] = inputs[k].to('cpu')
+                # ctc = [torch.topk(e, 1)[1] for e in outputs[1]]
+                # province = [torch.topk(e, 1)[1] for e in outputs[0]]
+                # result = []
                 # for b in range(len(inputs['labels'])):
-                #     for j in range(7):
-                #         if inputs['labels'][b][j] == out[j][b]:
-                #             isTure = 1
+                #     out = ctc[b].squeeze()
+                #     pro = province[b].squeeze()
+                #     res = []
+                #     pre = -1
+                #     for i in out:
+                #         if i != pre:
+                #             pre = i
+                #             if i != 34:
+                #                 res.append(i)
+                #     for i in range(7 - len(res)):
+                #         res.append(-1)
+                #     res = torch.from_numpy(np.array(res[:7]))
+                #     result.append(res)
+                #     isTure = 1
+                #     if pro == inputs['labels'][b][0]:
+                #         for k in range(inputs['labels_size'][b] - 1):
+                #             if res[k] == inputs['labels'][b][k + 1]:
+                #                 isTure = 1
+                #                 continue
+                #             else:
+                #                 isTure = 0
+                #                 break
+                #         if isTure == 0:
                 #             continue
                 #         else:
-                #             isTure = 0
-                #             break
-                #     if isTure == 0:
-                #         continue
+                #             num = num + 1
+                #
+                #         # num = num + 1
                 #     else:
-                #         num = num + 1
+                #         continue
 
         accuracy = float(num) / float(amount)
         print('amount = %d' % amount)

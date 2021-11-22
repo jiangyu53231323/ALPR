@@ -50,8 +50,10 @@ class SCR_COCO(Dataset):
             if len(labels) < 8:
                 labels.append(-1)
                 labels_size = 7
+                labels_class = 0
             else:
                 labels_size = 8
+                labels_class = 1
             labels = np.array(labels)
         # if bboxes[0] >= bboxes[2] or bboxes[1] >= bboxes[3]:
         #     bboxes = np.array([[0., 0., 0., 0.]], dtype=np.float32)
@@ -62,7 +64,7 @@ class SCR_COCO(Dataset):
         image = np.transpose(image, (2, 0, 1))
         image = image.astype('float32') / 255.
 
-        return {'image': image, 'labels': labels, 'labels_size': labels_size}
+        return {'image': image, 'labels': labels, 'labels_size': labels_size, 'labels_class': labels_class}
 
     @staticmethod
     def collate_fn(batch):
