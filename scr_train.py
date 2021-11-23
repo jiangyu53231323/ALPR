@@ -27,7 +27,7 @@ from nets.hourglass import get_hourglass
 # from nets.resdcn_cbam import get_pose_net
 from nets.resdcn_cbam_fpn import get_pose_net
 
-from utils.utils import _tranpose_and_gather_feature, load_model, scr_decoder
+from utils.utils import _tranpose_and_gather_feature, load_model, scr_decoder, ctc_decoder, char_decoder, cls_eval
 from utils.image import transform_preds
 from utils.my_losses import _heatmap_loss, _corner_loss, _w_h_loss, bboxes_loss, scr_ctc_loss, cross_entropy_loss, \
     unify_loss
@@ -44,7 +44,7 @@ parser.add_argument('--dist', action='store_true')  # 多GPU
 
 parser.add_argument('--root_dir', type=str, default='./')
 parser.add_argument('--data_dir', type=str, default='E:\CodeDownload\data')
-parser.add_argument('--log_name', type=str, default='scr_coco_ml_64x224_se_fpn')
+parser.add_argument('--log_name', type=str, default='scr_coco_ghost_64x224_se_fpn')
 parser.add_argument('--pretrain_name', type=str, default='scr_pretrain')
 
 parser.add_argument('--dataset', type=str, default='coco', choices=['coco', 'yolo'])
@@ -212,6 +212,14 @@ def main():
         amount = val_loader.dataset.num_samples
         results = {}
         num = 0
+        num_cls = 0
+        num_c1 = 0
+        num_c2 = 0
+        num_c3 = 0
+        num_c4 = 0
+        num_c5 = 0
+        num_c6 = 0
+        num_c7 = 0
         with torch.no_grad():  # 不跟踪梯度，减少内存占用
             for i, inputs in enumerate(val_loader):
                 # img_id, inputs = inputs[0]
@@ -219,51 +227,31 @@ def main():
                     inputs[k] = inputs[k].to(cfg.device)
                 outputs = model(inputs['image'])
 
-                num_s = scr_decoder(outputs, inputs)
-                num += num_s
+                num += scr_decoder(outputs, inputs)
 
-                # outputs[1] = outputs[1].squeeze(2).transpose(1, 2).to('cpu')  # [B,W,C]
-                # outputs[0] = outputs[0].to('cpu')
-                # for k in inputs:
-                #     inputs[k] = inputs[k].to('cpu')
-                # ctc = [torch.topk(e, 1)[1] for e in outputs[1]]
-                # province = [torch.topk(e, 1)[1] for e in outputs[0]]
-                # result = []
-                # for b in range(len(inputs['labels'])):
-                #     out = ctc[b].squeeze()
-                #     pro = province[b].squeeze()
-                #     res = []
-                #     pre = -1
-                #     for i in out:
-                #         if i != pre:
-                #             pre = i
-                #             if i != 34:
-                #                 res.append(i)
-                #     for i in range(7 - len(res)):
-                #         res.append(-1)
-                #     res = torch.from_numpy(np.array(res[:7]))
-                #     result.append(res)
-                #     isTure = 1
-                #     if pro == inputs['labels'][b][0]:
-                #         for k in range(inputs['labels_size'][b] - 1):
-                #             if res[k] == inputs['labels'][b][k + 1]:
-                #                 isTure = 1
-                #                 continue
-                #             else:
-                #                 isTure = 0
-                #                 break
-                #         if isTure == 0:
-                #             continue
-                #         else:
-                #             num = num + 1
-                #
-                #         # num = num + 1
-                #     else:
-                #         continue
+                num_cls += cls_eval(outputs, inputs)
+                num_c1 += char_decoder(outputs, inputs, 1)
+                num_c2 += char_decoder(outputs, inputs, 2)
+                num_c3 += char_decoder(outputs, inputs, 3)
+                num_c4 += char_decoder(outputs, inputs, 4)
+                num_c5 += char_decoder(outputs, inputs, 5)
+                num_c6 += char_decoder(outputs, inputs, 6)
+                num_c7 += char_decoder(outputs, inputs, 7)
+
+                # num_s = ctc_decoder(outputs,inputs)
+                # num += num_s
 
         accuracy = float(num) / float(amount)
         print('amount = %d' % amount)
         print('accuracy = %f' % accuracy)
+        print('accuracy cls = %f' % (float(num_cls) / float(amount)))
+        print('accuracy c1 = %f' % (float(num_c1) / float(amount)))
+        print('accuracy c2 = %f' % (float(num_c2) / float(amount)))
+        print('accuracy c3 = %f' % (float(num_c3) / float(amount)))
+        print('accuracy c4 = %f' % (float(num_c4) / float(amount)))
+        print('accuracy c5 = %f' % (float(num_c5) / float(amount)))
+        print('accuracy c6 = %f' % (float(num_c6) / float(amount)))
+        print('accuracy c7 = %f' % (float(num_c7) / float(amount)))
         summary_writer.add_scalar('val_mAP/mAP', accuracy, epoch)
 
     print('Starting training...')

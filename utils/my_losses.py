@@ -238,20 +238,17 @@ def unify_loss(pre, target, cfg):
             for j in range(7):
                 l = target['labels'][b][j].to(cfg.device).long().unsqueeze(0)
                 p = pre[1][j][b].unsqueeze(0)
-                loss += cross_entropy_loss(p, l)
+                loss += cross_entropy_loss(p, l, label_smooth=0.05)
 
         # green车牌
         else:
             for j in range(8):
                 l = target['labels'][b][j].to(cfg.device).long().unsqueeze(0)
                 p = pre[2][j][b].unsqueeze(0)
-                loss += cross_entropy_loss(p, l)
+                loss += cross_entropy_loss(p, l, label_smooth=0.05)
     loss = loss / batch
-    loss += 5 * cross_entropy_loss(pre[0], target['labels_class'].to(cfg.device).long(), label_smooth=0.05)
+    loss += 10 * cross_entropy_loss(pre[0], target['labels_class'].to(cfg.device).long())
 
-    # for j in range(7):
-    #     l = target[:, j].to('cuda:0').long()
-    #     loss += F.cross_entropy(pre[1][j], l)  # 交叉熵损失函数
     return loss
 
 

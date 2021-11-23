@@ -79,13 +79,17 @@ class SCR_COCO(Dataset):
 class SCR_COCO_eval(SCR_COCO):
     def __init__(self, data_dir, img_size, split):
         super(SCR_COCO_eval, self).__init__(data_dir, img_size, split)
-
-    # @staticmethod
-    # def collate_fn(batch):
-    #     out = []
-    #     for img_id, sample in batch:
-    #         # 将image从array转换为tensor
-    #         out.append((img_id,
-    #                     {k: torch.from_numpy(sample[k]).float() if k == 'image' else np.array(sample[k]) for k in
-    #                      sample}))
-    #     return out
+        # self.split = split
+        # # 数据集路径 data/CCPD2019
+        # self.data_dir = os.path.join(data_dir, 'CCPD2019')
+        # self.img_dir = os.path.join(self.data_dir, 'ccpd')
+        # # self.annot_path = os.path.join(self.data_dir, 'annotations', 'ccpd_green_val2020.json' )
+        # self.annot_path = os.path.join(self.data_dir, 'annotations', 'ccpd_%s2020.json' % split)
+        # self.img_size = img_size
+        #
+        # print('==> initializing CCPD 2019 %s data.' % split)
+        # self.coco = coco.COCO(self.annot_path)
+        # self.images = self.coco.getImgIds()
+        # # 获取总样本数
+        # self.num_samples = len(self.images)
+        # print('Loaded %d %s samples' % (self.num_samples, split))

@@ -1,5 +1,7 @@
 import os
 import math
+
+import numpy as np
 import torch
 import torch.nn as nn
 from collections import OrderedDict
@@ -194,7 +196,7 @@ def scr_decoder(pre, target):
         # blue车牌检测
         if topk_ind[b] == 0:
             for k in range(7):
-                p = pre[1][k][b].topk(1)
+                p = pre[1][k][b].topk(1)[1]
                 if p == target['labels'][b][k]:
                     isTure = 1
                     continue
@@ -208,7 +210,7 @@ def scr_decoder(pre, target):
         # green车牌检测
         else:
             for k in range(8):
-                p = pre[2][k][b].topk(1)
+                p = pre[2][k][b].topk(1)[1]
                 if p == target['labels'][b][k]:
                     isTure = 1
                     continue
@@ -219,4 +221,105 @@ def scr_decoder(pre, target):
                 continue
             else:
                 num = num + 1
+    return num
+
+
+def char_decoder(pre, target, ind):
+    for k in target:
+        target[k] = target[k].to('cpu')
+    cls = pre[0].to('cpu')
+    topk_score, topk_ind = torch.topk(cls, 1)
+    num = 0
+    for b in range(pre[0].size()[0]):
+        # blue车牌检测
+        if topk_ind[b] == 0:
+            for k in range(ind - 1, ind):
+                p = pre[1][k][b].topk(1)[1]
+                if p == target['labels'][b][k]:
+                    isTure = 1
+                    continue
+                else:
+                    isTure = 0
+                    break
+            if isTure == 0:
+                continue
+            else:
+                num = num + 1
+        # green车牌检测
+        else:
+            for k in range(ind - 1, ind):
+                p = pre[2][k][b].topk(1)[1]
+                if p == target['labels'][b][k]:
+                    isTure = 1
+                    continue
+                else:
+                    isTure = 0
+                    break
+            if isTure == 0:
+                continue
+            else:
+                num = num + 1
+    return num
+
+def cls_eval(pre, target):
+    for k in target:
+        target[k] = target[k].to('cpu')
+    cls = pre[0].to('cpu')
+    topk_score, topk_ind = torch.topk(cls, 1)
+    num = 0
+    for b in range(pre[0].size()[0]):
+        # blue车牌检测
+        if topk_ind[b] == 0:
+            if target['labels_size'][b] == 7:
+                num = num + 1
+            else:
+                continue
+        # green车牌检测
+        else:
+            if target['labels_size'][b] == 8:
+                num = num + 1
+            else:
+                continue
+    return num
+
+
+def ctc_decoder(outputs, inputs):
+    outputs[1] = outputs[1].squeeze(2).transpose(1, 2).to('cpu')  # [B,W,C]
+    outputs[0] = outputs[0].to('cpu')
+    for k in inputs:
+        inputs[k] = inputs[k].to('cpu')
+    ctc = [torch.topk(e, 1)[1] for e in outputs[1]]
+    province = [torch.topk(e, 1)[1] for e in outputs[0]]
+    result = []
+    for b in range(len(inputs['labels'])):
+        out = ctc[b].squeeze()
+        pro = province[b].squeeze()
+        res = []
+        pre = -1
+        for i in out:
+            if i != pre:
+                pre = i
+                if i != 34:
+                    res.append(i)
+        for i in range(7 - len(res)):
+            res.append(-1)
+        res = torch.from_numpy(np.array(res[:7]))
+        result.append(res)
+        isTure = 1
+        if pro == inputs['labels'][b][0]:
+            for k in range(inputs['labels_size'][b] - 1):
+                if res[k] == inputs['labels'][b][k + 1]:
+                    isTure = 1
+                    continue
+                else:
+                    isTure = 0
+                    break
+            if isTure == 0:
+                continue
+            else:
+                num = num + 1
+
+            # num = num + 1
+        else:
+            continue
     return num

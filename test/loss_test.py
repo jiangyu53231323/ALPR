@@ -1,3 +1,4 @@
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -97,3 +98,44 @@ def scr_decoder(pre, target):
                 num = num + 1
     return num
 
+
+def ctc_decoder(outputs,inputs):
+    outputs[1] = outputs[1].squeeze(2).transpose(1, 2).to('cpu')  # [B,W,C]
+    outputs[0] = outputs[0].to('cpu')
+    for k in inputs:
+        inputs[k] = inputs[k].to('cpu')
+    ctc = [torch.topk(e, 1)[1] for e in outputs[1]]
+    province = [torch.topk(e, 1)[1] for e in outputs[0]]
+    result = []
+    for b in range(len(inputs['labels'])):
+        out = ctc[b].squeeze()
+        pro = province[b].squeeze()
+        res = []
+        pre = -1
+        for i in out:
+            if i != pre:
+                pre = i
+                if i != 34:
+                    res.append(i)
+        for i in range(7 - len(res)):
+            res.append(-1)
+        res = torch.from_numpy(np.array(res[:7]))
+        result.append(res)
+        isTure = 1
+        if pro == inputs['labels'][b][0]:
+            for k in range(inputs['labels_size'][b] - 1):
+                if res[k] == inputs['labels'][b][k + 1]:
+                    isTure = 1
+                    continue
+                else:
+                    isTure = 0
+                    break
+            if isTure == 0:
+                continue
+            else:
+                num = num + 1
+
+            # num = num + 1
+        else:
+            continue
+    return num
