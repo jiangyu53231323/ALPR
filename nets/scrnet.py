@@ -597,7 +597,7 @@ class Province_ocr(nn.Module):
 class CTC_orc(nn.Module):
     def __init__(self, in_channel):
         super(CTC_orc, self).__init__()
-        self.conv = nn.Conv2d(in_channel, 35, kernel_size=(1, 8), padding=(0, 1), bias=True)
+        self.conv = nn.Conv2d(in_channel, 35, kernel_size=(1, 6), padding=(0, 0), bias=True)
 
     def forward(self, x):
         x = x[:, :, :, 4:]

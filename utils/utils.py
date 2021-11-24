@@ -284,6 +284,7 @@ def cls_eval(pre, target):
 
 
 def ctc_decoder(outputs, inputs):
+    num = 0
     outputs[1] = outputs[1].squeeze(2).transpose(1, 2).to('cpu')  # [B,W,C]
     outputs[0] = outputs[0].to('cpu')
     for k in inputs:
