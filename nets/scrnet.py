@@ -597,7 +597,7 @@ class Province_ocr(nn.Module):
 class CTC_orc(nn.Module):
     def __init__(self, in_channel):
         super(CTC_orc, self).__init__()
-        self.conv = nn.Conv2d(in_channel, 35, kernel_size=(1, 6), padding=0, bias=True)
+        self.conv = nn.Conv2d(in_channel, 35, kernel_size=(1, 8), padding=(0, 1), bias=True)
 
     def forward(self, x):
         x = x[:, :, :, 4:]
@@ -612,74 +612,74 @@ class SCRNet(nn.Module):
         self.conv1 = nn.Conv2d(3, 16, kernel_size=3, stride=1, padding=1, bias=False)
         self.bn1 = nn.BatchNorm2d(16)
         self.hs1 = hswish()
-        w = 1.0
+        w = 1.3
 
-        block = GhostBottleneck
-        self.bneck1 = nn.Sequential(
-            block(16, _c(16 * w), _c(16 * w), dw_kernel_size=3, stride=1, se_ratio=0),
-            block(_c(16 * w), _c(48 * w), _c(24 * w), dw_kernel_size=3, stride=2, se_ratio=0),
-            block(_c(24 * w), _c(72 * w), _c(24 * w), dw_kernel_size=3, stride=1, se_ratio=0),
-        )
-        self.bneck2 = nn.Sequential(
-            block(_c(24 * w), _c(72 * w), _c(40 * w), dw_kernel_size=5, stride=2, se_ratio=0.25),
-            block(_c(40 * w), _c(120 * w), _c(40 * w), dw_kernel_size=5, stride=1, se_ratio=0.25),
-        )
-        self.bneck3 = nn.Sequential(
-            block(_c(40 * w), _c(240 * w), _c(80 * w), dw_kernel_size=3, stride=2, se_ratio=0),
-            block(_c(80 * w), _c(200 * w), _c(80 * w), dw_kernel_size=3, stride=1, se_ratio=0),
-            block(_c(80 * w), _c(184 * w), _c(80 * w), dw_kernel_size=3, stride=1, se_ratio=0),
-            block(_c(80 * w), _c(184 * w), _c(80 * w), dw_kernel_size=3, stride=1, se_ratio=0),
-            block(_c(80 * w), _c(480 * w), _c(112 * w), dw_kernel_size=3, stride=1, se_ratio=0.25),
-            block(_c(112 * w), _c(672 * w), _c(112 * w), dw_kernel_size=3, stride=1, se_ratio=0.25),
-        )
-        self.bneck4 = nn.Sequential(
-            block(_c(112 * w), _c(672 * w), _c(160 * w), dw_kernel_size=5, stride=2, se_ratio=0.25),
-            block(_c(160 * w), _c(960 * w), _c(160 * w), dw_kernel_size=5, stride=1, se_ratio=0),
-            block(_c(160 * w), _c(960 * w), _c(160 * w), dw_kernel_size=5, stride=1, se_ratio=0.25),
-            block(_c(160 * w), _c(960 * w), _c(160 * w), dw_kernel_size=5, stride=1, se_ratio=0),
-            block(_c(160 * w), _c(960 * w), _c(160 * w), dw_kernel_size=5, stride=1, se_ratio=0.25),
-        )
-
+        # block = GhostBottleneck
         # self.bneck1 = nn.Sequential(
-        #     Block(3, 16, 16, 16, nn.ReLU(inplace=True), None, 1),
-        #     Block(3, 16, 64, 24, nn.ReLU(inplace=True), None, 2),
-        #     Block(3, 24, 72, 24, nn.ReLU(inplace=True), None, 1),
-        #     # SAC(24, 24),
-        #     # nn.BatchNorm2d(24),
-        #     # nn.ReLU(inplace=True),
+        #     block(16, _c(16 * w), _c(16 * w), dw_kernel_size=3, stride=1, se_ratio=0),
+        #     block(_c(16 * w), _c(48 * w), _c(24 * w), dw_kernel_size=3, stride=2, se_ratio=0),
+        #     block(_c(24 * w), _c(72 * w), _c(24 * w), dw_kernel_size=3, stride=1, se_ratio=0),
         # )
         # self.bneck2 = nn.Sequential(
-        #     Block(3, 24, 72, 40, nn.ReLU(inplace=True), SeModule, 2),
-        #     Block(3, 40, 120, 40, nn.ReLU(inplace=True), SeModule, 1),
-        #     Block(3, 40, 120, 40, nn.ReLU(inplace=True), SeModule, 1),
-        #     # SAC(40, 40),
-        #     # nn.BatchNorm2d(40),
-        #     # nn.ReLU(inplace=True),
+        #     block(_c(24 * w), _c(72 * w), _c(40 * w), dw_kernel_size=5, stride=2, se_ratio=0.25),
+        #     block(_c(40 * w), _c(120 * w), _c(40 * w), dw_kernel_size=5, stride=1, se_ratio=0.25),
         # )
         # self.bneck3 = nn.Sequential(
-        #     Block(3, 40, 240, 80, hswish(), None, 2),
-        #     Block(3, 80, 200, 80, hswish(), None, 1),
-        #     Block(3, 80, 184, 80, hswish(), None, 1),
-        #     Block(3, 80, 184, 80, hswish(), None, 1),
-        #     Block(3, 80, 480, 112, hswish(), SeModule, 1),
-        #     Block(3, 112, 672, 112, hswish(), SeModule, 1),
-        #     Block(5, 112, 672, 160, hswish(), SeModule, 1),
-        #     # SAC(160, 160),
-        #     # nn.BatchNorm2d(160),
-        #     # hswish(),
+        #     block(_c(40 * w), _c(240 * w), _c(80 * w), dw_kernel_size=3, stride=2, se_ratio=0),
+        #     block(_c(80 * w), _c(200 * w), _c(80 * w), dw_kernel_size=3, stride=1, se_ratio=0),
+        #     block(_c(80 * w), _c(184 * w), _c(80 * w), dw_kernel_size=3, stride=1, se_ratio=0),
+        #     block(_c(80 * w), _c(184 * w), _c(80 * w), dw_kernel_size=3, stride=1, se_ratio=0),
+        #     block(_c(80 * w), _c(480 * w), _c(112 * w), dw_kernel_size=3, stride=1, se_ratio=0.25),
+        #     block(_c(112 * w), _c(672 * w), _c(112 * w), dw_kernel_size=3, stride=1, se_ratio=0.25),
         # )
         # self.bneck4 = nn.Sequential(
-        #     Block(5, 160, 672, 160, hswish(), SeModule, 2),
-        #     Block(5, 160, 960, 160, hswish(), SeModule, 1),
-        #     Block(5, 160, 960, 160, hswish(), SeModule, 1),
-        #     # deconv(160, 128),
-        #     # deconv(128, 128),
-        #     # deconv(128, 128),
+        #     block(_c(112 * w), _c(672 * w), _c(160 * w), dw_kernel_size=5, stride=2, se_ratio=0.25),
+        #     block(_c(160 * w), _c(960 * w), _c(160 * w), dw_kernel_size=5, stride=1, se_ratio=0),
+        #     block(_c(160 * w), _c(960 * w), _c(160 * w), dw_kernel_size=5, stride=1, se_ratio=0.25),
+        #     block(_c(160 * w), _c(960 * w), _c(160 * w), dw_kernel_size=5, stride=1, se_ratio=0),
+        #     block(_c(160 * w), _c(960 * w), _c(160 * w), dw_kernel_size=5, stride=1, se_ratio=0.25),
         # )
+
+        self.bneck1 = nn.Sequential(
+            Block(3, 16, 16, 16, nn.ReLU(inplace=True), None, 1),
+            Block(3, 16, 64, 24, nn.ReLU(inplace=True), None, 2),
+            Block(3, 24, 72, 24, nn.ReLU(inplace=True), None, 1),
+            # SAC(24, 24),
+            # nn.BatchNorm2d(24),
+            # nn.ReLU(inplace=True),
+        )
+        self.bneck2 = nn.Sequential(
+            Block(3, 24, 72, 40, nn.ReLU(inplace=True), SeModule, 2),
+            Block(3, 40, 120, 40, nn.ReLU(inplace=True), SeModule, 1),
+            Block(3, 40, 120, 40, nn.ReLU(inplace=True), SeModule, 1),
+            # SAC(40, 40),
+            # nn.BatchNorm2d(40),
+            # nn.ReLU(inplace=True),
+        )
+        self.bneck3 = nn.Sequential(
+            Block(3, 40, 240, 80, hswish(), None, 2),
+            Block(3, 80, 200, 80, hswish(), None, 1),
+            Block(3, 80, 184, 80, hswish(), None, 1),
+            Block(3, 80, 184, 80, hswish(), None, 1),
+            Block(3, 80, 480, 112, hswish(), SeModule, 1),
+            Block(3, 112, 672, 112, hswish(), SeModule, 1),
+            Block(5, 112, 672, 160, hswish(), SeModule, 1),
+            # SAC(160, 160),
+            # nn.BatchNorm2d(160),
+            # hswish(),
+        )
+        self.bneck4 = nn.Sequential(
+            Block(5, 160, 672, 160, hswish(), SeModule, 2),
+            Block(5, 160, 960, 160, hswish(), SeModule, 1),
+            Block(5, 160, 960, 160, hswish(), SeModule, 1),
+            # deconv(160, 128),
+            # deconv(128, 128),
+            # deconv(128, 128),
+        )
 
         # self.conv_fpn1 = nn.Conv2d(24, 64, kernel_size=1, stride=1, padding=0, bias=False)
         self.conv_fpn2 = nn.Conv2d(40, 64, kernel_size=1, stride=1, padding=0, bias=False)
-        self.conv_fpn3 = nn.Conv2d(112, 128, kernel_size=1, stride=1, padding=0, bias=False)
+        self.conv_fpn3 = nn.Conv2d(160, 128, kernel_size=1, stride=1, padding=0, bias=False)
         self.conv_fpn4 = nn.Conv2d(160, 256, kernel_size=1, stride=1, padding=0, bias=False)
 
         # self.deconv_layer3 = _make_deconv_layer(64, 64, 4)
@@ -710,11 +710,11 @@ class SCRNet(nn.Module):
             hswish(),
         )
 
-        self.blue_classifier = Blue_ocr(64)
-        self.green_classifier = Green_ocr(64)
-        self.category = Classifier(64, 32, 2)
-        # self.province = Province_ocr(64, 32)
-        # self.ctc_ocr = CTC_orc(64)
+        # self.blue_classifier = Blue_ocr(64)
+        # self.green_classifier = Green_ocr(64)
+        # self.category = Classifier(64, 32, 2)
+        self.province = Province_ocr(64, 32)
+        self.ctc_ocr = CTC_orc(64)
 
     def forward(self, x):
         out = self.hs1(self.bn1(self.conv1(x)))  # out:64,192  out:64,224
@@ -728,14 +728,14 @@ class SCRNet(nn.Module):
         p2 = self.up3(p3) + self.conv_fpn2(out2)
         out = self.conv2(p2)  # out:1,24  out:1,28
 
-        # province = self.province(out)
-        # ctc_orc = self.ctc_ocr(out)
-        c = self.category(out)
-        b = self.blue_classifier(out)
-        g = self.green_classifier(out)
+        province = self.province(out)
+        ctc_orc = self.ctc_ocr(out)
+        # c = self.category(out)
+        # b = self.blue_classifier(out)
+        # g = self.green_classifier(out)
 
-        # return [province, ctc_orc]
-        return [c, b, g]
+        return [province, ctc_orc]
+        # return [c, b, g]
 
 
 def test():
@@ -745,8 +745,8 @@ def test():
     net.eval()
     y = net(x)
     print(y[0].size())
-    # print(y[1].size())
-    print(y[2][0].size())
+    print(y[1].size())
+    # print(y[2][0].size())
     print('FLOPs = ' + str(flops / 1000 ** 3) + 'G')
     print('Params = ' + str(params / 1000 ** 2) + 'M')
     # sac = SAC(3, 16)

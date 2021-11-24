@@ -44,7 +44,7 @@ parser.add_argument('--dist', action='store_true')  # 多GPU
 
 parser.add_argument('--root_dir', type=str, default='./')
 parser.add_argument('--data_dir', type=str, default='E:\CodeDownload\data')
-parser.add_argument('--log_name', type=str, default='scr_coco_ghost_64x224_se_fpn')
+parser.add_argument('--log_name', type=str, default='scr_coco_ml_64x224_se_fpn')
 parser.add_argument('--pretrain_name', type=str, default='scr_pretrain')
 
 parser.add_argument('--dataset', type=str, default='coco', choices=['coco', 'yolo'])
@@ -180,13 +180,12 @@ def main():
             outputs = model(targets['image'].to(device=cfg.device, non_blocking=True))
 
             # nn.CrossEntropyLoss()中自带softmax-log 操作
-            # province_loss = crossentropyloss(outputs[0], batch['labels'][:, 0].to(cfg.device).long())
-            # province_loss = cross_entropy_loss(outputs[0], batch['labels'][:, 0].to(cfg.device).long(),
-            #                                    label_smooth=0.05)
-            # ctc_loss = scr_ctc_loss(outputs, batch['labels'], batch['labels_size'], cfg)
-            # loss = 2 * province_loss + ctc_loss
+            province_loss = cross_entropy_loss(outputs[0], targets['labels'][:, 0].to(cfg.device).long(),
+                                               label_smooth=0.05)
+            ctc_loss = scr_ctc_loss(outputs, targets['labels'], targets['labels_size'], cfg)
+            loss = 2 * province_loss + ctc_loss
 
-            loss = unify_loss(outputs, targets, cfg)
+            # loss = unify_loss(outputs, targets, cfg)
 
             optimizer.zero_grad()
             loss.backward()
@@ -227,31 +226,30 @@ def main():
                     inputs[k] = inputs[k].to(cfg.device)
                 outputs = model(inputs['image'])
 
-                num += scr_decoder(outputs, inputs)
+                # num += scr_decoder(outputs, inputs)
+                #
+                # num_cls += cls_eval(outputs, inputs)
+                # num_c1 += char_decoder(outputs, inputs, 1)
+                # num_c2 += char_decoder(outputs, inputs, 2)
+                # num_c3 += char_decoder(outputs, inputs, 3)
+                # num_c4 += char_decoder(outputs, inputs, 4)
+                # num_c5 += char_decoder(outputs, inputs, 5)
+                # num_c6 += char_decoder(outputs, inputs, 6)
+                # num_c7 += char_decoder(outputs, inputs, 7)
 
-                num_cls += cls_eval(outputs, inputs)
-                num_c1 += char_decoder(outputs, inputs, 1)
-                num_c2 += char_decoder(outputs, inputs, 2)
-                num_c3 += char_decoder(outputs, inputs, 3)
-                num_c4 += char_decoder(outputs, inputs, 4)
-                num_c5 += char_decoder(outputs, inputs, 5)
-                num_c6 += char_decoder(outputs, inputs, 6)
-                num_c7 += char_decoder(outputs, inputs, 7)
-
-                # num_s = ctc_decoder(outputs,inputs)
-                # num += num_s
+                num += ctc_decoder(outputs, inputs)
 
         accuracy = float(num) / float(amount)
         print('amount = %d' % amount)
         print('accuracy = %f' % accuracy)
-        print('accuracy cls = %f' % (float(num_cls) / float(amount)))
-        print('accuracy c1 = %f' % (float(num_c1) / float(amount)))
-        print('accuracy c2 = %f' % (float(num_c2) / float(amount)))
-        print('accuracy c3 = %f' % (float(num_c3) / float(amount)))
-        print('accuracy c4 = %f' % (float(num_c4) / float(amount)))
-        print('accuracy c5 = %f' % (float(num_c5) / float(amount)))
-        print('accuracy c6 = %f' % (float(num_c6) / float(amount)))
-        print('accuracy c7 = %f' % (float(num_c7) / float(amount)))
+        # print('accuracy cls = %f' % (float(num_cls) / float(amount)))
+        # print('accuracy c1 = %f' % (float(num_c1) / float(amount)))
+        # print('accuracy c2 = %f' % (float(num_c2) / float(amount)))
+        # print('accuracy c3 = %f' % (float(num_c3) / float(amount)))
+        # print('accuracy c4 = %f' % (float(num_c4) / float(amount)))
+        # print('accuracy c5 = %f' % (float(num_c5) / float(amount)))
+        # print('accuracy c6 = %f' % (float(num_c6) / float(amount)))
+        # print('accuracy c7 = %f' % (float(num_c7) / float(amount)))
         summary_writer.add_scalar('val_mAP/mAP', accuracy, epoch)
 
     print('Starting training...')
