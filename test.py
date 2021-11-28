@@ -58,6 +58,10 @@ cfg.test_scales = [float(s) for s in cfg.test_scales.split(',')]
 
 
 def main():
+    '''
+    对模型进行测试，并将识别的结果保存到result.JSON文件中
+    :return:
+    '''
     logger = create_logger(save_dir=cfg.log_dir)
     print = logger.info
     print(cfg)
