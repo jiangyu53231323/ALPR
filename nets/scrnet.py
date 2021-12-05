@@ -710,11 +710,11 @@ class SCRNet(nn.Module):
             hswish(),
         )
 
-        # self.blue_classifier = Blue_ocr(64)
-        # self.green_classifier = Green_ocr(64)
-        # self.category = Classifier(64, 32, 2)
-        self.province = Province_ocr(64, 32)
-        self.ctc_ocr = CTC_orc(64)
+        self.blue_classifier = Blue_ocr(64)
+        self.green_classifier = Green_ocr(64)
+        self.category = Classifier(64, 16, 2)
+        # self.province = Province_ocr(64, 32)
+        # self.ctc_ocr = CTC_orc(64)
 
     def forward(self, x):
         out = self.hs1(self.bn1(self.conv1(x)))  # out:64,192  out:64,224
@@ -728,14 +728,14 @@ class SCRNet(nn.Module):
         p2 = self.up3(p3) + self.conv_fpn2(out2)
         out = self.conv2(p2)  # out:1,24  out:1,28
 
-        province = self.province(out)
-        ctc_orc = self.ctc_ocr(out)
-        # c = self.category(out)
-        # b = self.blue_classifier(out)
-        # g = self.green_classifier(out)
+        # province = self.province(out)
+        # ctc_orc = self.ctc_ocr(out)
+        c = self.category(out)
+        b = self.blue_classifier(out)
+        g = self.green_classifier(out)
 
-        return [province, ctc_orc]
-        # return [c, b, g]
+        # return [province, ctc_orc]
+        return [c, b, g]
 
 
 def test():
