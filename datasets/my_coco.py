@@ -309,9 +309,10 @@ class COCO_eval(COCO):
         coco_eval.accumulate()
         coco_eval.summarize()
 
-        pr_array1 = coco_eval.eval['precision'][0, :, 0, 0, 2]
-        pr_array2 = coco_eval.eval['precision'][2, :, 0, 0, 2]
-        pr_array3 = coco_eval.eval['precision'][4, :, 0, 0, 2]
+        # 绘制pr曲线图
+        pr_array1 = coco_eval.eval['precision'][4, :, 0, 0, 2]
+        pr_array2 = coco_eval.eval['precision'][6, :, 0, 0, 2]
+        pr_array3 = coco_eval.eval['precision'][8, :, 0, 0, 2]
         x = np.arange(0.0, 1.01, 0.01)
         plt.xlabel('recall')
         plt.ylabel('precision')
@@ -319,9 +320,9 @@ class COCO_eval(COCO):
         plt.ylim(0, 1.01)
         plt.grid(True)
 
-        plt.plot(x, pr_array1, 'b-', label='IoU=0.5')
-        plt.plot(x, pr_array2, 'c-', label='IoU=0.6')
-        plt.plot(x, pr_array3, 'y-', label='IoU=0.7')
+        plt.plot(x, pr_array1, 'b-', label='IoU=0.7')
+        plt.plot(x, pr_array2, 'c-', label='IoU=0.8')
+        plt.plot(x, pr_array3, 'y-', label='IoU=0.9')
 
         plt.legend(loc="lower left")
         plt.savefig('pr_graph.png')
