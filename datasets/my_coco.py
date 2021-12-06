@@ -3,6 +3,8 @@ import os
 import cv2
 import json
 import math
+
+import matplotlib.pyplot as plt
 import numpy as np
 
 import torch
@@ -306,6 +308,25 @@ class COCO_eval(COCO):
         coco_eval.evaluate()
         coco_eval.accumulate()
         coco_eval.summarize()
+
+        pr_array1 = coco_eval.eval['precision'][0, :, 0, 0, 2]
+        pr_array2 = coco_eval.eval['precision'][2, :, 0, 0, 2]
+        pr_array3 = coco_eval.eval['precision'][4, :, 0, 0, 2]
+        x = np.arange(0.0, 1.01, 0.01)
+        plt.xlabel('recall')
+        plt.ylabel('precision')
+        plt.xlim(0, 1.0)
+        plt.ylim(0, 1.01)
+        plt.grid(True)
+
+        plt.plot(x, pr_array1, 'b-', label='IoU=0.5')
+        plt.plot(x, pr_array2, 'c-', label='IoU=0.6')
+        plt.plot(x, pr_array3, 'y-', label='IoU=0.7')
+
+        plt.legend(loc="lower left")
+        plt.savefig('pr_graph.png')
+        plt.show()
+
         return coco_eval.stats
 
     @staticmethod
