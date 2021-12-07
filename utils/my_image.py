@@ -11,6 +11,15 @@ from imgaug.augmentables.kps import Keypoint, KeypointsOnImage
 
 
 def resize_and_padding(image, size, bboxes, segmentation, pre_384=False):
+    '''
+
+    :param image:
+    :param size:
+    :param bboxes: [x1,y1,x2,y2]
+    :param segmentation:
+    :param pre_384:
+    :return:
+    '''
     if pre_384 == True:
         scale = 1160 / size
         new_height = math.ceil(1160 / scale)

@@ -12,24 +12,36 @@ from imgaug.augmentables.kps import Keypoint, KeypointsOnImage
 import pycocotools.coco as coco
 from utils.my_image import resize_and_padding
 
-coco = coco.COCO("../ccpd_val2020.json")
-img_dir = "F:\\code_download\\CCPD2019\\ccpd_base"
+coco = coco.COCO("E:\\CodeDownload\\data\\CCPD2019\\annotations/ccpd_train2020.json")
+img_dir = "E:\\CodeDownload\\data\\CCPD2019\\ccpd"
 images = coco.getImgIds()
 img_id = images[6]
+img_id = 20200212813
 img_path = os.path.join(img_dir, coco.loadImgs(ids=[img_id])[0]['file_name'])
 ann_ids = coco.getAnnIds(imgIds=img_id)
 annotations = coco.loadAnns(ids=ann_ids)
 labels = np.array([anno['category_id'] for anno in annotations])
 bboxes = np.array([anno['bbox'] for anno in annotations], dtype=np.float32).squeeze()  # 降维
+bboxes[2:] += bboxes[:2]  # xywh to xyxy
 segmentation = np.array([anno['segmentation'] for anno in annotations], dtype=np.float32).squeeze()
 print(img_path)
 print(labels)
 print(bboxes)
 print(segmentation)
 
+# -------------------------
+# img_path = 'E:\\CodeDownload\\data\\CCPD2019\\ccpd/0019-1_1-340&500_404&526-404&524_340&526_340&502_404&500-0_0_11_26_25_28_17-66-3.jpg'
+# bboxes = np.array([])
+# ------------------------
+
 image = cv.imread(img_path)[:, :, ::-1]
 
-image, scale, bboxes, segmentation = resize_and_padding(image, 256, bboxes, segmentation)
+out = resize_and_padding(image, 96, bboxes, segmentation)
+# image, scale, bboxes, segmentation = resize_and_padding(image, 256, bboxes, segmentation)
+image = out['new_image']
+scale = out['scale']
+bboxes = out['bboxes']
+segmentation = out['segmentation']
 
 ia.imshow(image)
 
