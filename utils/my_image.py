@@ -10,6 +10,65 @@ from imgaug.augmentables.bbs import BoundingBox, BoundingBoxesOnImage
 from imgaug.augmentables.kps import Keypoint, KeypointsOnImage
 
 
+def resize_rectify(image, bbox, segmentation, img_path, size=(224, 64)):
+    '''
+    :param image:
+    :param bbox: [x1,y1,x2,y2]
+    :param segmentation: [x1,y1,x2,y2,x3,y3,x4,y4]
+    :param size: (w,h)
+    :return:
+    '''
+    h, w = image.shape[0], image.shape[1]
+    left = min(bbox[0], segmentation[0], segmentation[2])
+    rigth = max(bbox[2], segmentation[4], segmentation[6])
+    top = min(bbox[1], segmentation[1], segmentation[7])
+    bottom = max(bbox[3], segmentation[3], segmentation[5])
+    # 适当扩大10％的裁切范围
+    padding_w = int((rigth - left) * 0.1)
+    padding_h = int((bottom - top) * 0.1)
+    # 防止越界
+    left = int(left - padding_w) if (left - padding_w) > 0 else 0
+    rigth = int(rigth + padding_w) if (rigth + padding_w) < (w - 1) else w - 1
+    top = int(top - padding_h) if (top - padding_h) > 0 else 0
+    bottom = int(bottom + padding_h) if (bottom + padding_h) < (h - 1) else h - 1
+    h_new = bottom - top
+    w_new = rigth - left
+
+    image = image[top:bottom + 1, left:rigth + 1, :]
+    # 防止越界
+    keypoints = [(int(segmentation[0] - left) if (segmentation[0] - left) > 0 else 0,
+                  int(segmentation[1] - top) if (segmentation[1] - top) > 0 else 0),
+                 (int(segmentation[2] - left) if (segmentation[2] - left) > 0 else 0,
+                  int(segmentation[3] - top) if (segmentation[3] - top) < (h_new - 1) else h_new - 1),
+                 (int(segmentation[4] - left) if (segmentation[4] - left) < (w_new - 1) else w_new - 1,
+                  int(segmentation[5] - top) if (segmentation[5] - top) < (h_new - 1) else h_new - 1),
+                 (int(segmentation[6] - left) if (segmentation[6] - left) < (w_new - 1) else w_new - 1,
+                  int(segmentation[7] - top) if (segmentation[7] - top) > 0 else 0), ]
+    category_ids = [1]
+    category_id_to_name = {1: 'PL'}
+    transform = A.Compose([
+        A.Resize(64, 224)],
+        keypoint_params=A.KeypointParams(format='xy'))
+    # try:
+    transformed = transform(image=image, keypoints=keypoints, category_ids=category_ids)
+    # except:
+    #     print(img_path)
+    #     print(segmentation)
+    #     print(keypoints)
+    image_new = transformed['image']
+    keypoints_new = transformed['keypoints']
+
+    pts = np.float32([[keypoints_new[0][0], keypoints_new[0][1]], [keypoints_new[1][0], keypoints_new[1][1]],
+                      [keypoints_new[2][0], keypoints_new[2][1]], [keypoints_new[3][0], keypoints_new[3][1]]])
+    pts1 = np.float32(
+        [[16, 5], [16, 60], [208, 60], [208, 5]])
+
+    M = cv2.getPerspectiveTransform(pts, pts1)
+    dst = cv2.warpPerspective(image_new, M, size)
+
+    return dst
+
+
 def resize_and_padding(image, size, bboxes, segmentation, pre_384=False):
     '''
 

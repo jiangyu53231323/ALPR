@@ -35,8 +35,8 @@ transformed = transform(image=a, keypoints=keypoints, category_ids=category_ids)
 image_new = transformed['image']
 keypoints_new = transformed['keypoints']
 
-pts = np.float32([[segmentation[0] - left, segmentation[1] - top], [segmentation[2] - left, segmentation[3] - top],
-                  [segmentation[4] - left, segmentation[5] - top], [segmentation[6] - left, segmentation[7] - top]])
+# pts = np.float32([[segmentation[0] - left, segmentation[1] - top], [segmentation[2] - left, segmentation[3] - top],
+#                   [segmentation[4] - left, segmentation[5] - top], [segmentation[6] - left, segmentation[7] - top]])
 pts = np.float32([[keypoints_new[0][0], keypoints_new[0][1]], [keypoints_new[1][0], keypoints_new[1][1]],
                   [keypoints_new[2][0], keypoints_new[2][1]], [keypoints_new[3][0], keypoints_new[3][1]]])
 

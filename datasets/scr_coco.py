@@ -5,6 +5,7 @@ import torch
 from torch.utils.data import Dataset
 import pycocotools.coco as coco
 
+from utils.my_image import resize_rectify
 from utils.utils import get_image_path
 
 COCO_NAMES = ['__background__', 'License Plate']
@@ -39,6 +40,7 @@ class SCR_COCO(Dataset):
         annotations = self.coco.loadAnns(ids=ann_ids)
 
         bboxes = np.array([anno['bbox'] for anno in annotations], dtype=np.float32).squeeze()  # 降维
+        segmentation = np.array([anno['segmentation'] for anno in annotations], dtype=np.float32).squeeze()  # 降维
         if len(bboxes) == 0:
             bboxes = np.array([[0., 0., 0., 0.]], dtype=np.float32)
             labels = np.array([[0]])
@@ -59,8 +61,11 @@ class SCR_COCO(Dataset):
         #     bboxes = np.array([[0., 0., 0., 0.]], dtype=np.float32)
         # 读取图片
         image = cv2.imread(img_path)[:, :, ::-1]  # BGR to RGB
-        image = image[int(bboxes[1]):int(bboxes[3]) + 1, int(bboxes[0]):int(bboxes[2]) + 1, :]
-        image = cv2.resize(image, self.img_size)
+
+        # image = image[int(bboxes[1]):int(bboxes[3]) + 1, int(bboxes[0]):int(bboxes[2]) + 1, :]
+        # image = cv2.resize(image, self.img_size)
+        image = resize_rectify(image, bboxes, segmentation, img_path)
+
         image = np.transpose(image, (2, 0, 1))
         image = image.astype('float32') / 255.
 
