@@ -118,7 +118,15 @@ class COCO(data.Dataset):
         lp_image = lp_image.astype(np.float32) / 255.
         lp_image = np.transpose(lp_image, (2, 0, 1))
         lp_img_name = self.coco.loadImgs(ids=[img_id])[0]['file_name'].split('.')[0]  # 分割图片名称，rsplit作用是去除.jpg后缀
-        lp_labels = np.array([int(c) for c in lp_img_name.split('-')[-3].split('_')[:7]])
+        lp_labels = [int(c) for c in lp_img_name.split('-')[-3].split('_')]
+        if len(lp_labels) < 8:
+            lp_labels.append(-1)
+            labels_size = 7
+            labels_class = 0
+        else:
+            labels_size = 8
+            labels_class = 1
+        lp_labels = np.array(lp_labels)
 
         # 调整图片大小并填充，返回调整后的图片和缩小的比例
         resize_out = resize_and_padding(image, self.img_size['h'], bboxes, segmentation)
@@ -190,7 +198,8 @@ class COCO(data.Dataset):
 
         return {'image': image, 'heat_map': heat_map, 'corner_map': corner_map, 'bboxes_map': bboxes_map, 'inds': inds,
                 'ind_masks': ind_masks, 'scale': scale, 'img_id': img_id, 'reg_mask': reg_mask, 'bboxes': bboxes,
-                'segmentation': segmentation, 'lp_image': lp_image, 'lp_labelse': lp_labels}
+                'segmentation': segmentation, 'lp_image': lp_image, 'lp_labelse': lp_labels, 'labels_size': labels_size,
+                'labels_class': labels_class, }
 
     def __len__(self):
         return self.num_samples
@@ -221,8 +230,24 @@ class COCO_eval(COCO):
             labels = np.array([[0]])
         bboxes[2:] += bboxes[:2]  # xywh to xyxy
 
-        image = cv2.imread(img_path)[:, :, ::-1]  # BGR to RGB
-        height, width = image.shape[0:2]
+        img_origin = cv2.imread(img_path)[:, :, ::-1]  # BGR to RGB
+        height, width = img_origin.shape[0:2]
+
+        # 将车牌部分裁切出来
+        lp_image = img_origin[int(bboxes[1]):int(bboxes[3]) + 1, int(bboxes[0]):int(bboxes[2]) + 1, :]
+        lp_image = cv2.resize(lp_image, self.lp_img_size)
+        lp_image = lp_image.astype(np.float32) / 255.
+        lp_image = np.transpose(lp_image, (2, 0, 1))
+        lp_img_name = self.coco.loadImgs(ids=[img_id])[0]['file_name'].split('.')[0]  # 分割图片名称，rsplit作用是去除.jpg后缀
+        lp_labels = [int(c) for c in lp_img_name.split('-')[-3].split('_')]
+        if len(lp_labels) < 8:
+            lp_labels.append(-1)
+            labels_size = 7
+            labels_class = 0
+        else:
+            labels_size = 8
+            labels_class = 1
+        lp_labels = np.array(lp_labels)
 
         out = {}
         for scale in self.test_scales:
@@ -242,7 +267,7 @@ class COCO_eval(COCO):
                 # center = np.array([new_width // 2, new_height // 2], dtype=np.float32)
                 # scaled_size = np.array([img_width, img_height], dtype=np.float32)
 
-            resize_out = resize_and_padding(image, max(img_height, img_width), new_bboxes, new_segmentation)
+            resize_out = resize_and_padding(img_origin, max(img_height, img_width), new_bboxes, new_segmentation)
             img = resize_out['new_image']
             img_scale = resize_out['scale']
             new_bboxes = resize_out['bboxes']
@@ -261,17 +286,26 @@ class COCO_eval(COCO):
             img /= self.std
             img = img.transpose(2, 0, 1)[None, :, :, :]  # from [H, W, C] to [1, C, H, W]
 
+            img_origin = img_origin.astype(np.float32) / 255.
+            img_origin -= self.mean
+            img_origin /= self.std
+            # img_origin = img_origin.transpose(2, 0, 1)[None, :, :, :]  # from [H, W, C] to [1, C, H, W]
+
             if self.test_flip:  # 翻转图片
                 img = np.concatenate((img, img[:, :, :, ::-1].copy()), axis=0)
 
             out[scale] = {'image': img,
+                          'image_origin': img_origin,
                           'fmap_h': img_height // self.down_ratio,
                           'fmap_w': img_width // self.down_ratio,
                           'bboxes': new_bboxes,
                           'segmentation': new_segmentation,
                           'image_scale': img_scale,
                           'padding_w': padding_w,
-                          'padding_h': padding_h
+                          'padding_h': padding_h,
+                          'lp_labels': lp_labels,
+                          'labels_size': labels_size,
+                          'labels_class': labels_class,
                           }
 
         return img_id, out

@@ -135,7 +135,9 @@ def load_model(model, pretrain_dir):
                     key, model_state_dict[key].shape, state_dict[key].shape))
                 state_dict[key] = model_state_dict[key]
         else:
+            state_dict.pop(key)
             print('Drop parameter {}.'.format(key))
+
     for key in model_state_dict:
         if key not in state_dict:
             print('No param {}.'.format(key))
@@ -145,8 +147,8 @@ def load_model(model, pretrain_dir):
     pretrained_key = list(state_dict.keys())
     pre_state_dict = OrderedDict()
     for k in range(len(model_key)):
-        if model_key[k] != pretrained_key[k]:
-            pre_state_dict[model_key[k]] = state_dict[pretrained_key[k]]
+        # if model_key[k] != pretrained_key[k]:
+        pre_state_dict[model_key[k]] = state_dict[pretrained_key[k]]
 
     model.load_state_dict(pre_state_dict, strict=True)
 
@@ -223,6 +225,44 @@ def scr_decoder(pre, target):
                 num = num + 1
     return num
 
+def scr_decoder_unite(pre, target):
+    target = target[1]
+    # for k in target:
+    #     target[k] = target[k].to('cpu')
+    cls = pre[0].to('cpu')
+    topk_score, topk_ind = torch.topk(cls, 1)
+    num = 0
+    for b in range(pre[0].size()[0]):
+        # blue车牌检测
+        if topk_ind[b] == 0:
+            for k in range(7):
+                p = pre[1][k][b].topk(1)[1]
+                if p == target['lp_labels'][k]:
+                    isTure = 1
+                    continue
+                else:
+                    isTure = 0
+                    break
+            if isTure == 0:
+                continue
+            else:
+                num = num + 1
+        # green车牌检测
+        else:
+            for k in range(8):
+                p = pre[2][k][b].topk(1)[1]
+                if p == target['lp_labels'][k]:
+                    isTure = 1
+                    continue
+                else:
+                    isTure = 0
+                    break
+            if isTure == 0:
+                continue
+            else:
+                num = num + 1
+    return num
+
 
 def char_decoder(pre, target, ind):
     for k in target:
@@ -260,6 +300,7 @@ def char_decoder(pre, target, ind):
             else:
                 num = num + 1
     return num
+
 
 def cls_eval(pre, target):
     for k in target:
