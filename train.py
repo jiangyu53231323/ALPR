@@ -52,7 +52,7 @@ parser.add_argument('--split_ratio', type=float, default=1.0)
 parser.add_argument('--lr', type=float, default=1.25e-4)
 parser.add_argument('--lr_step', type=str, default='2,4,6')
 parser.add_argument('--batch_size', type=int, default=24)
-parser.add_argument('--num_epochs', type=int, default=20)
+parser.add_argument('--num_epochs', type=int, default=1)
 
 parser.add_argument('--test_topk', type=int, default=1)
 
@@ -245,18 +245,18 @@ def main():
 
                     detections.append(top_preds)
 
-                bbox_and_scores = {j: np.concatenate([d[j] for d in detections], axis=0)
+                corner_bbox_scores = {j: np.concatenate([d[j] for d in detections], axis=0)
                                    for j in range(1, val_dataset.num_classes + 1)}
                 # hstack为横向上的拼接，等效与沿第二轴的串联
-                scores = np.hstack([bbox_and_scores[j][:, 12] for j in range(1, val_dataset.num_classes + 1)])
+                scores = np.hstack([corner_bbox_scores[j][:, 12] for j in range(1, val_dataset.num_classes + 1)])
                 if len(scores) > max_per_image:
                     kth = len(scores) - max_per_image
                     thresh = np.partition(scores, kth)[kth]
                     for j in range(1, val_dataset.num_classes + 1):
-                        keep_inds = (bbox_and_scores[j][:, 4] >= thresh)
-                        bbox_and_scores[j] = bbox_and_scores[j][keep_inds]
+                        keep_inds = (corner_bbox_scores[j][:, 4] >= thresh)
+                        corner_bbox_scores[j] = corner_bbox_scores[j][keep_inds]
 
-                results[img_id] = bbox_and_scores
+                results[img_id] = corner_bbox_scores
 
         eval_results = val_dataset.run_eval(results, save_dir=cfg.ckpt_dir)
         print(eval_results)

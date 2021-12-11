@@ -68,7 +68,7 @@ class SCR_COCO(Dataset):
 
         # image = image[int(bboxes[1]):int(bboxes[3]) + 1, int(bboxes[0]):int(bboxes[2]) + 1, :]
         # image = cv2.resize(image, self.img_size)
-        image = resize_rectify(image, bboxes, segmentation, is_rectify=False)
+        image = resize_rectify(image, bboxes, segmentation, is_rectify=True)
 
         image = np.transpose(image, (2, 0, 1))
         image = image.astype('float32') / 255.

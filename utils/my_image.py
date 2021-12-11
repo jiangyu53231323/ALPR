@@ -88,9 +88,9 @@ def resize_rectify(image, bbox, segmentation, size=(224, 64), is_rectify=True):
     rigth = max(bbox[2], segmentation[4], segmentation[6])
     top = min(bbox[1], segmentation[1], segmentation[7])
     bottom = max(bbox[3], segmentation[3], segmentation[5])
-    # 适当扩大10％的裁切范围
-    padding_w = int((rigth - left) * 0.1)
-    padding_h = int((bottom - top) * 0.1)
+    # 适当扩大10％的裁切范围，如果车牌区域太大则扩大固定范围
+    padding_w = int((rigth - left) * 0.1) if ((rigth - left) * 0.1) < 44.8 else 44
+    padding_h = int((bottom - top) * 0.1) if ((bottom - top) * 0.1) < 12.8 else 12
     # 防止越界
     left = int(left - padding_w) if (left - padding_w) > 0 else 0
     rigth = int(rigth + padding_w) if (rigth + padding_w) < (w - 1) else w - 1
@@ -125,9 +125,9 @@ def resize_rectify(image, bbox, segmentation, size=(224, 64), is_rectify=True):
 
     if is_rectify == True:
         pts = np.float32([[keypoints_new[0][0], keypoints_new[0][1]], [keypoints_new[1][0], keypoints_new[1][1]],
-                        [keypoints_new[2][0], keypoints_new[2][1]], [keypoints_new[3][0], keypoints_new[3][1]]])
+                          [keypoints_new[2][0], keypoints_new[2][1]], [keypoints_new[3][0], keypoints_new[3][1]]])
         pts1 = np.float32(
-            [[16, 5], [16, 60], [208, 60], [208, 5]])
+            [[16, 3], [16, 62], [208, 62], [208, 3]])
 
         M = cv2.getPerspectiveTransform(pts, pts1)
         dst = cv2.warpPerspective(image_new, M, size)

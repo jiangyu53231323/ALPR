@@ -222,6 +222,7 @@ class COCO_eval(COCO):
         # img_path = os.path.join(self.img_dir, self.coco.loadImgs(ids=[img_id])[0]['file_name'])
         # 如果 self.img_dir 下有多个文件夹，则使用get_image_path来寻找image的真正路径
         img_path = get_image_path(self.data_dir, self.coco.loadImgs(ids=[img_id])[0]['file_name'])
+        # file_name = self.coco.loadImgs(ids=[img_id])[0]['file_name']
         # 根据image id 获取 annotion id
         ann_ids = self.coco.getAnnIds(imgIds=[img_id])
         annotations = self.coco.loadAnns(ids=ann_ids)
@@ -310,6 +311,7 @@ class COCO_eval(COCO):
                           'lp_labels': lp_labels,
                           'labels_size': labels_size,
                           'labels_class': labels_class,
+                          # 'file_name': file_name,
                           }
 
         return img_id, out
@@ -326,13 +328,14 @@ class COCO_eval(COCO):
                     bbox[11] -= bbox[9]
                     score = bbox[12]
                     bbox_out = list(map(lambda x: float("{:.2f}".format(x)), bbox[8:12]))
-
+                    file_name = self.coco.loadImgs(ids=[image_id])[0]['file_name']
                     # bbox[2] -= bbox[0]
                     # bbox[3] -= bbox[1]
                     # score = bbox[4]
                     # bbox_out = list(map(lambda x: float("{:.2f}".format(x)), bbox[0:4]))
 
                     detection = {"image_id": int(image_id),
+                                 "file_name": file_name,
                                  "category_id": int(category_id),
                                  "bbox": bbox_out,
                                  "segmentation": segmentation,

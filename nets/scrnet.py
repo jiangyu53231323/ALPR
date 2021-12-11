@@ -649,7 +649,7 @@ class SCRNet(nn.Module):
             # nn.ReLU(inplace=True),
         )
         self.bneck2 = nn.Sequential(
-            Block(3, 24, 72, 40, nn.ReLU(inplace=True), SeModule, 2),
+            Block(3, 24, 72, 40, nn.ReLU(inplace=True), None, 2),
             Block(3, 40, 120, 40, nn.ReLU(inplace=True), SeModule, 1),
             Block(3, 40, 120, 40, nn.ReLU(inplace=True), SeModule, 1),
             # SAC(40, 40),
@@ -660,7 +660,7 @@ class SCRNet(nn.Module):
             Block(3, 40, 240, 80, hswish(), None, 2),
             Block(3, 80, 200, 80, hswish(), None, 1),
             Block(3, 80, 184, 80, hswish(), None, 1),
-            Block(3, 80, 184, 80, hswish(), None, 1),
+            Block(3, 80, 184, 80, hswish(), SeModule, 1),
             Block(3, 80, 480, 112, hswish(), SeModule, 1),
             Block(3, 112, 672, 112, hswish(), SeModule, 1),
             Block(5, 112, 672, 160, hswish(), SeModule, 1),
@@ -692,10 +692,12 @@ class SCRNet(nn.Module):
         self.conv2 = nn.Sequential(
             nn.Conv2d(64, 64, kernel_size=(3, 3), stride=2, padding=1, groups=64, bias=False),
             nn.BatchNorm2d(64),
-            hswish(),
+            # hswish(),
+            nn.ReLU(inplace=True),
             nn.Conv2d(64, 64, kernel_size=1, stride=1, padding=0, bias=False),
             nn.BatchNorm2d(64),
-            hswish(),
+            # hswish(),
+            nn.ReLU(inplace=True),
             # nn.Conv2d(64, 64, kernel_size=3, stride=(2, 1), padding=1, groups=64, bias=False),
             # nn.BatchNorm2d(64),
             # hswish(),
@@ -704,10 +706,12 @@ class SCRNet(nn.Module):
             # hswish(),
             nn.Conv2d(64, 64, kernel_size=(8, 1), stride=1, padding=0, groups=64, bias=False),
             nn.BatchNorm2d(64),
-            hswish(),
+            # hswish(),
+            nn.ReLU(inplace=True),
             nn.Conv2d(64, 64, kernel_size=1, stride=1, padding=0, bias=False),
             nn.BatchNorm2d(64),
-            hswish(),
+            # hswish(),
+            nn.ReLU(inplace=True),
         )
 
         self.blue_classifier = Blue_ocr(64)
