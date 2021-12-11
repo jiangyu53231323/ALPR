@@ -54,10 +54,10 @@ parser.add_argument('--lr_step', type=str, default='2,4,6')
 parser.add_argument('--batch_size', type=int, default=24)
 parser.add_argument('--num_epochs', type=int, default=20)
 
-parser.add_argument('--test_topk', type=int, default=100)
+parser.add_argument('--test_topk', type=int, default=1)
 
 parser.add_argument('--log_interval', type=int, default=1000)
-parser.add_argument('--val_interval', type=int, default=2)
+parser.add_argument('--val_interval', type=int, default=1)
 parser.add_argument('--num_workers', type=int, default=4)
 
 cfg = parser.parse_args()
@@ -240,15 +240,15 @@ def main():
                     clses = dets[:, -1]
                     for j in range(val_dataset.num_classes):
                         inds = (clses == j)
-                        top_preds[j + 1] = dets[inds, 8:13].astype(np.float32)  # 提取bboxes和scores
-                        top_preds[j + 1][:, :4] /= scale  # 恢复缩放
+                        top_preds[j + 1] = dets[inds, 0:13].astype(np.float32)  # 提取bboxes和scores
+                        top_preds[j + 1][:, :12] /= scale  # 恢复缩放
 
                     detections.append(top_preds)
 
                 bbox_and_scores = {j: np.concatenate([d[j] for d in detections], axis=0)
                                    for j in range(1, val_dataset.num_classes + 1)}
                 # hstack为横向上的拼接，等效与沿第二轴的串联
-                scores = np.hstack([bbox_and_scores[j][:, 4] for j in range(1, val_dataset.num_classes + 1)])
+                scores = np.hstack([bbox_and_scores[j][:, 12] for j in range(1, val_dataset.num_classes + 1)])
                 if len(scores) > max_per_image:
                     kth = len(scores) - max_per_image
                     thresh = np.partition(scores, kth)[kth]
@@ -265,7 +265,7 @@ def main():
     print('Starting training...')
     for epoch in range(1, cfg.num_epochs + 1):
         train_sampler.set_epoch(epoch)
-        train(epoch)
+        # train(epoch)
         if cfg.val_interval > 0 and epoch % cfg.val_interval == 0:
             val_map(epoch)
         print(saver.save(model.module.state_dict(), 'checkpoint'))

@@ -6,7 +6,7 @@ from torch.utils.data import Dataset
 import pycocotools.coco as coco
 
 from utils.my_image import resize_rectify
-from utils.utils import get_image_path
+from utils.utils import get_image_path, get_json
 
 COCO_NAMES = ['__background__', 'License Plate']
 
@@ -21,6 +21,10 @@ class SCR_COCO(Dataset):
         # self.annot_path = os.path.join(self.data_dir, 'annotations', 'ccpd_green_val2020.json' )
         self.annot_path = os.path.join(self.data_dir, 'annotations', 'ccpd_%s2020.json' % split)
         self.img_size = img_size
+
+        # lpd检测结果文件路径
+        # self.lpd_path = os.path.join(data_dir, 'lpd_result', 'lpd_results.json')
+        # self.lpd_results = get_json(self.lpd_path)
 
         print('==> initializing CCPD 2019 %s data.' % split)
         self.coco = coco.COCO(self.annot_path)
@@ -64,7 +68,7 @@ class SCR_COCO(Dataset):
 
         # image = image[int(bboxes[1]):int(bboxes[3]) + 1, int(bboxes[0]):int(bboxes[2]) + 1, :]
         # image = cv2.resize(image, self.img_size)
-        image = resize_rectify(image, bboxes, segmentation)
+        image = resize_rectify(image, bboxes, segmentation, is_rectify=False)
 
         image = np.transpose(image, (2, 0, 1))
         image = image.astype('float32') / 255.

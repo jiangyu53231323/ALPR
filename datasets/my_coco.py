@@ -59,7 +59,11 @@ class COCO(data.Dataset):
         # 图片 data/CCPD2019/ccpd_base
         self.data_dir = os.path.join(data_dir, 'CCPD2019')
         self.img_dir = os.path.join(self.data_dir, 'ccpd')
-        self.annot_path = os.path.join(self.data_dir, 'annotations', 'ccpd_%s2020.json' % split)
+        if split == 'train':
+            self.annot_path = os.path.join(self.data_dir, 'annotations', 'ccpd_%s2020.json' % split)
+        else:
+            # self.annot_path = os.path.join(self.data_dir, 'annotations', 'ccpd_%s2020.json' % split)
+            self.annot_path = os.path.join(self.data_dir, 'annotations', 'ccpd_weather_val2020.json')
         # self.annot_path = os.path.join('./', 'ccpd_%s2020.json' % split)
 
         self.max_objs = 1  # 最大检测目标数
@@ -317,14 +321,21 @@ class COCO_eval(COCO):
             for cls_ind in all_bboxes[image_id]:
                 category_id = self.valid_ids[cls_ind]
                 for bbox in all_bboxes[image_id][cls_ind]:
-                    bbox[2] -= bbox[0]
-                    bbox[3] -= bbox[1]
-                    score = bbox[4]
-                    bbox_out = list(map(lambda x: float("{:.2f}".format(x)), bbox[0:4]))
+                    segmentation = list(map(lambda x: float("{:.2f}".format(x)), bbox[0:8]))
+                    bbox[10] -= bbox[8]
+                    bbox[11] -= bbox[9]
+                    score = bbox[12]
+                    bbox_out = list(map(lambda x: float("{:.2f}".format(x)), bbox[8:12]))
+
+                    # bbox[2] -= bbox[0]
+                    # bbox[3] -= bbox[1]
+                    # score = bbox[4]
+                    # bbox_out = list(map(lambda x: float("{:.2f}".format(x)), bbox[0:4]))
 
                     detection = {"image_id": int(image_id),
                                  "category_id": int(category_id),
                                  "bbox": bbox_out,
+                                 "segmentation": segmentation,
                                  "score": float("{:.2f}".format(score))}
                     detections.append(detection)
         return detections
@@ -332,10 +343,12 @@ class COCO_eval(COCO):
     def run_eval(self, results, save_dir=None):
         # 转变格式，使之能使用coco api 计算map
         detections = self.convert_eval_format(results)
+        results = {}
 
         if save_dir is not None:
             result_json = os.path.join(save_dir, "results.json")
-            json.dump(detections, open(result_json, "w"))
+            results["results"] = detections
+            json.dump(results, open(result_json, "w"))
         # 使用COCO api进行AP计算
         coco_dets = self.coco.loadRes(detections)
         coco_eval = COCOeval(self.coco, coco_dets, "bbox")
@@ -353,13 +366,13 @@ class COCO_eval(COCO):
         plt.xlim(0, 1.0)
         plt.ylim(0, 1.01)
         plt.grid(True)
-
         plt.plot(x, pr_array1, 'b-', label='IoU=0.7')
         plt.plot(x, pr_array2, 'c-', label='IoU=0.8')
         plt.plot(x, pr_array3, 'y-', label='IoU=0.9')
-
         plt.legend(loc="lower left")
-        plt.savefig('pr_graph.png')
+        if save_dir is not None:
+            pr_graph = os.path.join(save_dir, "pr_graph.png")
+            plt.savefig(pr_graph)
         plt.show()
 
         return coco_eval.stats

@@ -181,6 +181,7 @@ if __name__ == '__main__':
     image_path_weather = 'E:\CodeDownload\数据集\CCPD2019\ccpd_weather'
     image_path_green = 'E:\CodeDownload\数据集\CCPD2020\ccpd_green/train'
 
+    all_json_file = './ccpd_all2020.json'
     train_json_file = './ccpd_train2020.json'
     val_json_file = './ccpd_val2020.json'
     val_base_json_file = './ccpd_base_val2020.json'
@@ -240,7 +241,13 @@ if __name__ == '__main__':
 
     train_list = train_list_base + train_list_blur + train_list_challenge + train_list_db + train_list_fn + train_list_rotate + train_list_tilt + train_list_weather + train_list_green
     test_list = test_list_base + test_list_blur + test_list_challenge + test_list_db + test_list_fn + test_list_rotate + test_list_tilt + test_list_weather + test_list_green
+    all_list = train_list + test_list
 
+    parseImageName(all_list)
+    json.dump(coco, open(all_json_file, 'w'))
+
+    print('init coco: train')
+    init_coco()
     parseImageName(train_list)
     json.dump(coco, open(train_json_file, 'w'))
 

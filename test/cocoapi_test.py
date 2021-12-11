@@ -17,3 +17,5 @@ print('COCO categories: \n{}\n'.format(' '.join(nms)))
 
 nms = set([cat['supercategory'] for cat in cats])
 print('COCO supercategories: \n{}'.format(' '.join(nms)))
+
+# img_id = coco.getImgIds()

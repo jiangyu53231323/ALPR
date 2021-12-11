@@ -75,7 +75,7 @@ def batch_resize_rectify(image, bbox, segmentation, size=(224, 64), is_rectify=T
     return dst_tensor
 
 
-def resize_rectify(image, bbox, segmentation, size=(224, 64)):
+def resize_rectify(image, bbox, segmentation, size=(224, 64), is_rectify=True):
     '''
     :param image:
     :param bbox: [x1,y1,x2,y2]
@@ -123,15 +123,17 @@ def resize_rectify(image, bbox, segmentation, size=(224, 64)):
     image_new = transformed['image']
     keypoints_new = transformed['keypoints']
 
-    pts = np.float32([[keypoints_new[0][0], keypoints_new[0][1]], [keypoints_new[1][0], keypoints_new[1][1]],
-                      [keypoints_new[2][0], keypoints_new[2][1]], [keypoints_new[3][0], keypoints_new[3][1]]])
-    pts1 = np.float32(
-        [[16, 5], [16, 60], [208, 60], [208, 5]])
+    if is_rectify == True:
+        pts = np.float32([[keypoints_new[0][0], keypoints_new[0][1]], [keypoints_new[1][0], keypoints_new[1][1]],
+                        [keypoints_new[2][0], keypoints_new[2][1]], [keypoints_new[3][0], keypoints_new[3][1]]])
+        pts1 = np.float32(
+            [[16, 5], [16, 60], [208, 60], [208, 5]])
 
-    M = cv2.getPerspectiveTransform(pts, pts1)
-    dst = cv2.warpPerspective(image_new, M, size)
-
-    return dst
+        M = cv2.getPerspectiveTransform(pts, pts1)
+        dst = cv2.warpPerspective(image_new, M, size)
+        return dst
+    else:
+        return image_new
 
 
 def resize_and_padding(image, size, bboxes, segmentation, pre_384=False):

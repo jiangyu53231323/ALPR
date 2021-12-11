@@ -1,3 +1,4 @@
+import json
 import os
 import math
 
@@ -225,6 +226,7 @@ def scr_decoder(pre, target):
                 num = num + 1
     return num
 
+
 def scr_decoder_unite(pre, target):
     target = target[1]
     # for k in target:
@@ -365,3 +367,16 @@ def ctc_decoder(outputs, inputs):
         else:
             continue
     return num
+
+
+def get_json(json_dir):
+    # file = open(json_dir, "rb")
+    # fileJson = json.load(file)
+    data = {}
+    with open(json_dir, 'r') as f:
+        dataset = json.load(f)
+    assert type(dataset) == dict, 'lpd file format {} not supported'.format(type(dataset))
+    for d in dataset["results"]:
+        data[d['image_id']] = d
+    return data
+
