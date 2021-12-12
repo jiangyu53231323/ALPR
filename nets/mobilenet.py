@@ -230,19 +230,19 @@ class MobileNetV3_Large(nn.Module):
         # 将主干网最终输出channel控制在64
         self.deconv_layer3 = _make_deconv_layer(256, 128, 4)
         self.deconv_layer2 = _make_deconv_layer(128, 64, 4)
-        self.deconv_layer1 = _make_deconv_layer(64, 32, 4)
+        self.deconv_layer1 = _make_deconv_layer(64, 64, 4)
         # 融合特征图的逐点卷积
-        self.fuse3 = nn.Conv2d(256, 128, kernel_size=1, stride=1, padding=0, bias=False)
-        self.fuse2 = nn.Conv2d(128, 64, kernel_size=1, stride=1, padding=0, bias=False)
+        # self.fuse3 = nn.Conv2d(256, 128, kernel_size=1, stride=1, padding=0, bias=False)
+        # self.fuse2 = nn.Conv2d(128, 64, kernel_size=1, stride=1, padding=0, bias=False)
 
-        self.hmap = nn.Sequential(nn.Conv2d(32, 64, kernel_size=3, padding=1, bias=True),
+        self.hmap = nn.Sequential(nn.Conv2d(64, 64, kernel_size=3, padding=1, bias=True),
                                   hswish(),
                                   nn.Conv2d(64, num_classes, kernel_size=1, bias=True))
         self.hmap[-1].bias.data.fill_(-2.19)
-        self.cors = nn.Sequential(nn.Conv2d(32, 64, kernel_size=3, padding=1, bias=True),
+        self.cors = nn.Sequential(nn.Conv2d(64, 64, kernel_size=3, padding=1, bias=True),
                                   hswish(),
                                   nn.Conv2d(64, 8, kernel_size=1, bias=True))
-        self.w_h_ = nn.Sequential(nn.Conv2d(32, 64, kernel_size=3, padding=1, bias=True),
+        self.w_h_ = nn.Sequential(nn.Conv2d(64, 64, kernel_size=3, padding=1, bias=True),
                                   hswish(),
                                   nn.Conv2d(64, 4, kernel_size=1, bias=True))
         # self.hmap = nn.Sequential(DP_Conv(3, 32, 64, hswish(), 1),

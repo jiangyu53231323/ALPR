@@ -377,6 +377,6 @@ def get_json(json_dir):
         dataset = json.load(f)
     assert type(dataset) == dict, 'lpd file format {} not supported'.format(type(dataset))
     for d in dataset["results"]:
-        data[d['image_id']] = d
+        data[d['file_name']] = d
     return data
 

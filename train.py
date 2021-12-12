@@ -52,12 +52,12 @@ parser.add_argument('--split_ratio', type=float, default=1.0)
 parser.add_argument('--lr', type=float, default=1.25e-4)
 parser.add_argument('--lr_step', type=str, default='2,4,6')
 parser.add_argument('--batch_size', type=int, default=24)
-parser.add_argument('--num_epochs', type=int, default=1)
+parser.add_argument('--num_epochs', type=int, default=20)
 
-parser.add_argument('--test_topk', type=int, default=1)
+parser.add_argument('--test_topk', type=int, default=10)
 
 parser.add_argument('--log_interval', type=int, default=1000)
-parser.add_argument('--val_interval', type=int, default=1)
+parser.add_argument('--val_interval', type=int, default=2)
 parser.add_argument('--num_workers', type=int, default=4)
 
 cfg = parser.parse_args()
@@ -265,7 +265,7 @@ def main():
     print('Starting training...')
     for epoch in range(1, cfg.num_epochs + 1):
         train_sampler.set_epoch(epoch)
-        # train(epoch)
+        train(epoch)
         if cfg.val_interval > 0 and epoch % cfg.val_interval == 0:
             val_map(epoch)
         print(saver.save(model.module.state_dict(), 'checkpoint'))

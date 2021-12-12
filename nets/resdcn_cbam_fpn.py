@@ -177,23 +177,27 @@ class PoseResNet(nn.Module):
         self.layer3 = self._make_layer(block, 256, layers[2], stride=2)
         self.layer4 = self._make_layer(block, 512, layers[3], stride=2)
 
+        self.conv_fpn2 = nn.Conv2d(128, 64, kernel_size=1, stride=1, padding=0, bias=False)
+        self.conv_fpn3 = nn.Conv2d(256, 128, kernel_size=1, stride=1, padding=0, bias=False)
+        self.conv_fpn4 = nn.Conv2d(512, 256, kernel_size=1, stride=1, padding=0, bias=False)
+
         # used for deconv layers 可形变卷积
         # 将主干网最终输出channel控制在64
-        self.deconv_layer1 = self._make_deconv_layer(256 * block.expansion, 4)
-        self.deconv_layer2 = self._make_deconv_layer(128 * block.expansion, 4)
-        self.deconv_layer3 = self._make_deconv_layer(64 * block.expansion, 4)
+        self.deconv_layer3 = self._make_deconv_layer(256, 128, 4)
+        self.deconv_layer2 = self._make_deconv_layer(128, 64 , 4)
+        self.deconv_layer1 = self._make_deconv_layer(64, 64, 4)
         # 进行回归预测前的卷积filter个数
         if head_conv > 0:
             # heatmap layers 中心点定位
-            self.hmap = nn.Sequential(nn.Conv2d(64 * block.expansion, head_conv, kernel_size=3, padding=1, bias=True),
+            self.hmap = nn.Sequential(nn.Conv2d(64, head_conv, kernel_size=3, padding=1, bias=True),
                                       nn.ReLU(inplace=True),
                                       nn.Conv2d(head_conv, num_classes, kernel_size=1, bias=True))
             self.hmap[-1].bias.data.fill_(-2.19)
             # regression layers  角点、长宽
-            self.cors = nn.Sequential(nn.Conv2d(64 * block.expansion, head_conv, kernel_size=3, padding=1, bias=True),
+            self.cors = nn.Sequential(nn.Conv2d(64, head_conv, kernel_size=3, padding=1, bias=True),
                                       nn.ReLU(inplace=True),
                                       nn.Conv2d(head_conv, 8, kernel_size=1, bias=True))
-            self.w_h_ = nn.Sequential(nn.Conv2d(64 * block.expansion, head_conv, kernel_size=3, padding=1, bias=True),
+            self.w_h_ = nn.Sequential(nn.Conv2d(64, head_conv, kernel_size=3, padding=1, bias=True),
                                       nn.ReLU(inplace=True),
                                       nn.Conv2d(head_conv, 4, kernel_size=1, bias=True))
         else:
@@ -204,8 +208,8 @@ class PoseResNet(nn.Module):
             # bboxes layers
             self.w_h_ = nn.Conv2d(64, 4, kernel_size=1, bias=True)
 
-        fill_fc_weights(self.cors)
-        fill_fc_weights(self.w_h_)
+        # fill_fc_weights(self.cors)
+        # fill_fc_weights(self.w_h_)
 
     # 创建resnet普通卷积层
     def _make_layer(self, block, planes, blocks, stride=1):
@@ -235,12 +239,12 @@ class PoseResNet(nn.Module):
         return deconv_kernel, padding, output_padding
 
     # 创建可形变卷积层
-    def _make_deconv_layer(self, filter, kernel):
+    def _make_deconv_layer(self, inplanes, filter, kernel):
         layers = []
         kernel, padding, output_padding = self._get_deconv_cfg(kernel)
         planes = filter
         # self.inplanes记录了上一层网络的out通道数
-        fc = DCN(self.inplanes,
+        fc = DCN(inplanes,
                  planes,
                  kernel_size=(3, 3),
                  stride=1,
@@ -282,13 +286,18 @@ class PoseResNet(nn.Module):
         c3 = self.layer3(c2)
         c4 = self.layer4(c3)
 
-        d3 = self.deconv_layer1(c4)
-        p3 = d3 + c3
-        d2 = self.deconv_layer2(p3)
-        p2 = d2 + c2
-        d1 = self.deconv_layer3(p2)
+        p4 = self.conv_fpn4(c4)
+        p3 = self.deconv_layer3(p4) + self.conv_fpn3(c3)
+        p2 = self.deconv_layer2(p3) + self.conv_fpn2(c2)
+        p1 = self.deconv_layer1(p2)
 
-        out = [[self.hmap(d1), self.cors(d1), self.w_h_(d1)]]
+        # d3 = self.deconv_layer1(c4)
+        # p3 = d3 + c3
+        # d2 = self.deconv_layer2(p3)
+        # p2 = d2 + c2
+        # d1 = self.deconv_layer3(p2)
+
+        out = [[self.hmap(p1), self.cors(p1), self.w_h_(p1)]]
         return out
 
     # 初始化权重
@@ -324,11 +333,12 @@ resnet_spec = {18: (BasicBlock, [2, 2, 2, 2]),
 def get_pose_net(num_layers, head_conv=64, num_classes=1):
     block_class, layers = resnet_spec[num_layers]
     model = PoseResNet(block_class, layers, head_conv, num_classes)
-    model.init_weights(num_layers)
+    # model.init_weights(num_layers)
     return model
 
+
 def test():
-    net = get_pose_net(num_layers=18,num_classes=1)
+    net = get_pose_net(num_layers=18, num_classes=1)
     x = torch.randn(1, 3, 384, 256)
     flops, params = profile(net, inputs=(x,))
     net.eval()
