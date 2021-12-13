@@ -161,6 +161,15 @@ def count_parameters(model):
     print("Total num of param = %f M" % sum(num_paras))
 
 
+def params_count(model):
+    """
+    Compute the number of parameters.
+    Args:
+        model (model): model to count the number of parameters.
+    """
+    return np.sum([p.numel() for p in model.parameters()]).item()
+
+
 def count_flops(model, input_size=384):
     flops = []
     handles = []

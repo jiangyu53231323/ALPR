@@ -1,7 +1,9 @@
 import numpy as np
 import torch
+from thop import profile
 from torch import nn
 from torch.autograd import Variable
+import torch.nn.functional as F
 
 
 class DeformConv2D(nn.Module):
@@ -164,3 +166,55 @@ class DeformConv2D(nn.Module):
         x_offset = x_offset.contiguous().view(b, c, h * ks, w * ks)
 
         return x_offset
+
+
+class DeformNet(nn.Module):
+    def __init__(self):
+        super(DeformNet, self).__init__()
+        self.conv1 = nn.Conv2d(3, 32, kernel_size=3, padding=1)
+        self.bn1 = nn.BatchNorm2d(32)
+
+        self.conv2 = nn.Conv2d(32, 64, kernel_size=3, padding=1)
+        self.bn2 = nn.BatchNorm2d(64)
+
+        self.conv3 = nn.Conv2d(64, 128, kernel_size=3, padding=1)
+        self.bn3 = nn.BatchNorm2d(128)
+
+        self.offsets = nn.Conv2d(128, 18, kernel_size=3, padding=1)
+        self.conv4 = DeformConv2D(128, 128, kernel_size=3, padding=1)
+        self.bn4 = nn.BatchNorm2d(128)
+
+        # self.classifier = nn.Linear(128, 10)
+
+    def forward(self, x):
+        # convs
+        x = F.relu(self.conv1(x))
+        x = self.bn1(x)
+        x = F.relu(self.conv2(x))
+        x = self.bn2(x)
+        x = F.relu(self.conv3(x))
+        x = self.bn3(x)
+        # deformable convolution
+        offsets = self.offsets(x)
+        x = F.relu(self.conv4(x, offsets))
+        x = self.bn4(x)
+        print(x)
+
+        # x = F.avg_pool2d(x, kernel_size=28, stride=1).view(x.size(0), -1)
+        # x = self.classifier(x)
+
+        # return F.log_softmax(x, dim=1)
+        return x
+
+
+if __name__ == '__main__':
+    input = torch.randn(1, 3, 4, 4)
+    model = DeformNet()
+    flops, params = profile(model, inputs=(input,))
+    model.eval()
+    print(model)
+
+    y = model(input)
+    print(y[0][0].size())
+    print('FLOPs = ' + str(flops / 1000 ** 3) + 'G')
+    print('Params = ' + str(params / 1000 ** 2) + 'M')

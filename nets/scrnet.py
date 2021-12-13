@@ -655,18 +655,30 @@ class SCRNet(nn.Module):
             # SAC(40, 40),
             # nn.BatchNorm2d(40),
             # nn.ReLU(inplace=True),
+
+            Block(3, 40, 240, 80, hswish(), SeModule, 1),
+            Block(3, 80, 200, 80, hswish(), SeModule, 1),
+            Block(3, 80, 184, 80, hswish(), SeModule, 1),
         )
         self.bneck3 = nn.Sequential(
-            Block(3, 40, 240, 80, hswish(), None, 2),
-            Block(3, 80, 200, 80, hswish(), None, 1),
-            Block(3, 80, 184, 80, hswish(), None, 1),
-            Block(3, 80, 184, 80, hswish(), SeModule, 1),
-            Block(3, 80, 480, 112, hswish(), SeModule, 1),
-            Block(3, 112, 672, 112, hswish(), SeModule, 1),
-            Block(5, 112, 672, 160, hswish(), SeModule, 1),
+            # Block(3, 40, 240, 80, hswish(), None, 2),
+            # Block(3, 80, 200, 80, hswish(), None, 1),
+            # Block(3, 80, 184, 80, hswish(), None, 1),
+            # Block(3, 80, 184, 80, hswish(), SeModule, 1),
+            # Block(3, 80, 480, 112, hswish(), SeModule, 1),
+            # Block(3, 112, 672, 112, hswish(), SeModule, 1),
+            # Block(5, 112, 672, 160, hswish(), SeModule, 1),
             # SAC(160, 160),
             # nn.BatchNorm2d(160),
             # hswish(),
+
+            # Block(3, 40, 240, 80, hswish(), None, 2),
+            # Block(3, 80, 200, 80, hswish(), None, 1),
+            # Block(3, 80, 184, 80, hswish(), None, 1),
+            Block(3, 80, 184, 80, hswish(), None, 2),
+            Block(3, 80, 480, 112, hswish(), SeModule, 1),
+            Block(3, 112, 672, 112, hswish(), SeModule, 1),
+            Block(5, 112, 672, 160, hswish(), SeModule, 1),
         )
         self.bneck4 = nn.Sequential(
             Block(5, 160, 672, 160, hswish(), SeModule, 2),
@@ -678,7 +690,7 @@ class SCRNet(nn.Module):
         )
 
         # self.conv_fpn1 = nn.Conv2d(24, 64, kernel_size=1, stride=1, padding=0, bias=False)
-        self.conv_fpn2 = nn.Conv2d(40, 64, kernel_size=1, stride=1, padding=0, bias=False)
+        self.conv_fpn2 = nn.Conv2d(80, 64, kernel_size=1, stride=1, padding=0, bias=False)
         self.conv_fpn3 = nn.Conv2d(160, 128, kernel_size=1, stride=1, padding=0, bias=False)
         self.conv_fpn4 = nn.Conv2d(160, 256, kernel_size=1, stride=1, padding=0, bias=False)
 
@@ -749,8 +761,8 @@ def test():
     net.eval()
     y = net(x)
     print(y[0].size())
-    print(y[1].size())
-    # print(y[2][0].size())
+    # print(y[1].size())
+    print(y[2][0].size())
     print('FLOPs = ' + str(flops / 1000 ** 3) + 'G')
     print('Params = ' + str(params / 1000 ** 2) + 'M')
     # sac = SAC(3, 16)

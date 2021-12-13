@@ -9,6 +9,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn import init
 from thop import profile
+from torchstat import stat
 
 from lib.DCNv2.dcn_v2 import DCN
 
@@ -424,8 +425,13 @@ def test():
     y = net(x)
     print(y[0][0].size())
     # print(y.size())
+
+    stat(net, (3, 384, 256))
     print('FLOPs = ' + str(flops / 1000 ** 3) + 'G')
     print('Params = ' + str(params / 1000 ** 2) + 'M')
+
+    total = sum([param.nelement() for param in net.parameters()])  # 计算总参数量
+    print("Number of parameter: %.6f" % (total))  # 输出
 
 
 if __name__ == '__main__':

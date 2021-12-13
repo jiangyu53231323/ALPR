@@ -192,7 +192,7 @@ def main():
             b_loss = bboxes_loss(w_h_, batch['bboxes_map'], batch['reg_mask'], batch['ind_masks'])
             # 进行 loss 加权，得到最终 loss
             # loss = hmap_loss + 0.1 * corner_loss + 0.2 * w_h_loss
-            loss = hmap_loss + 0.1 * corner_loss + 5 * b_loss
+            loss = hmap_loss + 1 * corner_loss + 1 * b_loss
 
             optimizer.zero_grad()
             loss.backward()

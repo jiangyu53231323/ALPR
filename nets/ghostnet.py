@@ -13,6 +13,7 @@ import math
 
 from thop import profile
 from lib.DCNv2.dcn_v2 import DCN
+from torchstat import stat
 
 # __all__ = ['ghost_net']
 BN_MOMENTUM = 0.1
@@ -471,12 +472,16 @@ def ghostnet(**kwargs):
 
 if __name__ == '__main__':
     input = torch.randn(1, 3, 384, 256)
-    model = My_GhostNet(num_classes=1, w=1.1)
+    model = My_GhostNet(num_classes=1, w=1.3)
     flops, params = profile(model, inputs=(input,))
     model.eval()
-    print(model)
+    # print(model)
 
     y = model(input)
     print(y[0][0].size())
+
+    stat(model, (3, 384, 256))
     print('FLOPs = ' + str(flops / 1000 ** 3) + 'G')
     print('Params = ' + str(params / 1000 ** 2) + 'M')
+    total = sum([param.nelement() for param in model.parameters()])  # 计算总参数量
+    print("Number of parameter: %.6f" % (total))  # 输出

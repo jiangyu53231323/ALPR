@@ -2,9 +2,14 @@ import math
 import torch.nn as nn
 import torch
 import torch.utils.model_zoo as model_zoo
+from torchvision.models import resnet18,mobilenet_v3_large
+
+from torchstat import stat
 
 from lib.DCNv2.dcn_v2 import DCN
 from thop import profile
+from fvcore.nn import FlopCountAnalysis
+from fvcore.nn import flop_count_table
 
 BN_MOMENTUM = 0.1
 model_urls = {'resnet18': 'https://download.pytorch.org/models/resnet18-5c106cde.pth',
@@ -184,7 +189,7 @@ class PoseResNet(nn.Module):
         # used for deconv layers 可形变卷积
         # 将主干网最终输出channel控制在64
         self.deconv_layer3 = self._make_deconv_layer(256, 128, 4)
-        self.deconv_layer2 = self._make_deconv_layer(128, 64 , 4)
+        self.deconv_layer2 = self._make_deconv_layer(128, 64, 4)
         self.deconv_layer1 = self._make_deconv_layer(64, 64, 4)
         # 进行回归预测前的卷积filter个数
         if head_conv > 0:
@@ -338,15 +343,24 @@ def get_pose_net(num_layers, head_conv=64, num_classes=1):
 
 
 def test():
+    mode = mobilenet_v3_large()
     net = get_pose_net(num_layers=18, num_classes=1)
     x = torch.randn(1, 3, 384, 256)
-    flops, params = profile(net, inputs=(x,))
-    net.eval()
-    y = net(x)
-    print(y[0][0].size())
+    flops, params = profile(mode, inputs=(x,))
+    # net.eval()
+    # y = net(x)
+    # print(y[0][0].size())
     # print(y.size())
+
+    stat(mode, (3, 384, 256))
     print('FLOPs = ' + str(flops / 1000 ** 3) + 'G')
     print('Params = ' + str(params / 1000 ** 2) + 'M')
+    total = sum([param.nelement() for param in mode.parameters()])  # 计算总参数量
+    print("Number of parameter: %.6f" % (total))  # 输出
+
+    flops = FlopCountAnalysis(mode, x)
+    print('FLOPs = ' + str(flops.total() / 1000 ** 3) + 'G')
+    print(flop_count_table(flops))
 
 
 if __name__ == '__main__':
