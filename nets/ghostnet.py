@@ -478,7 +478,7 @@ if __name__ == '__main__':
     # print(model)
 
     y = model(input)
-    print(y[0][0].size())
+    # print(y[0][0].size())
 
     stat(model, (3, 384, 256))
     print('FLOPs = ' + str(flops / 1000 ** 3) + 'G')
