@@ -232,20 +232,40 @@ def unify_loss(pre, target, cfg):
     loss = 0.0
     batch = pre[0].size()[0]
     # cls_score, cls_ind = torch.topk(target[0].view(batch, -1))
+    t = torch.zeros((1, 1, 35))
+    pre_out = 0
+    # 根据标签将不同头的输出整合到pre_out，规范为[b,8,c]
     for b in range(batch):
-        # blue车牌
         if target['labels_class'][b] == 0:
-            for j in range(7):
-                l = target['labels'][b][j].to(cfg.device).long().unsqueeze(0)
-                p = pre[1][j][b].unsqueeze(0)
-                loss += cross_entropy_loss(p, l, label_smooth=0.05)
-
-        # green车牌
+            pre_ = pre[1][b].unsqueeze(0)
+            padding = torch.zeros((1, 1, 35)).to(cfg.device)
+            padding[:, :, 0] = 1.
+            pre_ = torch.cat((pre_, padding), 1)
         else:
-            for j in range(8):
-                l = target['labels'][b][j].to(cfg.device).long().unsqueeze(0)
-                p = pre[2][j][b].unsqueeze(0)
-                loss += cross_entropy_loss(p, l, label_smooth=0.05)
+            pre_ = pre[2][b].unsqueeze(0)
+        if b == 0:
+            pre_out = pre_
+        else:
+            pre_out = torch.cat((pre_out, pre_), 0)
+    pre_out = pre_out.permute(1, 0, 2)  # 调整为[8,b,c]
+    for j in range(8):
+        l = target['labels'][:, j].to(cfg.device).long()
+        p = pre_out[j]
+        loss += cross_entropy_loss(p, l, label_smooth=0.05)
+
+        # # blue车牌
+        # if target['labels_class'][b] == 0:
+        #     for j in range(7):
+        #         l = target['labels'][b][j].to(cfg.device).long().unsqueeze(0)
+        #         p = pre[1][j][b].unsqueeze(0)
+        #         loss += cross_entropy_loss(p, l, label_smooth=0.05)
+        #
+        # # green车牌
+        # else:
+        #     for j in range(8):
+        #         l = target['labels'][b][j].to(cfg.device).long().unsqueeze(0)
+        #         p = pre[2][j][b].unsqueeze(0)
+        #         loss += cross_entropy_loss(p, l, label_smooth=0.05)
     loss = loss / batch
     loss += 10 * cross_entropy_loss(pre[0], target['labels_class'].to(cfg.device).long())
 

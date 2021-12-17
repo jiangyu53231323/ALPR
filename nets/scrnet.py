@@ -483,7 +483,7 @@ class Blue_ocr(nn.Module):
         #     nn.ReLU(inplace=True),
         # )
         self.classifier1 = nn.Sequential(
-            nn.Conv2d(in_channel, 34, kernel_size=(1, 6),
+            nn.Conv2d(in_channel, 35, kernel_size=(1, 6),
                       stride=1, padding=0, bias=True),
             # nn.ReLU(inplace=True),
         )
@@ -506,15 +506,19 @@ class Blue_ocr(nn.Module):
         # out2 = self.classifier2(x)
         out3 = self.classifier3(x3)
         # 格式化输出
-        y1 = out1[:, :, :, 0].view([out1.size()[0], -1])
-        y2 = out3[:, :, :, 0].view([out3.size()[0], -1])
-        y3 = out3[:, :, :, 1].view([out3.size()[0], -1])
-        y4 = out3[:, :, :, 2].view([out3.size()[0], -1])
-        y5 = out3[:, :, :, 3].view([out3.size()[0], -1])
-        y6 = out3[:, :, :, 4].view([out3.size()[0], -1])
-        y7 = out3[:, :, :, 5].view([out3.size()[0], -1])
+        # y1 = out1[:, :, :, 0].view([out1.size()[0], -1])
+        # y2 = out3[:, :, :, 0].view([out3.size()[0], -1])
+        # y3 = out3[:, :, :, 1].view([out3.size()[0], -1])
+        # y4 = out3[:, :, :, 2].view([out3.size()[0], -1])
+        # y5 = out3[:, :, :, 3].view([out3.size()[0], -1])
+        # y6 = out3[:, :, :, 4].view([out3.size()[0], -1])
+        # y7 = out3[:, :, :, 5].view([out3.size()[0], -1])
 
-        return [y1, y2, y3, y4, y5, y6, y7]
+        out = torch.cat((out1, out3), -1).squeeze().permute(0, 2, 1)
+        # padding = torch.zeros((out.size()[0], 1, 35))
+        # padding[:, :, 0] = 1
+        # return [y1, y2, y3, y4, y5, y6, y7]
+        return out
 
 
 class Green_ocr(nn.Module):
@@ -526,7 +530,7 @@ class Green_ocr(nn.Module):
         #     nn.ReLU(inplace=True),
         # )
         self.classifier1 = nn.Sequential(
-            nn.Conv2d(in_channel, 34, kernel_size=(1, 6),
+            nn.Conv2d(in_channel, 35, kernel_size=(1, 6),
                       stride=1, padding=0, bias=True),
             # nn.ReLU(inplace=True),
         )
@@ -550,16 +554,19 @@ class Green_ocr(nn.Module):
         out3 = self.classifier3(x3)
 
         # 格式化输出
-        y1 = out1[:, :, :, 0].view([out1.size()[0], -1])
-        y2 = out3[:, :, :, 0].view([out3.size()[0], -1])
-        y3 = out3[:, :, :, 1].view([out3.size()[0], -1])
-        y4 = out3[:, :, :, 2].view([out3.size()[0], -1])
-        y5 = out3[:, :, :, 3].view([out3.size()[0], -1])
-        y6 = out3[:, :, :, 4].view([out3.size()[0], -1])
-        y7 = out3[:, :, :, 5].view([out3.size()[0], -1])
-        y8 = out3[:, :, :, 6].view([out3.size()[0], -1])
+        # y1 = out1[:, :, :, 0].view([out1.size()[0], -1])
+        # y2 = out3[:, :, :, 0].view([out3.size()[0], -1])
+        # y3 = out3[:, :, :, 1].view([out3.size()[0], -1])
+        # y4 = out3[:, :, :, 2].view([out3.size()[0], -1])
+        # y5 = out3[:, :, :, 3].view([out3.size()[0], -1])
+        # y6 = out3[:, :, :, 4].view([out3.size()[0], -1])
+        # y7 = out3[:, :, :, 5].view([out3.size()[0], -1])
+        # y8 = out3[:, :, :, 6].view([out3.size()[0], -1])
 
-        return [y1, y2, y3, y4, y5, y6, y7, y8]
+        out = torch.cat((out1, out3), -1).squeeze().permute(0, 2, 1)
+
+        # return [y1, y2, y3, y4, y5, y6, y7, y8]
+        return out
 
 
 class Classifier(nn.Module):
@@ -697,12 +704,12 @@ class SCRNet(nn.Module):
         self.conv_fpn3 = nn.Conv2d(160, 128, kernel_size=1, stride=1, padding=0, bias=False)
         self.conv_fpn4 = nn.Conv2d(160, 256, kernel_size=1, stride=1, padding=0, bias=False)
 
-        self.deconv_layer4 = _make_deconv_layer(256, 128, 4)
-        self.deconv_layer3 = _make_deconv_layer(128, 64, 4)
+        # self.deconv_layer4 = _make_deconv_layer(256, 128, 4)
+        # self.deconv_layer3 = _make_deconv_layer(128, 64, 4)
         # self.deconv_layer2 = _make_deconv_layer(64, 32, 4)
 
-        # self.up4 = upsampling(256, 128, 4)
-        # self.up3 = upsampling(128, 64, 4)
+        self.up4 = upsampling(256, 128, 4)
+        self.up3 = upsampling(128, 64, 4)
 
         self.conv2 = nn.Sequential(
             nn.Conv2d(64, 64, kernel_size=(3, 3), stride=2, padding=1, groups=64, bias=False),
@@ -743,8 +750,8 @@ class SCRNet(nn.Module):
         out4 = self.bneck4(out3)  # out:4,12  out:4,14
 
         p4 = self.conv_fpn4(out4)
-        p3 = self.deconv_layer4(p4) + self.conv_fpn3(out3)
-        p2 = self.deconv_layer3(p3) + self.conv_fpn2(out2)
+        p3 = self.up4(p4) + self.conv_fpn3(out3)
+        p2 = self.up3(p3) + self.conv_fpn2(out2)
         out = self.conv2(p2)  # out:1,24  out:1,28
 
         # province = self.province(out)
@@ -759,14 +766,14 @@ class SCRNet(nn.Module):
 
 def test():
     net = SCRNet()
-    x = torch.randn(1, 3, 64, 224)
+    x = torch.randn(2, 3, 64, 224)
     flops, params = profile(net, inputs=(x,))
     net.eval()
     y = net(x)
     # print(y[0].size())
     # print(y[1].size())
     # print(y[2][0].size())
-    stat(net, (3, 384, 256))
+    stat(net, (3, 64, 224))
     print('FLOPs = ' + str(flops / 1000 ** 3) + 'G')
     print('Params = ' + str(params / 1000 ** 2) + 'M')
     total = sum([param.nelement() for param in net.parameters()])  # 计算总参数量
