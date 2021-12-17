@@ -7,7 +7,10 @@ import torchvision
 import torchvision.transforms as transforms
 import matplotlib.pyplot as plt
 import numpy as np
+from fvcore.nn import FlopCountAnalysis, flop_count_table
 from thop import profile
+from torchstat import stat
+
 from lib.DCNv2.dcn_v2 import DCN
 
 BN_MOMENTUM = 0.1
@@ -694,12 +697,12 @@ class SCRNet(nn.Module):
         self.conv_fpn3 = nn.Conv2d(160, 128, kernel_size=1, stride=1, padding=0, bias=False)
         self.conv_fpn4 = nn.Conv2d(160, 256, kernel_size=1, stride=1, padding=0, bias=False)
 
-        # self.deconv_layer3 = _make_deconv_layer(64, 64, 4)
-        # self.deconv_layer2 = _make_deconv_layer(64, 64, 4)
-        # self.deconv_layer1 = _make_deconv_layer(64, 32, 4)
+        self.deconv_layer4 = _make_deconv_layer(256, 128, 4)
+        self.deconv_layer3 = _make_deconv_layer(128, 64, 4)
+        # self.deconv_layer2 = _make_deconv_layer(64, 32, 4)
 
-        self.up4 = upsampling(256, 128, 4)
-        self.up3 = upsampling(128, 64, 4)
+        # self.up4 = upsampling(256, 128, 4)
+        # self.up3 = upsampling(128, 64, 4)
 
         self.conv2 = nn.Sequential(
             nn.Conv2d(64, 64, kernel_size=(3, 3), stride=2, padding=1, groups=64, bias=False),
@@ -740,8 +743,8 @@ class SCRNet(nn.Module):
         out4 = self.bneck4(out3)  # out:4,12  out:4,14
 
         p4 = self.conv_fpn4(out4)
-        p3 = self.up4(p4) + self.conv_fpn3(out3)
-        p2 = self.up3(p3) + self.conv_fpn2(out2)
+        p3 = self.deconv_layer4(p4) + self.conv_fpn3(out3)
+        p2 = self.deconv_layer3(p3) + self.conv_fpn2(out2)
         out = self.conv2(p2)  # out:1,24  out:1,28
 
         # province = self.province(out)
@@ -760,11 +763,19 @@ def test():
     flops, params = profile(net, inputs=(x,))
     net.eval()
     y = net(x)
-    print(y[0].size())
+    # print(y[0].size())
     # print(y[1].size())
-    print(y[2][0].size())
+    # print(y[2][0].size())
+    stat(net, (3, 384, 256))
     print('FLOPs = ' + str(flops / 1000 ** 3) + 'G')
     print('Params = ' + str(params / 1000 ** 2) + 'M')
+    total = sum([param.nelement() for param in net.parameters()])  # 计算总参数量
+    print("Number of parameter: %.6f" % (total))  # 输出
+
+    flops = FlopCountAnalysis(net, x)
+    print('FLOPs = ' + str(flops.total() / 1000 ** 3) + 'G')
+    print(flop_count_table(flops))
+
     # sac = SAC(3, 16)
     # sac.eval()
     # out = sac(x)

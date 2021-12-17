@@ -344,7 +344,7 @@ def get_pose_net(num_layers, head_conv=64, num_classes=1):
 
 def test():
     mode = mobilenet_v3_large()
-    net = get_pose_net(num_layers=18, num_classes=1)
+    # mode = get_pose_net(num_layers=18, num_classes=1)
     x = torch.randn(1, 3, 384, 256)
     flops, params = profile(mode, inputs=(x,))
     # net.eval()
