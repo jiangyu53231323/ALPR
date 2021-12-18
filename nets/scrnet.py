@@ -514,7 +514,7 @@ class Blue_ocr(nn.Module):
         # y6 = out3[:, :, :, 4].view([out3.size()[0], -1])
         # y7 = out3[:, :, :, 5].view([out3.size()[0], -1])
 
-        out = torch.cat((out1, out3), -1).squeeze().permute(0, 2, 1)
+        out = torch.cat((out1, out3), -1).squeeze(2).permute(0, 2, 1)
         # padding = torch.zeros((out.size()[0], 1, 35))
         # padding[:, :, 0] = 1
         # return [y1, y2, y3, y4, y5, y6, y7]
@@ -563,7 +563,8 @@ class Green_ocr(nn.Module):
         # y7 = out3[:, :, :, 5].view([out3.size()[0], -1])
         # y8 = out3[:, :, :, 6].view([out3.size()[0], -1])
 
-        out = torch.cat((out1, out3), -1).squeeze().permute(0, 2, 1)
+        # out: [b,8,c]
+        out = torch.cat((out1, out3), -1).squeeze(2).permute(0, 2, 1)
 
         # return [y1, y2, y3, y4, y5, y6, y7, y8]
         return out

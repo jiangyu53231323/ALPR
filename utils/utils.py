@@ -208,7 +208,7 @@ def scr_decoder(pre, target):
         # blue车牌检测
         if topk_ind[b] == 0:
             for k in range(7):
-                p = pre[1][k][b].topk(1)[1]
+                p = pre[1][b][k].topk(1)[1]
                 if p == target['labels'][b][k]:
                     isTure = 1
                     continue
@@ -222,7 +222,7 @@ def scr_decoder(pre, target):
         # green车牌检测
         else:
             for k in range(8):
-                p = pre[2][k][b].topk(1)[1]
+                p = pre[2][b][k].topk(1)[1]
                 if p == target['labels'][b][k]:
                     isTure = 1
                     continue
@@ -285,7 +285,7 @@ def char_decoder(pre, target, ind):
         # blue车牌检测
         if topk_ind[b] == 0:
             for k in range(ind - 1, ind):
-                p = pre[1][k][b].topk(1)[1]
+                p = pre[1][b][k].topk(1)[1]
                 if p == target['labels'][b][k]:
                     isTure = 1
                     continue
@@ -299,7 +299,7 @@ def char_decoder(pre, target, ind):
         # green车牌检测
         else:
             for k in range(ind - 1, ind):
-                p = pre[2][k][b].topk(1)[1]
+                p = pre[2][b][k].topk(1)[1]
                 if p == target['labels'][b][k]:
                     isTure = 1
                     continue
