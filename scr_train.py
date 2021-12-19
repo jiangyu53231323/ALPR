@@ -8,6 +8,7 @@ import argparse
 from nets.ghostnet import My_GhostNet
 from nets.mobilenet import MobileNetV3_Small, MobileNetV3_Large
 from nets.scrnet import SCRNet
+from nets.scrnet_design import SCRNet_des
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'lib'))
 
@@ -137,7 +138,7 @@ def main():
     # 网络模型建立
     print('Creating model...')
     if 'scrnet' in cfg.arch:
-        model = SCRNet()
+        model = SCRNet_des()
     else:
         raise NotImplementedError
 

@@ -355,9 +355,9 @@ class Classifier(nn.Module):
 
 
 # 主干网络
-class SCRNet(nn.Module):
+class SCRNet_des(nn.Module):
     def __init__(self):
-        super(SCRNet, self).__init__()
+        super(SCRNet_des, self).__init__()
         self.conv1 = nn.Conv2d(3, 16, kernel_size=3, stride=1, padding=1, bias=False)
         self.bn1 = nn.BatchNorm2d(16)
         self.hs1 = hswish()
@@ -368,12 +368,14 @@ class SCRNet(nn.Module):
             block(16, _c(16 * w), _c(16 * w), dw_kernel_size=3, stride=1, se_ratio=0),
             block(_c(16 * w), _c(48 * w), _c(24 * w), dw_kernel_size=3, stride=2, se_ratio=0),
             block(_c(24 * w), _c(72 * w), _c(24 * w), dw_kernel_size=3, stride=1, se_ratio=0),
-        )
-        self.bneck2 = nn.Sequential(
-            block(_c(24 * w), _c(72 * w), _c(40 * w), dw_kernel_size=5, stride=2, se_ratio=0.25),
+            block(_c(24 * w), _c(72 * w), _c(40 * w), dw_kernel_size=5, stride=1, se_ratio=0.25),
             block(_c(40 * w), _c(120 * w), _c(40 * w), dw_kernel_size=5, stride=1, se_ratio=0.25),
         )
-        self.bneck3 = nn.Sequential(
+        # self.bneck2 = nn.Sequential(
+        #     block(_c(24 * w), _c(72 * w), _c(40 * w), dw_kernel_size=5, stride=2, se_ratio=0.25),
+        #     block(_c(40 * w), _c(120 * w), _c(40 * w), dw_kernel_size=5, stride=1, se_ratio=0.25),
+        # )
+        self.bneck2 = nn.Sequential(
             block(_c(40 * w), _c(240 * w), _c(80 * w), dw_kernel_size=3, stride=2, se_ratio=0),
             block(_c(80 * w), _c(200 * w), _c(80 * w), dw_kernel_size=3, stride=1, se_ratio=0),
             block(_c(80 * w), _c(184 * w), _c(80 * w), dw_kernel_size=3, stride=1, se_ratio=0),
@@ -381,32 +383,33 @@ class SCRNet(nn.Module):
             block(_c(80 * w), _c(480 * w), _c(112 * w), dw_kernel_size=3, stride=1, se_ratio=0.25),
             block(_c(112 * w), _c(672 * w), _c(112 * w), dw_kernel_size=3, stride=1, se_ratio=0.25),
         )
-        self.bneck4 = nn.Sequential(
-            block(_c(112 * w), _c(672 * w), _c(160 * w), dw_kernel_size=5, stride=2, se_ratio=0.25),
-            block(_c(160 * w), _c(960 * w), _c(160 * w), dw_kernel_size=5, stride=1, se_ratio=0),
-            block(_c(160 * w), _c(960 * w), _c(160 * w), dw_kernel_size=5, stride=1, se_ratio=0.25),
-            block(_c(160 * w), _c(960 * w), _c(160 * w), dw_kernel_size=5, stride=1, se_ratio=0),
-            block(_c(160 * w), _c(960 * w), _c(160 * w), dw_kernel_size=5, stride=1, se_ratio=0.25),
-        )
+        # self.bneck4 = nn.Sequential(
+        #     block(_c(112 * w), _c(672 * w), _c(160 * w), dw_kernel_size=5, stride=2, se_ratio=0.25),
+        #     block(_c(160 * w), _c(960 * w), _c(160 * w), dw_kernel_size=5, stride=1, se_ratio=0),
+        #     block(_c(160 * w), _c(960 * w), _c(160 * w), dw_kernel_size=5, stride=1, se_ratio=0.25),
+        #     block(_c(160 * w), _c(960 * w), _c(160 * w), dw_kernel_size=5, stride=1, se_ratio=0),
+        #     block(_c(160 * w), _c(960 * w), _c(160 * w), dw_kernel_size=5, stride=1, se_ratio=0.25),
+        # )
 
         # self.conv_fpn1 = nn.Conv2d(24, 64, kernel_size=1, stride=1, padding=0, bias=False)
-        self.conv_fpn2 = nn.Conv2d(_c(40 * w), 64, kernel_size=1, stride=1, padding=0, bias=False)
-        self.conv_fpn3 = nn.Conv2d(_c(112 * w), 128, kernel_size=1, stride=1, padding=0, bias=False)
-        self.conv_fpn4 = nn.Conv2d(_c(160 * w), 256, kernel_size=1, stride=1, padding=0, bias=False)
+        # self.conv_fpn2 = nn.Conv2d(_c(40 * w), 64, kernel_size=1, stride=1, padding=0, bias=False)
+        # self.conv_fpn3 = nn.Conv2d(_c(112 * w), 128, kernel_size=1, stride=1, padding=0, bias=False)
+        # self.conv_fpn4 = nn.Conv2d(_c(160 * w), 256, kernel_size=1, stride=1, padding=0, bias=False)
 
         # self.deconv_layer4 = _make_deconv_layer(256, 128, 4)
         # self.deconv_layer3 = _make_deconv_layer(128, 64, 4)
         # self.deconv_layer2 = _make_deconv_layer(64, 32, 4)
 
-        self.up4 = upsampling(256, 128, 4)
-        self.up3 = upsampling(128, 64, 4)
+        # self.up4 = upsampling(256, 128, 4)
+        # self.up3 = upsampling(128, 64, 4)
 
         self.conv2 = nn.Sequential(
-            nn.Conv2d(64, 64, kernel_size=(3, 3), stride=2, padding=1, groups=64, bias=False),
-            nn.BatchNorm2d(64),
+            nn.Conv2d(_c(112 * w), _c(112 * w), kernel_size=(3, 3), stride=2, padding=1, groups=_c(112 * w),
+                      bias=False),
+            nn.BatchNorm2d(_c(112 * w)),
             # hswish(),
             nn.ReLU(inplace=True),
-            nn.Conv2d(64, 64, kernel_size=1, stride=1, padding=0, bias=False),
+            nn.Conv2d(_c(112 * w), 64, kernel_size=1, stride=1, padding=0, bias=False),
             nn.BatchNorm2d(64),
             # hswish(),
             nn.ReLU(inplace=True),
@@ -436,13 +439,13 @@ class SCRNet(nn.Module):
         out = self.hs1(self.bn1(self.conv1(x)))  # out:64,192  out:64,224
         out1 = self.bneck1(out)  # out:32,96  out:32,112
         out2 = self.bneck2(out1)  # out:16,48  out:16,56
-        out3 = self.bneck3(out2)  # out:8,24  out:8,28
-        out4 = self.bneck4(out3)  # out:4,12  out:4,14
+        # out3 = self.bneck3(out2)  # out:8,24  out:8,28
+        # out4 = self.bneck4(out3)  # out:4,12  out:4,14
 
-        p4 = self.conv_fpn4(out4)
-        p3 = self.up4(p4) + self.conv_fpn3(out3)
-        p2 = self.up3(p3) + self.conv_fpn2(out2)
-        out = self.conv2(p2)  # out:1,24  out:1,28
+        # p4 = self.conv_fpn4(out4)
+        # p3 = self.up4(p4) + self.conv_fpn3(out3)
+        # p2 = self.up3(p3) + self.conv_fpn2(out2)
+        out = self.conv2(out2)  # out:1,24  out:1,28
 
         # province = self.province(out)
         # ctc_orc = self.ctc_ocr(out)
@@ -455,7 +458,7 @@ class SCRNet(nn.Module):
 
 
 def test():
-    net = SCRNet()
+    net = SCRNet_des()
     x = torch.randn(1, 3, 64, 224)
     flops, params = profile(net, inputs=(x,))
     net.eval()
