@@ -56,7 +56,7 @@ parser.add_argument('--split_ratio', type=float, default=1.0)
 
 parser.add_argument('--lr', type=float, default=1.25e-4)
 parser.add_argument('--lr_step', type=str, default='2,4,6')
-parser.add_argument('--batch_size', type=int, default=32)
+parser.add_argument('--batch_size', type=int, default=40)
 parser.add_argument('--num_epochs', type=int, default=20)
 
 parser.add_argument('--test_topk', type=int, default=10)
@@ -138,7 +138,7 @@ def main():
     # 网络模型建立
     print('Creating model...')
     if 'scrnet' in cfg.arch:
-        model = SCRNet_des()
+        model = SCRNet()
     else:
         raise NotImplementedError
 

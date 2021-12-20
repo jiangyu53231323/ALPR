@@ -44,11 +44,11 @@ class SCR_COCO(Dataset):
         ann_ids = self.coco.getAnnIds(imgIds=[img_id])
         annotations = self.coco.loadAnns(ids=ann_ids)
 
-        # bboxes = np.array([anno['bbox'] for anno in annotations], dtype=np.float32).squeeze()  # 降维
-        # segmentation = np.array([anno['segmentation'] for anno in annotations], dtype=np.float32).squeeze()  # 降维
-        lpd_result = self.lpd_results[img_name]
-        bboxes = np.array(lpd_result['bbox'], dtype=np.float32)
-        segmentation = np.array(lpd_result['segmentation'], dtype=np.float32)
+        bboxes = np.array([anno['bbox'] for anno in annotations], dtype=np.float32).squeeze()  # 降维
+        segmentation = np.array([anno['segmentation'] for anno in annotations], dtype=np.float32).squeeze()  # 降维
+        # lpd_result = self.lpd_results[img_name]
+        # bboxes = np.array(lpd_result['bbox'], dtype=np.float32)
+        # segmentation = np.array(lpd_result['segmentation'], dtype=np.float32)
 
         if len(bboxes) == 0:
             bboxes = np.array([[0., 0., 0., 0.]], dtype=np.float32)

@@ -361,7 +361,7 @@ class SCRNet_des(nn.Module):
         self.conv1 = nn.Conv2d(3, 16, kernel_size=3, stride=1, padding=1, bias=False)
         self.bn1 = nn.BatchNorm2d(16)
         self.hs1 = hswish()
-        w = 1.3
+        w = 1.1
 
         block = GhostBottleneck
         self.bneck1 = nn.Sequential(
@@ -383,9 +383,7 @@ class SCRNet_des(nn.Module):
             block(_c(80 * w), _c(480 * w), _c(112 * w), dw_kernel_size=3, stride=1, se_ratio=0.25),
             block(_c(112 * w), _c(672 * w), _c(112 * w), dw_kernel_size=3, stride=1, se_ratio=0.25),
             block(_c(112 * w), _c(672 * w), _c(160 * w), dw_kernel_size=5, stride=1, se_ratio=0.25),
-            block(_c(160 * w), _c(960 * w), _c(160 * w), dw_kernel_size=5, stride=1, se_ratio=0),
             block(_c(160 * w), _c(960 * w), _c(160 * w), dw_kernel_size=5, stride=1, se_ratio=0.25),
-            block(_c(160 * w), _c(960 * w), _c(160 * w), dw_kernel_size=5, stride=1, se_ratio=0),
             block(_c(160 * w), _c(960 * w), _c(160 * w), dw_kernel_size=5, stride=1, se_ratio=0.25),
         )
         # self.bneck4 = nn.Sequential(

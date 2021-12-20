@@ -701,7 +701,7 @@ class SCRNet(nn.Module):
         )
 
         # self.conv_fpn1 = nn.Conv2d(24, 64, kernel_size=1, stride=1, padding=0, bias=False)
-        self.conv_fpn2 = nn.Conv2d(80, 64, kernel_size=1, stride=1, padding=0, bias=False)
+        self.conv_fpn2 = nn.Conv2d(80, 96, kernel_size=1, stride=1, padding=0, bias=False)
         self.conv_fpn3 = nn.Conv2d(160, 128, kernel_size=1, stride=1, padding=0, bias=False)
         self.conv_fpn4 = nn.Conv2d(160, 256, kernel_size=1, stride=1, padding=0, bias=False)
 
@@ -710,14 +710,14 @@ class SCRNet(nn.Module):
         # self.deconv_layer2 = _make_deconv_layer(64, 32, 4)
 
         self.up4 = upsampling(256, 128, 4)
-        self.up3 = upsampling(128, 64, 4)
+        self.up3 = upsampling(128, 96, 4)
 
         self.conv2 = nn.Sequential(
-            nn.Conv2d(64, 64, kernel_size=(3, 3), stride=2, padding=1, groups=64, bias=False),
-            nn.BatchNorm2d(64),
+            nn.Conv2d(96, 96, kernel_size=(3, 3), stride=2, padding=1, groups=96, bias=False),
+            nn.BatchNorm2d(96),
             # hswish(),
             nn.ReLU(inplace=True),
-            nn.Conv2d(64, 64, kernel_size=1, stride=1, padding=0, bias=False),
+            nn.Conv2d(96, 64, kernel_size=1, stride=1, padding=0, bias=False),
             nn.BatchNorm2d(64),
             # hswish(),
             nn.ReLU(inplace=True),
@@ -767,7 +767,7 @@ class SCRNet(nn.Module):
 
 def test():
     net = SCRNet()
-    x = torch.randn(2, 3, 64, 224)
+    x = torch.randn(1, 3, 64, 224)
     flops, params = profile(net, inputs=(x,))
     net.eval()
     y = net(x)
