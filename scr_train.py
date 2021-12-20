@@ -8,7 +8,7 @@ import argparse
 from nets.ghostnet import My_GhostNet
 from nets.mobilenet import MobileNetV3_Small, MobileNetV3_Large
 from nets.scrnet import SCRNet
-from nets.scrnet_design import SCRNet_des
+from nets.scrnet_ghostnet import SCRNet_des
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'lib'))
 
