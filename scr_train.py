@@ -1,4 +1,5 @@
 import copy
+import datetime
 import os
 import sys
 import time
@@ -258,7 +259,10 @@ def main():
         train(epoch)
         if cfg.val_interval > 0 and epoch % cfg.val_interval == 0:
             val(epoch)
-        print(saver.save(model.module.state_dict(), 'checkpoint'))
+        now_time = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M')
+        # 保存的权重名
+        ckpt = 'checkpoint_' + now_time
+        print(saver.save(model.module.state_dict(), ckpt))
         lr_scheduler.step()  # move to here after pytorch1.1.0
 
     summary_writer.close()

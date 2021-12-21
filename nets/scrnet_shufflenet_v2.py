@@ -258,7 +258,7 @@ def shufflenet_2x_se_res(num_classes=1000):
 
 
 def test():
-    net = shufflenet_2x()
+    net = shufflenet_1_5x()
     x = torch.randn(1, 3, 384, 256)
     # flops, params = profile(net, inputs=(x,))
     net.eval()
