@@ -1,4 +1,5 @@
 import math
+import time
 
 import torch
 import torch.nn as nn
@@ -161,7 +162,7 @@ class SeModule(nn.Module):
 
 
 class DP_Conv(nn.Module):
-    def __init__(self, kernel_size, in_size, out_size, nolinear, stride):
+    def __init__(self, in_size, out_size, kernel_size, nolinear, stride):
         super(DP_Conv, self).__init__()
         self.conv1 = nn.Conv2d(in_size, in_size, kernel_size=kernel_size, stride=stride,
                                padding=kernel_size // 2, groups=in_size, bias=False)
@@ -368,73 +369,57 @@ class SCRNet_des(nn.Module):
             block(16, _c(16 * w), _c(16 * w), dw_kernel_size=3, stride=1, se_ratio=0),
             block(_c(16 * w), _c(48 * w), _c(24 * w), dw_kernel_size=3, stride=2, se_ratio=0),
             block(_c(24 * w), _c(72 * w), _c(24 * w), dw_kernel_size=3, stride=1, se_ratio=0),
-            block(_c(24 * w), _c(72 * w), _c(40 * w), dw_kernel_size=5, stride=1, se_ratio=0.25),
-            block(_c(40 * w), _c(120 * w), _c(40 * w), dw_kernel_size=5, stride=1, se_ratio=0.25),
         )
-        # self.bneck2 = nn.Sequential(
-        #     block(_c(24 * w), _c(72 * w), _c(40 * w), dw_kernel_size=5, stride=2, se_ratio=0.25),
-        #     block(_c(40 * w), _c(120 * w), _c(40 * w), dw_kernel_size=5, stride=1, se_ratio=0.25),
-        # )
         self.bneck2 = nn.Sequential(
-            block(_c(40 * w), _c(240 * w), _c(80 * w), dw_kernel_size=3, stride=2, se_ratio=0),
-            block(_c(80 * w), _c(200 * w), _c(80 * w), dw_kernel_size=3, stride=1, se_ratio=0),
-            block(_c(80 * w), _c(184 * w), _c(80 * w), dw_kernel_size=3, stride=1, se_ratio=0),
-            block(_c(80 * w), _c(184 * w), _c(80 * w), dw_kernel_size=3, stride=1, se_ratio=0),
+            block(_c(24 * w), _c(72 * w), _c(40 * w), dw_kernel_size=5, stride=2, se_ratio=0),
+            block(_c(40 * w), _c(120 * w), _c(40 * w), dw_kernel_size=5, stride=1, se_ratio=0.25),
+            block(_c(40 * w), _c(240 * w), _c(80 * w), dw_kernel_size=3, stride=1, se_ratio=0.25),
+            block(_c(80 * w), _c(200 * w), _c(80 * w), dw_kernel_size=3, stride=1, se_ratio=0.25),
+        )
+        self.bneck3 = nn.Sequential(
+            # block(_c(40 * w), _c(240 * w), _c(80 * w), dw_kernel_size=3, stride=2, se_ratio=0),
+            # block(_c(80 * w), _c(200 * w), _c(80 * w), dw_kernel_size=3, stride=1, se_ratio=0),
+            block(_c(80 * w), _c(184 * w), _c(80 * w), dw_kernel_size=3, stride=2, se_ratio=0),
+            block(_c(80 * w), _c(184 * w), _c(80 * w), dw_kernel_size=3, stride=1, se_ratio=0.25),
             block(_c(80 * w), _c(480 * w), _c(112 * w), dw_kernel_size=3, stride=1, se_ratio=0.25),
             block(_c(112 * w), _c(672 * w), _c(112 * w), dw_kernel_size=3, stride=1, se_ratio=0.25),
-            block(_c(112 * w), _c(672 * w), _c(160 * w), dw_kernel_size=5, stride=1, se_ratio=0.25),
-            block(_c(160 * w), _c(960 * w), _c(160 * w), dw_kernel_size=5, stride=1, se_ratio=0.25),
-            block(_c(160 * w), _c(960 * w), _c(160 * w), dw_kernel_size=5, stride=1, se_ratio=0.25),
         )
-        # self.bneck4 = nn.Sequential(
-        #     block(_c(112 * w), _c(672 * w), _c(160 * w), dw_kernel_size=5, stride=2, se_ratio=0.25),
-        #     block(_c(160 * w), _c(960 * w), _c(160 * w), dw_kernel_size=5, stride=1, se_ratio=0),
-        #     block(_c(160 * w), _c(960 * w), _c(160 * w), dw_kernel_size=5, stride=1, se_ratio=0.25),
-        #     block(_c(160 * w), _c(960 * w), _c(160 * w), dw_kernel_size=5, stride=1, se_ratio=0),
-        #     block(_c(160 * w), _c(960 * w), _c(160 * w), dw_kernel_size=5, stride=1, se_ratio=0.25),
-        # )
+        self.bneck4 = nn.Sequential(
+            block(_c(112 * w), _c(672 * w), _c(160 * w), dw_kernel_size=5, stride=2, se_ratio=0.25),
+            block(_c(160 * w), _c(960 * w), _c(160 * w), dw_kernel_size=5, stride=1, se_ratio=0.25),
+            block(_c(160 * w), _c(960 * w), _c(160 * w), dw_kernel_size=5, stride=1, se_ratio=0.25),
+            # block(_c(160 * w), _c(960 * w), _c(160 * w), dw_kernel_size=5, stride=1, se_ratio=0.25),
+            # block(_c(160 * w), _c(960 * w), _c(160 * w), dw_kernel_size=5, stride=1, se_ratio=0.25),
+        )
 
         # self.conv_fpn1 = nn.Conv2d(24, 64, kernel_size=1, stride=1, padding=0, bias=False)
-        # self.conv_fpn2 = nn.Conv2d(_c(40 * w), 64, kernel_size=1, stride=1, padding=0, bias=False)
-        # self.conv_fpn3 = nn.Conv2d(_c(112 * w), 128, kernel_size=1, stride=1, padding=0, bias=False)
-        # self.conv_fpn4 = nn.Conv2d(_c(160 * w), 256, kernel_size=1, stride=1, padding=0, bias=False)
+        self.conv_fpn2 = nn.Conv2d(_c(80 * w), 96, kernel_size=1, stride=1, padding=0, bias=False)
+        self.conv_fpn3 = nn.Conv2d(_c(112 * w), 128, kernel_size=1, stride=1, padding=0, bias=False)
+        self.conv_fpn4 = nn.Conv2d(_c(160 * w), 256, kernel_size=1, stride=1, padding=0, bias=False)
 
         # self.deconv_layer4 = _make_deconv_layer(256, 128, 4)
         # self.deconv_layer3 = _make_deconv_layer(128, 64, 4)
         # self.deconv_layer2 = _make_deconv_layer(64, 32, 4)
 
-        # self.up4 = upsampling(256, 128, 4)
-        # self.up3 = upsampling(128, 64, 4)
+        self.up4 = upsampling(256, 128, 4)
+        self.up3 = upsampling(128, 96, 4)
 
         self.conv2 = nn.Sequential(
-            nn.Conv2d(_c(160 * w), _c(160 * w), kernel_size=(3, 3), stride=2, padding=1, groups=_c(160 * w),
-                      bias=False),
-            nn.BatchNorm2d(_c(160 * w)),
-            # hswish(),
+            DP_Conv(96, 96, 3, nn.ReLU(inplace=True), stride=2),
+            nn.BatchNorm2d(96),
             nn.ReLU(inplace=True),
-            nn.Conv2d(_c(160 * w), 64, kernel_size=1, stride=1, padding=0, bias=False),
-            nn.BatchNorm2d(64),
-            # hswish(),
+
+            nn.Conv2d(96, 96, kernel_size=(8, 1), stride=1, padding=0, groups=96, bias=False),
+            nn.BatchNorm2d(96),
             nn.ReLU(inplace=True),
-            # nn.Conv2d(64, 64, kernel_size=3, stride=(2, 1), padding=1, groups=64, bias=False),
-            # nn.BatchNorm2d(64),
-            # hswish(),
-            # nn.Conv2d(64, 64, kernel_size=1, stride=1, padding=0, bias=False),
-            # nn.BatchNorm2d(64),
-            # hswish(),
-            nn.Conv2d(64, 64, kernel_size=(8, 1), stride=1, padding=0, groups=64, bias=False),
-            nn.BatchNorm2d(64),
-            # hswish(),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(64, 64, kernel_size=1, stride=1, padding=0, bias=False),
-            nn.BatchNorm2d(64),
-            # hswish(),
+            nn.Conv2d(96, 96, kernel_size=1, stride=1, padding=0, bias=False),
+            nn.BatchNorm2d(96),
             nn.ReLU(inplace=True),
         )
 
-        self.blue_classifier = Blue_ocr(64)
-        self.green_classifier = Green_ocr(64)
-        self.category = Classifier(64, 16, 2)
+        self.blue_classifier = Blue_ocr(96)
+        self.green_classifier = Green_ocr(96)
+        self.category = Classifier(96, 16, 2)
         # self.province = Province_ocr(64, 32)
         # self.ctc_ocr = CTC_orc(64)
 
@@ -442,13 +427,13 @@ class SCRNet_des(nn.Module):
         out = self.hs1(self.bn1(self.conv1(x)))  # out:64,192  out:64,224
         out1 = self.bneck1(out)  # out:32,96  out:32,112
         out2 = self.bneck2(out1)  # out:16,48  out:16,56
-        # out3 = self.bneck3(out2)  # out:8,24  out:8,28
-        # out4 = self.bneck4(out3)  # out:4,12  out:4,14
+        out3 = self.bneck3(out2)  # out:8,24  out:8,28
+        out4 = self.bneck4(out3)  # out:4,12  out:4,14
 
-        # p4 = self.conv_fpn4(out4)
-        # p3 = self.up4(p4) + self.conv_fpn3(out3)
-        # p2 = self.up3(p3) + self.conv_fpn2(out2)
-        out = self.conv2(out2)  # out:1,24  out:1,28
+        p4 = self.conv_fpn4(out4)
+        p3 = self.up4(p4) + self.conv_fpn3(out3)
+        p2 = self.up3(p3) + self.conv_fpn2(out2)
+        out = self.conv2(p2)  # out:1,24  out:1,28
 
         # province = self.province(out)
         # ctc_orc = self.ctc_ocr(out)
@@ -463,27 +448,25 @@ class SCRNet_des(nn.Module):
 def test():
     net = SCRNet_des()
     x = torch.randn(1, 3, 64, 224)
-    flops, params = profile(net, inputs=(x,))
+    # flops, params = profile(net, inputs=(x,))
     net.eval()
     y = net(x)
-    # print(y[0].size())
-    # print(y[1].size())
-    # print(y[2][0].size())
-    stat(net, (3, 64, 224))
-    print('FLOPs = ' + str(flops / 1000 ** 3) + 'G')
-    print('Params = ' + str(params / 1000 ** 2) + 'M')
-    total = sum([param.nelement() for param in net.parameters()])  # 计算总参数量
-    print("Number of parameter: %.6f" % (total))  # 输出
+    # stat(net, (3, 64, 224))
+    # print('FLOPs = ' + str(flops / 1000 ** 3) + 'G')
+    # print('Params = ' + str(params / 1000 ** 2) + 'M')
+    # total = sum([param.nelement() for param in net.parameters()])  # 计算总参数量
+    # print("Number of parameter: %.6f" % (total))  # 输出
+    #
+    # flops = FlopCountAnalysis(net, x)
+    # print('FLOPs = ' + str(flops.total() / 1000 ** 3) + 'G')
+    # print(flop_count_table(flops))
 
-    flops = FlopCountAnalysis(net, x)
-    print('FLOPs = ' + str(flops.total() / 1000 ** 3) + 'G')
-    print(flop_count_table(flops))
-
-    # sac = SAC(3, 16)
-    # sac.eval()
-    # out = sac(x)
-    # print(out.size())
-
+    time_start = time.time()
+    for i in range(50):
+        x = torch.randn(1, 3, 64, 224)
+        y = net(x)
+    time_end = time.time()
+    print("time = " + str(time_end - time_start))
 
 if __name__ == '__main__':
     test()

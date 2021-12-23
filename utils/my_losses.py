@@ -217,9 +217,9 @@ def cross_entropy_loss(pred, target, label_smooth=None):
         target = F.one_hot(target, class_num)
         # 将one-hot标签平滑化
         # 论文 “When Does Label Smoothing Help” 中的实现
-        target = (1.0 - label_smooth) * target + label_smooth / class_num
+        # target = (1.0 - label_smooth) * target + label_smooth / class_num
         # 下面的方法标签平滑后相加和为1
-        # target = torch.clamp(target.float(), min=label_smooth / (class_num - 1), max=1.0 - label_smooth)
+        target = torch.clamp(target.float(), min=label_smooth / (class_num - 1), max=1.0 - label_smooth)
         loss = -1 * torch.sum(target * logprobs, 1)
     else:
         # pytorch文档中计算交叉熵的方法，避免了softmax的计算
@@ -239,7 +239,8 @@ def unify_loss(pre, target, cfg):
     #     if target['labels_class'][b] == 0:
     #         pre_ = pre[1][b].unsqueeze(0)
     #         padding = torch.zeros((1, 1, 35)).to(cfg.device)
-    #         padding[:, :, 0] = 1.
+    #         padding = torch.full((1,1,35),0.05/34).to(cfg.device)
+    #         padding[:, :, 0] = 0.95
     #         pre_ = torch.cat((pre_, padding), 1)
     #     else:
     #         pre_ = pre[2][b].unsqueeze(0)
