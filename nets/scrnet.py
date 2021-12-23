@@ -657,22 +657,12 @@ class SCRNet(nn.Module):
             Block(3, 16, 16, 16, nn.ReLU(inplace=True), None, 1),
             Block(3, 16, 64, 24, nn.ReLU(inplace=True), None, 2),
             Block(3, 24, 72, 24, nn.ReLU(inplace=True), None, 1),
-            # SAC(24, 24),
-            # nn.BatchNorm2d(24),
-            # nn.ReLU(inplace=True),
         )
         self.bneck2 = nn.Sequential(
             Block(3, 24, 72, 40, nn.ReLU(inplace=True), None, 2),
             Block(3, 40, 120, 40, nn.ReLU(inplace=True), SeModule, 1),
             Block(3, 40, 120, 40, nn.ReLU(inplace=True), SeModule, 1),
             Block(3, 40, 240, 80, hswish(), SeModule, 1),
-            # SAC(40, 40),
-            # nn.BatchNorm2d(40),
-            # nn.ReLU(inplace=True),
-
-            # Block(3, 40, 240, 80, hswish(), SeModule, 1),
-            # Block(3, 80, 200, 80, hswish(), SeModule, 1),
-            # Block(3, 80, 184, 80, hswish(), SeModule, 1),
         )
         self.bneck3 = nn.Sequential(
             # Block(3, 80, 240, 80, hswish(), None, 2),
@@ -682,25 +672,11 @@ class SCRNet(nn.Module):
             Block(3, 80, 480, 112, hswish(), SeModule, 1),
             Block(3, 112, 672, 112, hswish(), SeModule, 1),
             Block(5, 112, 672, 160, hswish(), SeModule, 1),
-            # SAC(160, 160),
-            # nn.BatchNorm2d(160),
-            # hswish(),
-
-            # Block(3, 40, 240, 80, hswish(), None, 2),
-            # Block(3, 80, 200, 80, hswish(), None, 1),
-            # Block(3, 80, 184, 80, hswish(), None, 1),
-            # Block(3, 80, 184, 80, hswish(), None, 2),
-            # Block(3, 80, 480, 112, hswish(), SeModule, 1),
-            # Block(3, 112, 672, 112, hswish(), SeModule, 1),
-            # Block(5, 112, 672, 160, hswish(), SeModule, 1),
         )
         self.bneck4 = nn.Sequential(
             Block(5, 160, 672, 160, hswish(), SeModule, 2),
             Block(5, 160, 960, 160, hswish(), SeModule, 1),
             Block(5, 160, 960, 160, hswish(), SeModule, 1),
-            # deconv(160, 128),
-            # deconv(128, 128),
-            # deconv(128, 128),
         )
 
         # self.conv_fpn1 = nn.Conv2d(24, 64, kernel_size=1, stride=1, padding=0, bias=False)
@@ -712,45 +688,35 @@ class SCRNet(nn.Module):
         # self.deconv_layer3 = _make_deconv_layer(128, 64, 4)
         # self.deconv_layer2 = _make_deconv_layer(64, 32, 4)
 
+        self.conv_fuse = nn.Conv2d(160, 96, kernel_size=1, stride=1, padding=0, bias=False)
+
         self.up4 = upsampling(256, 128, 4)
         self.up3 = upsampling(128, 96, 4)
 
         self.conv2 = nn.Sequential(
-            # nn.Conv2d(96, 96, kernel_size=(3, 3), stride=2, padding=1, groups=96, bias=False),
-            # nn.BatchNorm2d(96),
-            # # hswish(),
-            # nn.ReLU(inplace=True),
-            # nn.Conv2d(96, 64, kernel_size=1, stride=1, padding=0, bias=False),
-            # nn.BatchNorm2d(64),
-            # # hswish(),
-            # nn.ReLU(inplace=True),
-
             DP_Conv(96, 96, 3, hswish(), stride=2),
             nn.BatchNorm2d(96),
             hswish(),
-            DP_Conv(96, 64, 3, hswish(), stride=1),
-            nn.BatchNorm2d(64),
+        )
+        self.conv3 = nn.Sequential(
+            DP_Conv(96, 96, 3, hswish(), stride=1),
+            nn.BatchNorm2d(96),
             hswish(),
+            # nn.Conv2d(96, 96, kernel_size=(8, 1), stride=1, padding=0, groups=96, bias=False),
+            # nn.BatchNorm2d(96),
+            # hswish(),
+            # nn.Conv2d(96, 96, kernel_size=1, stride=1, padding=0, bias=False),
+            # nn.BatchNorm2d(96),
+            # hswish(),
 
-            # nn.Conv2d(64, 64, kernel_size=3, stride=(2, 1), padding=1, groups=64, bias=False),
-            # nn.BatchNorm2d(64),
-            # hswish(),
-            # nn.Conv2d(64, 64, kernel_size=1, stride=1, padding=0, bias=False),
-            # nn.BatchNorm2d(64),
-            # hswish(),
-            nn.Conv2d(64, 64, kernel_size=(8, 1), stride=1, padding=0, groups=64, bias=False),
-            nn.BatchNorm2d(64),
+            nn.Conv2d(96, 96, kernel_size=(8, 1), stride=1, padding=0, bias=False),
+            nn.BatchNorm2d(96),
             hswish(),
-            # nn.ReLU(inplace=True),
-            nn.Conv2d(64, 64, kernel_size=1, stride=1, padding=0, bias=False),
-            nn.BatchNorm2d(64),
-            hswish(),
-            # nn.ReLU(inplace=True),
         )
 
-        self.blue_classifier = Blue_ocr(64)
-        self.green_classifier = Green_ocr(64)
-        self.category = Classifier(64, 16, 2)
+        self.blue_classifier = Blue_ocr(96)
+        self.green_classifier = Green_ocr(96)
+        self.category = Classifier(96, 16, 2)
         # self.province = Province_ocr(64, 32)
         # self.ctc_ocr = CTC_orc(64)
 
@@ -764,7 +730,9 @@ class SCRNet(nn.Module):
         p4 = self.conv_fpn4(out4)
         p3 = self.up4(p4) + self.conv_fpn3(out3)
         p2 = self.up3(p3) + self.conv_fpn2(out2)
-        out = self.conv2(p2)  # out:1,24  out:1,28
+        out5 = self.conv2(p2)
+        out = out5 + self.conv_fuse(out3)
+        out = self.conv3(out)
 
         # province = self.province(out)
         # ctc_orc = self.ctc_ocr(out)
@@ -779,10 +747,10 @@ class SCRNet(nn.Module):
 def test():
     net = SCRNet()
     x = torch.randn(1, 3, 64, 224)
-    # flops, params = profile(net, inputs=(x,))
     net.eval()
     y = net(x)
 
+    # flops, params = profile(net, inputs=(x,))
     # stat(net, (3, 64, 224))
     # print('FLOPs = ' + str(flops / 1000 ** 3) + 'G')
     # print('Params = ' + str(params / 1000 ** 2) + 'M')

@@ -5,12 +5,18 @@ EfficientNetV2: Smaller Models and Faster Training
 arXiv preprint arXiv:2104.00298.
 import from https://github.com/d-li14/mobilenetv2.pytorch
 """
+import time
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import math
 
 __all__ = ['effnetv2_s', 'effnetv2_m', 'effnetv2_l', 'effnetv2_xl']
+
+from fvcore.nn import FlopCountAnalysis, flop_count_table
+from thop import profile
+from torchstat import stat
 
 
 def _make_divisible(v, divisor, min_value=None):
@@ -31,6 +37,101 @@ def _make_divisible(v, divisor, min_value=None):
     if new_v < 0.9 * v:
         new_v += divisor
     return new_v
+
+
+def _c(v, divisor=8, min_value=None):
+    """
+    This function is taken from the original tf repo.
+    It ensures that all layers have a channel number that is divisible by 8
+    It can be seen here:
+    https://github.com/tensorflow/models/blob/master/research/slim/nets/mobilenet/mobilenet.py
+    :param v:
+    :param divisor:
+    :param min_value:
+    :return:
+    """
+    if min_value is None:
+        min_value = divisor
+    new_v = max(min_value, int(v + divisor / 2) // divisor * divisor)
+    # Make sure that round down does not go down by more than 10%.
+    if new_v < 0.9 * v:
+        new_v += divisor
+    return new_v
+
+
+def fill_up_weights(up):
+    w = up.weight.data
+    f = math.ceil(w.size(2) / 2)  # ceil()向上取整
+    c = (2 * f - 1 - f % 2) / (2. * f)
+    for i in range(w.size(2)):
+        for j in range(w.size(3)):
+            # fabs()返回绝对值
+            w[0, 0, i, j] = (1 - math.fabs(i / f - c)) * (1 - math.fabs(j / f - c))
+    for c in range(1, w.size(0)):
+        w[c, 0, :, :] = w[0, 0, :, :]
+
+
+class hswish(nn.Module):
+    def forward(self, x):
+        out = x * F.relu6(x + 3, inplace=True) / 6
+        return out
+
+
+# 填充回归预测的卷积 weight
+def fill_fc_weights(layers):
+    for m in layers.modules():
+        if isinstance(m, nn.Conv2d):
+            nn.init.normal_(m.weight, std=0.001)
+            # torch.nn.init.kaiming_normal_(m.weight.data, nonlinearity='relu')
+            # torch.nn.init.xavier_normal_(m.weight.data)
+            if m.bias is not None:
+                nn.init.constant_(m.bias, 0)
+
+
+def _get_deconv_cfg(deconv_kernel):
+    if deconv_kernel == 4:
+        padding = 1
+        output_padding = 0
+    elif deconv_kernel == 3:
+        padding = 1
+        output_padding = 1
+    elif deconv_kernel == 2:
+        padding = 0
+        output_padding = 0
+    return deconv_kernel, padding, output_padding
+
+
+def upsampling(inplanes, filter, kernel):
+    layers = []
+    kernel, padding, output_padding = _get_deconv_cfg(kernel)
+    up = nn.ConvTranspose2d(in_channels=inplanes,
+                            out_channels=filter,
+                            kernel_size=kernel,
+                            stride=2,
+                            padding=padding,
+                            output_padding=output_padding,
+                            bias=False)
+    fill_up_weights(up)
+    layers.append(up)
+    layers.append(nn.BatchNorm2d(filter, momentum=0.1))
+    layers.append(hswish())
+    return nn.Sequential(*layers)
+
+
+class DP_Conv(nn.Module):
+    def __init__(self, in_size, out_size, kernel_size, nolinear, stride):
+        super(DP_Conv, self).__init__()
+        self.conv1 = nn.Conv2d(in_size, in_size, kernel_size=kernel_size, stride=stride,
+                               padding=kernel_size // 2, groups=in_size, bias=False)
+        self.bn1 = nn.BatchNorm2d(in_size)
+        self.nolinear1 = nolinear
+        self.conv2 = nn.Conv2d(in_size, out_size, kernel_size=1, stride=1, padding=0, bias=False)
+        # self.bn2 = nn.BatchNorm2d(out_size)
+
+    def forward(self, x):
+        out = self.nolinear1(self.bn1(self.conv1(x)))
+        out = self.conv2(out)
+        return out
 
 
 # SiLU (Swish) activation function
@@ -117,6 +218,75 @@ class MBConv(nn.Module):
             return self.conv(x)
 
 
+class Blue_ocr(nn.Module):
+    def __init__(self, in_channel):
+        super(Blue_ocr, self).__init__()
+        self.classifier1 = nn.Sequential(
+            nn.Conv2d(in_channel, 35, kernel_size=(1, 6),
+                      stride=1, padding=0, bias=True),
+            # nn.ReLU(inplace=True),
+        )
+        self.classifier3 = nn.Sequential(
+            nn.Conv2d(in_channel, 35, kernel_size=(1, 6),
+                      stride=(1, 4), padding=(0, 1), bias=True),
+            # nn.ReLU(inplace=True),
+        )
+
+    def forward(self, x):
+        x1 = x[:, :, :, :6]
+        x3 = x[:, :, :, 4:]
+        out1 = self.classifier1(x1)
+        # out2 = self.classifier2(x)
+        out3 = self.classifier3(x3)
+        out = torch.cat((out1, out3), -1).squeeze(2).permute(0, 2, 1)
+        return out
+
+
+class Green_ocr(nn.Module):
+    def __init__(self, in_channel):
+        super(Green_ocr, self).__init__()
+        self.classifier1 = nn.Sequential(
+            nn.Conv2d(in_channel, 35, kernel_size=(1, 6),
+                      stride=1, padding=0, bias=True),
+            # nn.ReLU(inplace=True),
+        )
+        self.classifier3 = nn.Sequential(
+            nn.Conv2d(in_channel, 35, kernel_size=(1, 6),
+                      stride=(1, 3), padding=0, bias=True),
+            # nn.ReLU(inplace=True),
+        )
+
+    def forward(self, x):
+        # x = self.conv(x)
+        x1 = x[:, :, :, :6]
+        x3 = x[:, :, :, 4:]
+        out1 = self.classifier1(x1)
+        # out2 = self.classifier2(x)
+        out3 = self.classifier3(x3)
+        # out: [b,8,c]
+        out = torch.cat((out1, out3), -1).squeeze(2).permute(0, 2, 1)
+
+        return out
+
+
+class Classifier(nn.Module):
+    def __init__(self, in_channel, filter, cls):
+        super(Classifier, self).__init__()
+        self.conv = nn.Sequential(
+            nn.AdaptiveAvgPool2d(1),
+            nn.Conv2d(in_channel, filter, kernel_size=1, stride=1, padding=0),
+            # nn.BatchNorm2d(filter),
+            hswish(),
+        )
+        self.category = nn.Linear(filter, cls)
+
+    def forward(self, x):
+        out = self.conv(x)
+        out = out.view(out.size(0), -1)
+        out = self.category(out)
+        return out
+
+
 class EffNetV2(nn.Module):
     def __init__(self, cfgs, num_classes=1000, width_mult=1.):
         super(EffNetV2, self).__init__()
@@ -162,6 +332,112 @@ class EffNetV2(nn.Module):
             elif isinstance(m, nn.Linear):
                 m.weight.data.normal_(0, 0.001)
                 m.bias.data.zero_()
+
+
+class SCRNet_effnetv2(nn.Module):
+    def __init__(self):
+        super(SCRNet_effnetv2, self).__init__()
+        w = 1.
+        self.conv1 = conv_3x3_bn(3, _c(24 * w), 1)
+        self.bneck1 = nn.Sequential(
+            MBConv(_c(24 * w), _c(24 * w), 1, 1, 0),
+            MBConv(_c(24 * w), _c(24 * w), 1, 1, 0),
+        )
+        self.bneck2 = nn.Sequential(
+            MBConv(_c(24 * w), _c(48 * w), 2, 4, 0),
+            MBConv(_c(48 * w), _c(48 * w), 1, 4, 0),
+            MBConv(_c(48 * w), _c(48 * w), 1, 4, 0),
+            MBConv(_c(48 * w), _c(48 * w), 1, 4, 0),
+        )
+        self.bneck3 = nn.Sequential(
+            MBConv(_c(48 * w), _c(64 * w), 2, 4, 0),
+            MBConv(_c(64 * w), _c(64 * w), 1, 4, 0),
+            MBConv(_c(64 * w), _c(64 * w), 1, 4, 0),
+            MBConv(_c(64 * w), _c(64 * w), 1, 4, 0),
+        )
+        self.bneck4 = nn.Sequential(
+            MBConv(_c(64 * w), _c(128 * w), 2, 4, 1),
+            MBConv(_c(128 * w), _c(128 * w), 1, 4, 1),
+            MBConv(_c(128 * w), _c(128 * w), 1, 4, 1),
+            # MBConv(_c(128 * w), _c(128 * w), 1, 4, 1),
+            # MBConv(_c(128 * w), _c(128 * w), 1, 4, 1),
+            # MBConv(_c(128 * w), _c(128 * w), 1, 4, 1),
+        )
+        self.bneck5 = nn.Sequential(
+            MBConv(_c(128 * w), _c(160 * w), 1, 6, 1),
+            MBConv(_c(160 * w), _c(160 * w), 1, 6, 1),
+            MBConv(_c(160 * w), _c(160 * w), 1, 6, 1),
+            # MBConv(_c(160 * w), _c(160 * w), 1, 6, 1),
+            # MBConv(_c(160 * w), _c(160 * w), 1, 6, 1),
+            # MBConv(_c(160 * w), _c(160 * w), 1, 6, 1),
+            # MBConv(_c(160 * w), _c(160 * w), 1, 6, 1),
+            # MBConv(_c(160 * w), _c(160 * w), 1, 6, 1),
+            # MBConv(_c(160 * w), _c(160 * w), 1, 6, 1),
+        )
+        self.bneck6 = nn.Sequential(
+            MBConv(_c(160 * w), _c(256 * w), 2, 6, 1),
+            MBConv(_c(256 * w), _c(256 * w), 1, 6, 1),
+            MBConv(_c(256 * w), _c(256 * w), 1, 6, 1),
+            # MBConv(_c(256 * w), _c(256 * w), 1, 6, 1),
+            # MBConv(_c(256 * w), _c(256 * w), 1, 6, 1),
+            # MBConv(_c(256 * w), _c(256 * w), 1, 6, 1),
+            # MBConv(_c(256 * w), _c(256 * w), 1, 6, 1),
+            # MBConv(_c(256 * w), _c(256 * w), 1, 6, 1),
+            # MBConv(_c(256 * w), _c(256 * w), 1, 6, 1),
+            # MBConv(_c(256 * w), _c(256 * w), 1, 6, 1),
+            # MBConv(_c(256 * w), _c(256 * w), 1, 6, 1),
+            # MBConv(_c(256 * w), _c(256 * w), 1, 6, 1),
+            # MBConv(_c(256 * w), _c(256 * w), 1, 6, 1),
+            # MBConv(_c(256 * w), _c(256 * w), 1, 6, 1),
+            # MBConv(_c(256 * w), _c(256 * w), 1, 6, 1),
+        )
+
+        self.conv_fpn3 = nn.Conv2d(_c(64 * w), 96, kernel_size=1, stride=1, padding=0, bias=False)
+        self.conv_fpn5 = nn.Conv2d(_c(160 * w), 128, kernel_size=1, stride=1, padding=0, bias=False)
+        self.conv_fpn6 = nn.Conv2d(_c(256 * w), 256, kernel_size=1, stride=1, padding=0, bias=False)
+
+        self.up6 = upsampling(256, 128, 4)
+        self.up5 = upsampling(128, 96, 4)
+
+        self.conv2 = nn.Sequential(
+            DP_Conv(96, 96, 3, hswish(), stride=2),
+            nn.BatchNorm2d(96),
+            hswish(),
+            DP_Conv(96, 64, 3, hswish(), stride=1),
+            nn.BatchNorm2d(64),
+            hswish(),
+
+            nn.Conv2d(64, 64, kernel_size=(8, 1), stride=1, padding=0, groups=64, bias=False),
+            nn.BatchNorm2d(64),
+            hswish(),
+            nn.Conv2d(64, 64, kernel_size=1, stride=1, padding=0, bias=False),
+            nn.BatchNorm2d(64),
+            hswish(),
+        )
+
+        self.blue_classifier = Blue_ocr(64)
+        self.green_classifier = Green_ocr(64)
+        self.category = Classifier(64, 16, 2)
+
+    def forward(self, x):
+        out = self.conv1(x)  # out:64,224
+        out1 = self.bneck1(out)  # out:64,224
+        out2 = self.bneck2(out1)  # out:32,112
+        out3 = self.bneck3(out2)  # out:16,56
+        out4 = self.bneck4(out3)  # out:8,28
+        out5 = self.bneck5(out4)  # out:8,28
+        out6 = self.bneck6(out5)  # out:4,14
+
+        p6 = self.conv_fpn6(out6)
+        p5 = self.up6(p6) + self.conv_fpn5(out5)
+        p3 = self.up5(p5) + self.conv_fpn3(out3)
+        out = self.conv2(p3)
+
+        c = self.category(out)
+        b = self.blue_classifier(out)
+        g = self.green_classifier(out)
+
+        return [c, b, g]
 
 
 def effnetv2_s(**kwargs):
@@ -229,3 +505,32 @@ def effnetv2_xl(**kwargs):
         [6, 640, 8, 1, 1],
     ]
     return EffNetV2(cfgs, **kwargs)
+
+
+def test():
+    # net = effnetv2_s()
+    net = SCRNet_effnetv2()
+    x = torch.randn(1, 3, 64, 224)
+    net.eval()
+    y = net(x)
+
+    # flops, params = profile(net, inputs=(x,))
+    # stat(net, (3, 64, 224))
+    # print('FLOPs = ' + str(flops / 1000 ** 3) + 'G')
+    # print('Params = ' + str(params / 1000 ** 2) + 'M')
+    # total = sum([param.nelement() for param in net.parameters()])  # 计算总参数量
+    # print("Number of parameter: %.6f" % (total))  # 输出
+    # flops = FlopCountAnalysis(net, x)
+    # print('FLOPs = ' + str(flops.total() / 1000 ** 3) + 'G')
+    # print(flop_count_table(flops))
+
+    time_start = time.time()
+    for i in range(50):
+        x = torch.randn(1, 3, 64, 224)
+        y = net(x)
+    time_end = time.time()
+    print("time = " + str(time_end - time_start))
+
+
+if __name__ == '__main__':
+    test()

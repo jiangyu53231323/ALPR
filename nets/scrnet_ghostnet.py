@@ -288,6 +288,11 @@ class GhostBottleneck(nn.Module):
 class Blue_ocr(nn.Module):
     def __init__(self, in_channel):
         super(Blue_ocr, self).__init__()
+        self.conv = nn.Sequential(
+            nn.Conv2d(in_channel, in_channel, kernel_size=(1, 3), stride=1, padding=(0, 1)),
+            nn.BatchNorm2d(in_channel),
+            nn.ReLU(inplace=True),
+        )
         self.classifier1 = nn.Sequential(
             nn.Conv2d(in_channel, 35, kernel_size=(1, 6),
                       stride=1, padding=0, bias=True),
@@ -300,7 +305,7 @@ class Blue_ocr(nn.Module):
         )
 
     def forward(self, x):
-        # x = self.conv(x)
+        x = self.conv(x)
         x1 = x[:, :, :, :6]
         x3 = x[:, :, :, 4:]
         out1 = self.classifier1(x1)
@@ -314,6 +319,11 @@ class Blue_ocr(nn.Module):
 class Green_ocr(nn.Module):
     def __init__(self, in_channel):
         super(Green_ocr, self).__init__()
+        self.conv = nn.Sequential(
+            nn.Conv2d(in_channel, in_channel, kernel_size=(1, 3), stride=1, padding=(0, 1)),
+            nn.BatchNorm2d(in_channel),
+            nn.ReLU(inplace=True),
+        )
         self.classifier1 = nn.Sequential(
             nn.Conv2d(in_channel, 35, kernel_size=(1, 6),
                       stride=1, padding=0, bias=True),
@@ -326,7 +336,7 @@ class Green_ocr(nn.Module):
         )
 
     def forward(self, x):
-        # x = self.conv(x)
+        x = self.conv(x)
         x1 = x[:, :, :, :6]
         x3 = x[:, :, :, 4:]
         out1 = self.classifier1(x1)
@@ -408,6 +418,9 @@ class SCRNet_des(nn.Module):
             DP_Conv(96, 96, 3, nn.ReLU(inplace=True), stride=2),
             nn.BatchNorm2d(96),
             nn.ReLU(inplace=True),
+            DP_Conv(96, 96, 3, nn.ReLU(inplace=True), stride=1),
+            nn.BatchNorm2d(96),
+            nn.ReLU(inplace=True),
 
             nn.Conv2d(96, 96, kernel_size=(8, 1), stride=1, padding=0, groups=96, bias=False),
             nn.BatchNorm2d(96),
@@ -448,9 +461,9 @@ class SCRNet_des(nn.Module):
 def test():
     net = SCRNet_des()
     x = torch.randn(1, 3, 64, 224)
-    # flops, params = profile(net, inputs=(x,))
     net.eval()
     y = net(x)
+    # flops, params = profile(net, inputs=(x,))
     # stat(net, (3, 64, 224))
     # print('FLOPs = ' + str(flops / 1000 ** 3) + 'G')
     # print('Params = ' + str(params / 1000 ** 2) + 'M')
