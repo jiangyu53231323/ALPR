@@ -9,7 +9,7 @@ import argparse
 from nets.ghostnet import My_GhostNet
 from nets.mobilenet import MobileNetV3_Small, MobileNetV3_Large
 from nets.scrnet import SCRNet
-from nets.scrnet_ghostnet import SCRNet_des
+from nets.scrnet_ghostnet import SCRNet_ghost
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'lib'))
 
@@ -46,7 +46,7 @@ parser.add_argument('--dist', action='store_true')  # 多GPU
 
 parser.add_argument('--root_dir', type=str, default='./')
 parser.add_argument('--data_dir', type=str, default='E:\CodeDownload\data')
-parser.add_argument('--log_name', type=str, default='scr_coco_ml_64x224_se_fpn_rectify')
+parser.add_argument('--log_name', type=str, default='scr_coco_ghost_64x224_se_fpn_rectify')
 parser.add_argument('--pretrain_name', type=str, default='scr_pretrain')
 
 parser.add_argument('--dataset', type=str, default='coco', choices=['coco', 'yolo'])
@@ -139,7 +139,7 @@ def main():
     # 网络模型建立
     print('Creating model...')
     if 'scrnet' in cfg.arch:
-        model = SCRNet()
+        model = SCRNet_ghost()
     else:
         raise NotImplementedError
 

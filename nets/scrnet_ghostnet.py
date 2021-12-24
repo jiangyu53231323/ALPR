@@ -366,24 +366,26 @@ class Classifier(nn.Module):
 
 
 # 主干网络
-class SCRNet_des(nn.Module):
+class SCRNet_ghost(nn.Module):
     def __init__(self):
-        super(SCRNet_des, self).__init__()
+        super(SCRNet_ghost, self).__init__()
         self.conv1 = nn.Conv2d(3, 16, kernel_size=3, stride=1, padding=1, bias=False)
         self.bn1 = nn.BatchNorm2d(16)
         self.hs1 = hswish()
-        w = 1.1
+        w = 1.0
 
         block = GhostBottleneck
         self.bneck1 = nn.Sequential(
-            block(16, _c(16 * w), _c(16 * w), dw_kernel_size=3, stride=1, se_ratio=0),
-            block(_c(16 * w), _c(48 * w), _c(24 * w), dw_kernel_size=3, stride=2, se_ratio=0),
+            block(16, _c(16 * w), _c(16 * w), dw_kernel_size=3, stride=2, se_ratio=0),
+            block(_c(16 * w), _c(48 * w), _c(24 * w), dw_kernel_size=3, stride=1, se_ratio=0),
             block(_c(24 * w), _c(72 * w), _c(24 * w), dw_kernel_size=3, stride=1, se_ratio=0),
+            # block(_c(24 * w), _c(72 * w), _c(24 * w), dw_kernel_size=3, stride=1, se_ratio=0),
         )
         self.bneck2 = nn.Sequential(
             block(_c(24 * w), _c(72 * w), _c(40 * w), dw_kernel_size=5, stride=2, se_ratio=0),
             block(_c(40 * w), _c(120 * w), _c(40 * w), dw_kernel_size=5, stride=1, se_ratio=0.25),
             block(_c(40 * w), _c(240 * w), _c(80 * w), dw_kernel_size=3, stride=1, se_ratio=0.25),
+            block(_c(80 * w), _c(200 * w), _c(80 * w), dw_kernel_size=3, stride=1, se_ratio=0.25),
             block(_c(80 * w), _c(200 * w), _c(80 * w), dw_kernel_size=3, stride=1, se_ratio=0.25),
         )
         self.bneck3 = nn.Sequential(
@@ -392,6 +394,8 @@ class SCRNet_des(nn.Module):
             block(_c(80 * w), _c(184 * w), _c(80 * w), dw_kernel_size=3, stride=2, se_ratio=0),
             block(_c(80 * w), _c(184 * w), _c(80 * w), dw_kernel_size=3, stride=1, se_ratio=0.25),
             block(_c(80 * w), _c(480 * w), _c(112 * w), dw_kernel_size=3, stride=1, se_ratio=0.25),
+            block(_c(112 * w), _c(672 * w), _c(112 * w), dw_kernel_size=3, stride=1, se_ratio=0.25),
+            block(_c(112 * w), _c(672 * w), _c(112 * w), dw_kernel_size=3, stride=1, se_ratio=0.25),
             block(_c(112 * w), _c(672 * w), _c(112 * w), dw_kernel_size=3, stride=1, se_ratio=0.25),
         )
         self.bneck4 = nn.Sequential(
@@ -410,29 +414,32 @@ class SCRNet_des(nn.Module):
         # self.deconv_layer4 = _make_deconv_layer(256, 128, 4)
         # self.deconv_layer3 = _make_deconv_layer(128, 64, 4)
         # self.deconv_layer2 = _make_deconv_layer(64, 32, 4)
-
+        self.conv_fuse = nn.Conv2d(_c(112 * w), 96, kernel_size=1, stride=1, padding=0, bias=False)
         self.up4 = upsampling(256, 128, 4)
         self.up3 = upsampling(128, 96, 4)
 
         self.conv2 = nn.Sequential(
-            DP_Conv(96, 96, 3, nn.ReLU(inplace=True), stride=2),
+            DP_Conv(96, 96, 3, hswish(), stride=2),
             nn.BatchNorm2d(96),
-            nn.ReLU(inplace=True),
-            DP_Conv(96, 96, 3, nn.ReLU(inplace=True), stride=1),
-            nn.BatchNorm2d(96),
+            hswish(),
+        )
+
+        self.conv3 = nn.Sequential(
+            DP_Conv(96, 64, 3, nn.ReLU(inplace=True), stride=1),
+            nn.BatchNorm2d(64),
             nn.ReLU(inplace=True),
 
-            nn.Conv2d(96, 96, kernel_size=(8, 1), stride=1, padding=0, groups=96, bias=False),
-            nn.BatchNorm2d(96),
+            nn.Conv2d(64, 64, kernel_size=(8, 1), stride=1, padding=0, groups=64, bias=False),
+            nn.BatchNorm2d(64),
             nn.ReLU(inplace=True),
-            nn.Conv2d(96, 96, kernel_size=1, stride=1, padding=0, bias=False),
-            nn.BatchNorm2d(96),
+            nn.Conv2d(64, 64, kernel_size=1, stride=1, padding=0, bias=False),
+            nn.BatchNorm2d(64),
             nn.ReLU(inplace=True),
         )
 
-        self.blue_classifier = Blue_ocr(96)
-        self.green_classifier = Green_ocr(96)
-        self.category = Classifier(96, 16, 2)
+        self.blue_classifier = Blue_ocr(64)
+        self.green_classifier = Green_ocr(64)
+        self.category = Classifier(64, 16, 2)
         # self.province = Province_ocr(64, 32)
         # self.ctc_ocr = CTC_orc(64)
 
@@ -446,7 +453,9 @@ class SCRNet_des(nn.Module):
         p4 = self.conv_fpn4(out4)
         p3 = self.up4(p4) + self.conv_fpn3(out3)
         p2 = self.up3(p3) + self.conv_fpn2(out2)
-        out = self.conv2(p2)  # out:1,24  out:1,28
+        out5 = self.conv2(p2)
+        out = out5 + self.conv_fuse(out3)
+        out = self.conv3(out)
 
         # province = self.province(out)
         # ctc_orc = self.ctc_ocr(out)
@@ -459,7 +468,7 @@ class SCRNet_des(nn.Module):
 
 
 def test():
-    net = SCRNet_des()
+    net = SCRNet_ghost()
     x = torch.randn(1, 3, 64, 224)
     net.eval()
     y = net(x)
