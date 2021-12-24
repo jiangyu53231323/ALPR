@@ -699,8 +699,8 @@ class SCRNet(nn.Module):
             hswish(),
         )
         self.conv3 = nn.Sequential(
-            DP_Conv(96, 96, 3, hswish(), stride=1),
-            nn.BatchNorm2d(96),
+            DP_Conv(96, 64, 3, hswish(), stride=1),
+            nn.BatchNorm2d(64),
             hswish(),
             # nn.Conv2d(96, 96, kernel_size=(8, 1), stride=1, padding=0, groups=96, bias=False),
             # nn.BatchNorm2d(96),
@@ -709,14 +709,14 @@ class SCRNet(nn.Module):
             # nn.BatchNorm2d(96),
             # hswish(),
 
-            nn.Conv2d(96, 96, kernel_size=(8, 1), stride=1, padding=0, bias=False),
-            nn.BatchNorm2d(96),
+            nn.Conv2d(64, 64, kernel_size=(8, 1), stride=1, padding=0, bias=False),
+            nn.BatchNorm2d(64),
             hswish(),
         )
 
-        self.blue_classifier = Blue_ocr(96)
-        self.green_classifier = Green_ocr(96)
-        self.category = Classifier(96, 16, 2)
+        self.blue_classifier = Blue_ocr(64)
+        self.green_classifier = Green_ocr(64)
+        self.category = Classifier(64, 16, 2)
         # self.province = Province_ocr(64, 32)
         # self.ctc_ocr = CTC_orc(64)
 
