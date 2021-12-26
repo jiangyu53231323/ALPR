@@ -288,16 +288,19 @@ class GhostBottleneck(nn.Module):
 class Blue_ocr(nn.Module):
     def __init__(self, in_channel):
         super(Blue_ocr, self).__init__()
-        self.conv = nn.Sequential(
-            nn.Conv2d(in_channel, in_channel, kernel_size=(1, 3), stride=1, padding=(0, 1)),
-            nn.BatchNorm2d(in_channel),
-            nn.ReLU(inplace=True),
-        )
+        # self.conv = nn.Sequential(
+        #     nn.Conv2d(in_channel, in_channel, kernel_size=(1, 3), stride=1, padding=(0, 1)),
+        #     nn.BatchNorm2d(in_channel),
+        #     nn.ReLU(inplace=True),
+        # )
         self.classifier1 = nn.Sequential(
             nn.Conv2d(in_channel, 35, kernel_size=(1, 6),
                       stride=1, padding=0, bias=True),
             # nn.ReLU(inplace=True),
         )
+        # self.classifier2 = nn.Sequential(
+        #     nn.Conv2d(in_channel, 35, kernel_size=(1, 6), stride=1, padding=0, bias=True)
+        # )
         self.classifier3 = nn.Sequential(
             nn.Conv2d(in_channel, 35, kernel_size=(1, 6),
                       stride=(1, 4), padding=(0, 1), bias=True),
@@ -305,11 +308,12 @@ class Blue_ocr(nn.Module):
         )
 
     def forward(self, x):
-        x = self.conv(x)
+        # x = self.conv(x)
         x1 = x[:, :, :, :6]
+        # x2 = x[:, :, :, 3:9]
         x3 = x[:, :, :, 4:]
         out1 = self.classifier1(x1)
-        # out2 = self.classifier2(x)
+        # out2 = self.classifier2(x2)
         out3 = self.classifier3(x3)
         out = torch.cat((out1, out3), -1).squeeze(2).permute(0, 2, 1)
 
@@ -319,16 +323,19 @@ class Blue_ocr(nn.Module):
 class Green_ocr(nn.Module):
     def __init__(self, in_channel):
         super(Green_ocr, self).__init__()
-        self.conv = nn.Sequential(
-            nn.Conv2d(in_channel, in_channel, kernel_size=(1, 3), stride=1, padding=(0, 1)),
-            nn.BatchNorm2d(in_channel),
-            nn.ReLU(inplace=True),
-        )
+        # self.conv = nn.Sequential(
+        #     nn.Conv2d(in_channel, in_channel, kernel_size=(1, 3), stride=1, padding=(0, 1)),
+        #     nn.BatchNorm2d(in_channel),
+        #     nn.ReLU(inplace=True),
+        # )
         self.classifier1 = nn.Sequential(
             nn.Conv2d(in_channel, 35, kernel_size=(1, 6),
                       stride=1, padding=0, bias=True),
             # nn.ReLU(inplace=True),
         )
+        # self.classifier2 = nn.Sequential(
+        #     nn.Conv2d(in_channel, 35, kernel_size=(1, 6), stride=1, padding=0, bias=True)
+        # )
         self.classifier3 = nn.Sequential(
             nn.Conv2d(in_channel, 35, kernel_size=(1, 6),
                       stride=(1, 3), padding=0, bias=True),
@@ -336,11 +343,12 @@ class Green_ocr(nn.Module):
         )
 
     def forward(self, x):
-        x = self.conv(x)
+        # x = self.conv(x)
         x1 = x[:, :, :, :6]
+        # x2 = x[:, :, :, 4:10]
         x3 = x[:, :, :, 4:]
         out1 = self.classifier1(x1)
-        # out2 = self.classifier2(x)
+        # out2 = self.classifier2(x2)
         out3 = self.classifier3(x3)
         out = torch.cat((out1, out3), -1).squeeze(2).permute(0, 2, 1)
 
@@ -372,7 +380,7 @@ class SCRNet_ghost(nn.Module):
         self.conv1 = nn.Conv2d(3, 16, kernel_size=3, stride=1, padding=1, bias=False)
         self.bn1 = nn.BatchNorm2d(16)
         self.hs1 = hswish()
-        w = 1.0
+        w = 1.1
 
         block = GhostBottleneck
         self.bneck1 = nn.Sequential(
@@ -414,7 +422,7 @@ class SCRNet_ghost(nn.Module):
         # self.deconv_layer4 = _make_deconv_layer(256, 128, 4)
         # self.deconv_layer3 = _make_deconv_layer(128, 64, 4)
         # self.deconv_layer2 = _make_deconv_layer(64, 32, 4)
-        self.conv_fuse = nn.Conv2d(_c(112 * w), 96, kernel_size=1, stride=1, padding=0, bias=False)
+        self.conv_fuse = nn.Conv2d(_c(112 * w), 96, kernel_size=3, stride=1, padding=1, bias=False)
         self.up4 = upsampling(256, 128, 4)
         self.up3 = upsampling(128, 96, 4)
 
@@ -453,8 +461,8 @@ class SCRNet_ghost(nn.Module):
         p4 = self.conv_fpn4(out4)
         p3 = self.up4(p4) + self.conv_fpn3(out3)
         p2 = self.up3(p3) + self.conv_fpn2(out2)
-        out5 = self.conv2(p2)
-        out = out5 + self.conv_fuse(out3)
+        p3_2 = self.conv2(p2)
+        out = p3_2 + self.conv_fuse(out3)
         out = self.conv3(out)
 
         # province = self.province(out)
@@ -472,23 +480,24 @@ def test():
     x = torch.randn(1, 3, 64, 224)
     net.eval()
     y = net(x)
-    # flops, params = profile(net, inputs=(x,))
-    # stat(net, (3, 64, 224))
-    # print('FLOPs = ' + str(flops / 1000 ** 3) + 'G')
-    # print('Params = ' + str(params / 1000 ** 2) + 'M')
-    # total = sum([param.nelement() for param in net.parameters()])  # 计算总参数量
-    # print("Number of parameter: %.6f" % (total))  # 输出
+    flops, params = profile(net, inputs=(x,))
+    stat(net, (3, 64, 224))
+    print('FLOPs = ' + str(flops / 1000 ** 3) + 'G')
+    print('Params = ' + str(params / 1000 ** 2) + 'M')
+    total = sum([param.nelement() for param in net.parameters()])  # 计算总参数量
+    print("Number of parameter: %.6f" % (total))  # 输出
     #
     # flops = FlopCountAnalysis(net, x)
     # print('FLOPs = ' + str(flops.total() / 1000 ** 3) + 'G')
     # print(flop_count_table(flops))
 
-    time_start = time.time()
-    for i in range(50):
-        x = torch.randn(1, 3, 64, 224)
-        y = net(x)
-    time_end = time.time()
-    print("time = " + str(time_end - time_start))
+    # time_start = time.time()
+    # for i in range(400):
+    #     x = torch.randn(1, 3, 64, 224)
+    #     y = net(x)
+    # time_end = time.time()
+    # print("time = " + str(time_end - time_start))
+
 
 if __name__ == '__main__':
     test()

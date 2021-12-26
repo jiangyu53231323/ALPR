@@ -756,12 +756,12 @@ def test():
     print('Params = ' + str(params / 1000 ** 2) + 'M')
     total = sum([param.nelement() for param in net.parameters()])  # 计算总参数量
     print("Number of parameter: %.6f" % (total))  # 输出
-    flops = FlopCountAnalysis(net, x)
-    print('FLOPs = ' + str(flops.total() / 1000 ** 3) + 'G')
-    print(flop_count_table(flops))
+    # flops = FlopCountAnalysis(net, x)
+    # print('FLOPs = ' + str(flops.total() / 1000 ** 3) + 'G')
+    # print(flop_count_table(flops))
 
     # time_start = time.time()
-    # for i in range(50):
+    # for i in range(400):
     #     x = torch.randn(1, 3, 64, 224)
     #     y = net(x)
     # time_end = time.time()

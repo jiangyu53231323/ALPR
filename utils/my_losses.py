@@ -234,11 +234,12 @@ def unify_loss(pre, target, cfg):
     # cls_score, cls_ind = torch.topk(target[0].view(batch, -1))
     t = torch.zeros((1, 1, 35))
     pre_out = 0
+    weight = [1., 0.1, 1., 1., 1., 1., 1., 1.]
     # 根据标签将不同头的输出整合到pre_out，规范为[b,8,c]
     for b in range(batch):
     #     if target['labels_class'][b] == 0:
     #         pre_ = pre[1][b].unsqueeze(0)
-    #         padding = torch.zeros((1, 1, 35)).to(cfg.device)
+    #         # padding = torch.zeros((1, 1, 35)).to(cfg.device)
     #         padding = torch.full((1,1,35),0.05/34).to(cfg.device)
     #         padding[:, :, 0] = 0.95
     #         pre_ = torch.cat((pre_, padding), 1)
@@ -252,20 +253,20 @@ def unify_loss(pre, target, cfg):
     # for j in range(8):
     #     l = target['labels'][:, j].to(cfg.device).long()
     #     p = pre_out[j]
-    #     loss += cross_entropy_loss(p, l, label_smooth=0.05)
+    #     loss += weight[j] * cross_entropy_loss(p, l, label_smooth=0.05)
 
         # blue车牌
         if target['labels_class'][b] == 0:
             for j in range(7):
                 l = target['labels'][b][j].to(cfg.device).long().unsqueeze(0)
                 p = pre[1][b][j].unsqueeze(0)
-                loss += cross_entropy_loss(p, l, label_smooth=0.05)
+                loss += weight[j] * cross_entropy_loss(p, l, label_smooth=0.05)
         # green车牌
         else:
             for j in range(8):
                 l = target['labels'][b][j].to(cfg.device).long().unsqueeze(0)
                 p = pre[2][b][j].unsqueeze(0)
-                loss += cross_entropy_loss(p, l, label_smooth=0.05)
+                loss += weight[j] * cross_entropy_loss(p, l, label_smooth=0.05)
     loss = loss / batch
     loss += 10 * cross_entropy_loss(pre[0], target['labels_class'].to(cfg.device).long())
 
