@@ -92,21 +92,22 @@ class DP_Conv(nn.Module):
 
 class GhostConv(nn.Module):
     # Ghost Convolution https://github.com/huawei-noah/ghostnet
-    def __init__(self, inp, oup, k=3, s=1, g=1, act=True):  # ch_in, ch_out, kernel, stride, groups
+    def __init__(self, inp, oup, dw_size=3, stride=1, kernel_size=1, ratio=2, relu=True):
         super(GhostConv, self).__init__()
         self.oup = oup
-        init_channels = oup // 2  # hidden channels
+        init_channels = math.ceil(oup / ratio)
+        new_channels = init_channels * (ratio - 1)
 
         self.primary_conv = nn.Sequential(
-            nn.Conv2d(inp, init_channels, 1, s, 0, bias=False),
+            nn.Conv2d(inp, init_channels, kernel_size, stride, kernel_size // 2, bias=False),
             nn.BatchNorm2d(init_channels),
-            nn.ReLU(inplace=True),
+            nn.ReLU(inplace=True) if relu else nn.Sequential(),
         )
 
         self.cheap_operation = nn.Sequential(
-            nn.Conv2d(init_channels, oup, k, 1, k // 2, groups=init_channels, bias=False),
-            nn.BatchNorm2d(oup),
-            nn.ReLU(inplace=True),
+            nn.Conv2d(init_channels, new_channels, dw_size, 1, dw_size // 2, groups=init_channels, bias=False),
+            nn.BatchNorm2d(new_channels),
+            nn.ReLU(inplace=True) if relu else nn.Sequential(),
         )
 
     def forward(self, x):
@@ -183,7 +184,7 @@ class ES_Bottleneck(nn.Module):
 
         self.branch3 = nn.Sequential(
             # 第三条branch分支，用于stride=1的ES_Bottleneck
-            GhostConv(branch_features, branch_features, 3, 1),
+            GhostConv(inp//2, branch_features, 3, 1),
             ES_SEModule(branch_features),
             nn.Conv2d(branch_features, branch_features, kernel_size=1, stride=1, padding=0, bias=False),
             nn.BatchNorm2d(branch_features),
@@ -199,6 +200,8 @@ class ES_Bottleneck(nn.Module):
             nn.Hardswish(inplace=True),
         )
 
+        self.d_conv = nn.Conv2d(inp//2, branch_features, kernel_size=1, stride=1, padding=0, bias=False)
+
     @staticmethod
     def depthwise_conv(i, o, kernel_size=3, stride=1, padding=0, bias=False):
         return nn.Conv2d(i, o, kernel_size, stride, padding, bias=bias, groups=i)
@@ -210,7 +213,7 @@ class ES_Bottleneck(nn.Module):
     def forward(self, x):
         if self.stride == 1:
             x1, x2 = x.chunk(2, dim=1)
-            x3 = torch.cat((x1, self.branch3(x2)), dim=1)
+            x3 = torch.cat((self.d_conv(x1), self.branch3(x2)), dim=1)
             out = channel_shuffle(x3, 2)
         elif self.stride == 2:
             x1 = torch.cat((self.branch1(x), self.branch2(x)), dim=1)
@@ -316,58 +319,50 @@ class SCRNet_Pico(nn.Module):
         self.bneck2 = nn.Sequential(
             ES_Bottleneck(32, 64, 2),
             ES_Bottleneck(64, 64, 1),
-            ES_Bottleneck(64, 64, 1),
-            ES_Bottleneck(64, 64, 1),
-            ES_Bottleneck(64, 64, 1),
-            ES_Bottleneck(64, 64, 1),
+            ES_Bottleneck(64, 96, 1),
+            ES_Bottleneck(96, 96, 1),
+            ES_Bottleneck(96, 96, 1),
+            ES_Bottleneck(96, 96, 1),
         )
         self.bneck3 = nn.Sequential(
-            ES_Bottleneck(64, 128, 2),
-            ES_Bottleneck(128, 128, 1),
-            ES_Bottleneck(128, 128, 1),
-            ES_Bottleneck(128, 128, 1),
-            ES_Bottleneck(128, 128, 1),
-            ES_Bottleneck(128, 128, 1),
-            ES_Bottleneck(128, 128, 1),
-            ES_Bottleneck(128, 128, 1),
-            ES_Bottleneck(128, 128, 1),
+            ES_Bottleneck(96, 192, 2),
+            ES_Bottleneck(192, 192, 1),
+            ES_Bottleneck(192, 192, 1),
+            ES_Bottleneck(192, 192, 1),
+            ES_Bottleneck(192, 192, 1),
+            ES_Bottleneck(192, 192, 1),
         )
         self.bneck4 = nn.Sequential(
-            ES_Bottleneck(128, 256, 2),
-            ES_Bottleneck(256, 256, 1),
-            ES_Bottleneck(256, 256, 1),
-            ES_Bottleneck(256, 256, 1),
-            ES_Bottleneck(256, 256, 1),
-            ES_Bottleneck(256, 256, 1),
-            ES_Bottleneck(256, 256, 1),
-            ES_Bottleneck(256, 256, 1),
-            ES_Bottleneck(256, 256, 1),
+            ES_Bottleneck(192, 384, 2),
+            ES_Bottleneck(384, 384, 1),
+            ES_Bottleneck(384, 384, 1),
+            ES_Bottleneck(384, 384, 1),
         )
-        self.conv_fpn2 = nn.Conv2d(64, 64, kernel_size=1, stride=1, padding=0, bias=False)
-        self.conv_fpn3 = nn.Conv2d(128, 128, kernel_size=1, stride=1, padding=0, bias=False)
-        self.conv_fpn4 = nn.Conv2d(256, 256, kernel_size=1, stride=1, padding=0, bias=False)
+        self.conv_fpn2 = nn.Conv2d(96, 96, kernel_size=1, stride=1, padding=0, bias=False)
+        self.conv_fpn3 = nn.Conv2d(192, 192, kernel_size=1, stride=1, padding=0, bias=False)
+        self.conv_fpn4 = nn.Conv2d(384, 384, kernel_size=1, stride=1, padding=0, bias=False)
 
-        self.conv_fuse = nn.Conv2d(128, 64, kernel_size=1, stride=1, padding=0, bias=False)
+        self.conv_fuse = nn.Conv2d(192, 96, kernel_size=1, stride=1, padding=0, bias=False)
 
-        self.up4 = upsampling(256, 128, 4)
-        self.up3 = upsampling(128, 64, 4)
+        self.up4 = upsampling(384, 192, 4)
+        self.up3 = upsampling(192, 96, 4)
 
         self.conv2 = nn.Sequential(
-            DP_Conv(64, 64, 3, hswish(), stride=2),
-            nn.BatchNorm2d(64),
+            DP_Conv(96, 96, 3, hswish(), stride=2),
+            nn.BatchNorm2d(96),
             hswish(),
         )
         self.conv3 = nn.Sequential(
-            DP_Conv(64, 64, 3, hswish(), stride=1),
-            nn.BatchNorm2d(64),
+            DP_Conv(96, 96, 3, hswish(), stride=1),
+            nn.BatchNorm2d(96),
             hswish(),
-            nn.Conv2d(64, 64, kernel_size=(8, 1), stride=1, padding=0, bias=False),
-            nn.BatchNorm2d(64),
+            nn.Conv2d(96, 96, kernel_size=(8, 1), stride=1, padding=0, bias=False),
+            nn.BatchNorm2d(96),
             hswish(),
         )
-        self.blue_classifier = Blue_ocr(64)
-        self.green_classifier = Green_ocr(64)
-        self.category = Classifier(64, 16, 2)
+        self.blue_classifier = Blue_ocr(96)
+        self.green_classifier = Green_ocr(96)
+        self.category = Classifier(96, 16, 2)
 
     def forward(self, x):
         out = self.conv1(x)  # out:64,192  out:64,224

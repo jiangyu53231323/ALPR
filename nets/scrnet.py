@@ -665,8 +665,8 @@ class SCRNet(nn.Module):
             Block(3, 40, 240, 80, hswish(), SeModule, 1),
         )
         self.bneck3 = nn.Sequential(
-            # Block(3, 80, 240, 80, hswish(), None, 2),
-            Block(3, 80, 200, 80, hswish(), None, 2),
+            Block(3, 80, 240, 80, hswish(), None, 2),
+            Block(3, 80, 200, 80, hswish(), None, 1),
             Block(3, 80, 184, 80, hswish(), None, 1),
             Block(3, 80, 184, 80, hswish(), SeModule, 1),
             Block(3, 80, 480, 112, hswish(), SeModule, 1),
@@ -681,8 +681,8 @@ class SCRNet(nn.Module):
 
         # self.conv_fpn1 = nn.Conv2d(24, 64, kernel_size=1, stride=1, padding=0, bias=False)
         self.conv_fpn2 = nn.Conv2d(80, 96, kernel_size=1, stride=1, padding=0, bias=False)
-        self.conv_fpn3 = nn.Conv2d(160, 128, kernel_size=1, stride=1, padding=0, bias=False)
-        self.conv_fpn4 = nn.Conv2d(160, 256, kernel_size=1, stride=1, padding=0, bias=False)
+        self.conv_fpn3 = nn.Conv2d(160, 96, kernel_size=1, stride=1, padding=0, bias=False)
+        self.conv_fpn4 = nn.Conv2d(160, 96, kernel_size=1, stride=1, padding=0, bias=False)
 
         # self.deconv_layer4 = _make_deconv_layer(256, 128, 4)
         # self.deconv_layer3 = _make_deconv_layer(128, 64, 4)
@@ -690,8 +690,8 @@ class SCRNet(nn.Module):
 
         self.conv_fuse = nn.Conv2d(160, 96, kernel_size=1, stride=1, padding=0, bias=False)
 
-        self.up4 = upsampling(256, 128, 4)
-        self.up3 = upsampling(128, 96, 4)
+        self.up4 = upsampling(96, 96, 4)
+        self.up3 = upsampling(96, 96, 4)
 
         self.conv2 = nn.Sequential(
             DP_Conv(96, 96, 3, hswish(), stride=2),
@@ -750,22 +750,22 @@ def test():
     net.eval()
     y = net(x)
 
-    flops, params = profile(net, inputs=(x,))
-    stat(net, (3, 64, 224))
-    print('FLOPs = ' + str(flops / 1000 ** 3) + 'G')
-    print('Params = ' + str(params / 1000 ** 2) + 'M')
-    total = sum([param.nelement() for param in net.parameters()])  # 计算总参数量
-    print("Number of parameter: %.6f" % (total))  # 输出
+    # flops, params = profile(net, inputs=(x,))
+    # stat(net, (3, 64, 224))
+    # print('FLOPs = ' + str(flops / 1000 ** 3) + 'G')
+    # print('Params = ' + str(params / 1000 ** 2) + 'M')
+    # total = sum([param.nelement() for param in net.parameters()])  # 计算总参数量
+    # print("Number of parameter: %.6f" % (total))  # 输出
     # flops = FlopCountAnalysis(net, x)
     # print('FLOPs = ' + str(flops.total() / 1000 ** 3) + 'G')
     # print(flop_count_table(flops))
 
-    # time_start = time.time()
-    # for i in range(400):
-    #     x = torch.randn(1, 3, 64, 224)
-    #     y = net(x)
-    # time_end = time.time()
-    # print("time = " + str(time_end - time_start))
+    time_start = time.time()
+    for i in range(400):
+        x = torch.randn(1, 3, 64, 224)
+        y = net(x)
+    time_end = time.time()
+    print("time = " + str(time_end - time_start))
 
 
 if __name__ == '__main__':

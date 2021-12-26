@@ -234,7 +234,7 @@ def unify_loss(pre, target, cfg):
     # cls_score, cls_ind = torch.topk(target[0].view(batch, -1))
     t = torch.zeros((1, 1, 35))
     pre_out = 0
-    weight = [1., 0.1, 1., 1., 1., 1., 1., 1.]
+    weight = [1., 0.1, 1., 1., 1., 1., 1., 10.]
     # 根据标签将不同头的输出整合到pre_out，规范为[b,8,c]
     for b in range(batch):
     #     if target['labels_class'][b] == 0:

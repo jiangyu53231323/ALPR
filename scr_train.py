@@ -140,7 +140,7 @@ def main():
     # 网络模型建立
     print('Creating model...')
     if 'scrnet' in cfg.arch:
-        model = SCRNet_Pico()
+        model = SCRNet()
     else:
         raise NotImplementedError
 
