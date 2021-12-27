@@ -313,6 +313,25 @@ def char_decoder(pre, target, ind):
     return num
 
 
+def c8_decoder(pre, target, ind=8):
+    for k in target:
+        target[k] = target[k].to('cpu')
+    cls = target['labels_class']
+    num_all = 0
+    num = 0
+    for b in range(pre[0].size()[0]):
+        # green车牌检测
+        if cls[b] == 1:
+            num_all = num_all + 1
+            for k in range(ind - 1, ind):
+                p = pre[2][b][k].topk(1)[1]
+                if p == target['labels'][b][k]:
+                    num = num + 1
+        else:
+            continue
+    return num, num_all
+
+
 def cls_eval(pre, target):
     for k in target:
         target[k] = target[k].to('cpu')
@@ -388,4 +407,3 @@ def get_json(json_dir):
     for d in dataset["results"]:
         data[d['file_name']] = d
     return data
-

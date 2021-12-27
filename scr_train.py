@@ -30,7 +30,8 @@ from nets.hourglass import get_hourglass
 # from nets.resdcn_cbam import get_pose_net
 from nets.resdcn_cbam_fpn import get_pose_net
 
-from utils.utils import _tranpose_and_gather_feature, load_model, scr_decoder, ctc_decoder, char_decoder, cls_eval
+from utils.utils import _tranpose_and_gather_feature, load_model, scr_decoder, ctc_decoder, char_decoder, cls_eval, \
+    c8_decoder
 from utils.image import transform_preds
 from utils.my_losses import _heatmap_loss, _corner_loss, _w_h_loss, bboxes_loss, scr_ctc_loss, cross_entropy_loss, \
     unify_loss
@@ -47,7 +48,7 @@ parser.add_argument('--dist', action='store_true')  # 多GPU
 
 parser.add_argument('--root_dir', type=str, default='./')
 parser.add_argument('--data_dir', type=str, default='E:\CodeDownload\data')
-parser.add_argument('--log_name', type=str, default='scr_coco_esnet_64x224_se_fpn_rectify')
+parser.add_argument('--log_name', type=str, default='scr_coco_ml_64x224_se_fpn_rectify')
 parser.add_argument('--pretrain_name', type=str, default='scr_pretrain')
 
 parser.add_argument('--dataset', type=str, default='coco', choices=['coco', 'yolo'])
@@ -222,6 +223,8 @@ def main():
         num_c5 = 0
         num_c6 = 0
         num_c7 = 0
+        num_c8 = 0
+        num_c8_all = 0
         with torch.no_grad():  # 不跟踪梯度，减少内存占用
             for i, inputs in enumerate(val_loader):
                 # img_id, inputs = inputs[0]
@@ -238,6 +241,9 @@ def main():
                 num_c5 += char_decoder(outputs, inputs, 5)
                 num_c6 += char_decoder(outputs, inputs, 6)
                 num_c7 += char_decoder(outputs, inputs, 7)
+                n_c8, n_c8_all = c8_decoder(outputs, inputs)
+                num_c8 += n_c8
+                num_c8_all += n_c8_all
 
                 # num += ctc_decoder(outputs, inputs)
 
@@ -252,6 +258,7 @@ def main():
         print('accuracy c5 = %f' % (float(num_c5) / float(amount)))
         print('accuracy c6 = %f' % (float(num_c6) / float(amount)))
         print('accuracy c7 = %f' % (float(num_c7) / float(amount)))
+        print('accuracy c8 = %f' % (float(num_c8) / float(num_c8_all)))
         summary_writer.add_scalar('val_mAP/mAP', accuracy, epoch)
 
     print('Starting training...')

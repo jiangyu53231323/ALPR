@@ -240,7 +240,7 @@ def unify_loss(pre, target, cfg):
     #     if target['labels_class'][b] == 0:
     #         pre_ = pre[1][b].unsqueeze(0)
     #         # padding = torch.zeros((1, 1, 35)).to(cfg.device)
-    #         padding = torch.full((1,1,35),0.05/34).to(cfg.device)
+    #         padding = torch.full((1, 1, 35), 0.05/34).to(cfg.device)
     #         padding[:, :, 0] = 0.95
     #         pre_ = torch.cat((pre_, padding), 1)
     #     else:
@@ -267,6 +267,7 @@ def unify_loss(pre, target, cfg):
                 l = target['labels'][b][j].to(cfg.device).long().unsqueeze(0)
                 p = pre[2][b][j].unsqueeze(0)
                 loss += weight[j] * cross_entropy_loss(p, l, label_smooth=0.05)
+
     loss = loss / batch
     loss += 10 * cross_entropy_loss(pre[0], target['labels_class'].to(cfg.device).long())
 

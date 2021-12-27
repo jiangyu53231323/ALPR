@@ -680,9 +680,9 @@ class SCRNet(nn.Module):
         )
 
         # self.conv_fpn1 = nn.Conv2d(24, 64, kernel_size=1, stride=1, padding=0, bias=False)
-        self.conv_fpn2 = nn.Conv2d(80, 96, kernel_size=1, stride=1, padding=0, bias=False)
+        self.conv_fpn2 = nn.Conv2d(80, 64, kernel_size=1, stride=1, padding=0, bias=False)
         self.conv_fpn3 = nn.Conv2d(160, 96, kernel_size=1, stride=1, padding=0, bias=False)
-        self.conv_fpn4 = nn.Conv2d(160, 96, kernel_size=1, stride=1, padding=0, bias=False)
+        self.conv_fpn4 = nn.Conv2d(160, 128, kernel_size=1, stride=1, padding=0, bias=False)
 
         # self.deconv_layer4 = _make_deconv_layer(256, 128, 4)
         # self.deconv_layer3 = _make_deconv_layer(128, 64, 4)
@@ -690,11 +690,11 @@ class SCRNet(nn.Module):
 
         self.conv_fuse = nn.Conv2d(160, 96, kernel_size=1, stride=1, padding=0, bias=False)
 
-        self.up4 = upsampling(96, 96, 4)
-        self.up3 = upsampling(96, 96, 4)
+        self.up4 = upsampling(128, 96, 4)
+        self.up3 = upsampling(96, 64, 4)
 
         self.conv2 = nn.Sequential(
-            DP_Conv(96, 96, 3, hswish(), stride=2),
+            DP_Conv(64, 96, 3, hswish(), stride=2),
             nn.BatchNorm2d(96),
             hswish(),
         )
