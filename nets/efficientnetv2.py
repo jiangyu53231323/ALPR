@@ -525,7 +525,7 @@ def test():
     # print(flop_count_table(flops))
 
     time_start = time.time()
-    for i in range(50):
+    for i in range(400):
         x = torch.randn(1, 3, 64, 224)
         y = net(x)
     time_end = time.time()
