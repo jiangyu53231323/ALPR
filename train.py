@@ -51,7 +51,7 @@ parser.add_argument('--split_ratio', type=float, default=1.0)
 
 parser.add_argument('--lr', type=float, default=1.25e-4)
 parser.add_argument('--lr_step', type=str, default='2,4,6')
-parser.add_argument('--batch_size', type=int, default=24)
+parser.add_argument('--batch_size', type=int, default=6)
 parser.add_argument('--num_epochs', type=int, default=20)
 
 parser.add_argument('--test_topk', type=int, default=10)
@@ -192,7 +192,7 @@ def main():
             b_loss = bboxes_loss(w_h_, batch['bboxes_map'], batch['reg_mask'], batch['ind_masks'])
             # 进行 loss 加权，得到最终 loss
             # loss = hmap_loss + 0.1 * corner_loss + 0.2 * w_h_loss
-            loss = hmap_loss + 1 * corner_loss + 1 * b_loss
+            loss = hmap_loss + 1 * b_loss + 1 * corner_loss
 
             optimizer.zero_grad()
             loss.backward()
@@ -205,7 +205,6 @@ def main():
                       ' hmap_loss= %.5f corner_loss= %.5f w_h_loss= %.5f' %
                       (hmap_loss.item(), corner_loss.item(), b_loss.item()) +
                       ' (%d samples/sec)' % (cfg.batch_size * cfg.log_interval / duration))
-
                 step = len(train_loader) * epoch + batch_idx
                 summary_writer.add_scalar('hmap_loss', hmap_loss.item(), step)
                 summary_writer.add_scalar('corner_loss', corner_loss.item(), step)

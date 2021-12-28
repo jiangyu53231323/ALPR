@@ -210,10 +210,10 @@ class MobileNetV3_Large(nn.Module):
             Block(5, 40, 120, 40, nn.ReLU(inplace=True), SeModule, 1),
             Block(5, 40, 120, 40, nn.ReLU(inplace=True), SeModule, 1),
 
-            Block(3, 40, 200, 80, hswish(), SeModule, 1),
+            # Block(3, 40, 200, 80, hswish(), SeModule, 1),
         )
         self.bneck3 = nn.Sequential(
-            Block(3, 80, 240, 80, hswish(), None, 2),
+            Block(3, 40, 240, 80, hswish(), None, 2),
             Block(3, 80, 200, 80, hswish(), None, 1),
             Block(3, 80, 184, 80, hswish(), None, 1),
             Block(3, 80, 184, 80, hswish(), None, 1),
@@ -224,16 +224,16 @@ class MobileNetV3_Large(nn.Module):
         self.bneck4 = nn.Sequential(
             Block(5, 160, 672, 160, hswish(), SeModule, 2),
             Block(5, 160, 960, 160, hswish(), SeModule, 1),
-            Block(5, 160, 960, 160, hswish(), SeModule, 1),
+            # Block(5, 160, 960, 160, hswish(), SeModule, 1),
         )
 
-        self.conv_fpn2 = nn.Conv2d(80, 64, kernel_size=1, stride=1, padding=0, bias=False)
-        self.conv_fpn3 = nn.Conv2d(160, 96, kernel_size=1, stride=1, padding=0, bias=False)
-        self.conv_fpn4 = nn.Conv2d(160, 128, kernel_size=1, stride=1, padding=0, bias=False)
+        self.conv_fpn2 = nn.Conv2d(40, 64, kernel_size=1, stride=1, padding=0, bias=False)
+        self.conv_fpn3 = nn.Conv2d(160, 128, kernel_size=1, stride=1, padding=0, bias=False)
+        self.conv_fpn4 = nn.Conv2d(160, 256, kernel_size=1, stride=1, padding=0, bias=False)
         # used for deconv layers 可形变卷积
         # 将主干网最终输出channel控制在64
-        self.deconv_layer3 = _make_deconv_layer(128, 96, 4)
-        self.deconv_layer2 = _make_deconv_layer(96, 64, 4)
+        self.deconv_layer3 = _make_deconv_layer(256, 128, 4)
+        self.deconv_layer2 = _make_deconv_layer(128, 64, 4)
         self.deconv_layer1 = _make_deconv_layer(64, 64, 4)
         # 融合特征图的逐点卷积
         # self.fuse3 = nn.Conv2d(256, 128, kernel_size=1, stride=1, padding=0, bias=False)

@@ -116,21 +116,26 @@ class COCO(data.Dataset):
         # 读取图片
         image = cv2.imread(img_path)[:, :, ::-1]  # BGR to RGB
 
-        # 将车牌部分裁切出来
-        lp_image = image[int(bboxes[1]):int(bboxes[3]) + 1, int(bboxes[0]):int(bboxes[2]) + 1, :]
-        lp_image = cv2.resize(lp_image, self.lp_img_size)
-        lp_image = lp_image.astype(np.float32) / 255.
-        lp_image = np.transpose(lp_image, (2, 0, 1))
-        lp_img_name = self.coco.loadImgs(ids=[img_id])[0]['file_name'].split('.')[0]  # 分割图片名称，rsplit作用是去除.jpg后缀
-        lp_labels = [int(c) for c in lp_img_name.split('-')[-3].split('_')]
-        if len(lp_labels) < 8:
-            lp_labels.append(-1)
-            labels_size = 7
-            labels_class = 0
-        else:
+        if labels[0] == 0:
+            lp_labels = np.array([-1, -1, -1, -1, -1, -1, -1, -1])
             labels_size = 8
-            labels_class = 1
-        lp_labels = np.array(lp_labels)
+            labels_class = -1
+        else:
+            # 将车牌部分裁切出来
+            # lp_image = image[int(bboxes[1]):int(bboxes[3]) + 1, int(bboxes[0]):int(bboxes[2]) + 1, :]
+            # lp_image = cv2.resize(lp_image, self.lp_img_size)
+            # lp_image = lp_image.astype(np.float32) / 255.
+            # lp_image = np.transpose(lp_image, (2, 0, 1))
+            lp_img_name = self.coco.loadImgs(ids=[img_id])[0]['file_name'].split('.')[0]  # 分割图片名称，rsplit作用是去除.jpg后缀
+            lp_labels = [int(c) for c in lp_img_name.split('-')[-3].split('_')]
+            if len(lp_labels) < 8:
+                lp_labels.append(-1)
+                labels_size = 7
+                labels_class = 0
+            else:
+                labels_size = 8
+                labels_class = 1
+            lp_labels = np.array(lp_labels)
 
         # 调整图片大小并填充，返回调整后的图片和缩小的比例
         resize_out = resize_and_padding(image, self.img_size['h'], bboxes, segmentation)
@@ -202,7 +207,7 @@ class COCO(data.Dataset):
 
         return {'image': image, 'heat_map': heat_map, 'corner_map': corner_map, 'bboxes_map': bboxes_map, 'inds': inds,
                 'ind_masks': ind_masks, 'scale': scale, 'img_id': img_id, 'reg_mask': reg_mask, 'bboxes': bboxes,
-                'segmentation': segmentation, 'lp_image': lp_image, 'lp_labelse': lp_labels, 'labels_size': labels_size,
+                'segmentation': segmentation, 'lp_labelse': lp_labels, 'labels_size': labels_size,
                 'labels_class': labels_class, }
 
     def __len__(self):
@@ -238,21 +243,26 @@ class COCO_eval(COCO):
         img_origin = cv2.imread(img_path)[:, :, ::-1]  # BGR to RGB
         height, width = img_origin.shape[0:2]
 
-        # 将车牌部分裁切出来
-        lp_image = img_origin[int(bboxes[1]):int(bboxes[3]) + 1, int(bboxes[0]):int(bboxes[2]) + 1, :]
-        lp_image = cv2.resize(lp_image, self.lp_img_size)
-        lp_image = lp_image.astype(np.float32) / 255.
-        lp_image = np.transpose(lp_image, (2, 0, 1))
-        lp_img_name = self.coco.loadImgs(ids=[img_id])[0]['file_name'].split('.')[0]  # 分割图片名称，rsplit作用是去除.jpg后缀
-        lp_labels = [int(c) for c in lp_img_name.split('-')[-3].split('_')]
-        if len(lp_labels) < 8:
-            lp_labels.append(-1)
-            labels_size = 7
-            labels_class = 0
-        else:
+        if labels[0] == 0:
+            lp_labels = np.array([-1, -1, -1, -1, -1, -1, -1, -1])
             labels_size = 8
-            labels_class = 1
-        lp_labels = np.array(lp_labels)
+            labels_class = -1
+        else:
+            # 将车牌部分裁切出来
+            # lp_image = img_origin[int(bboxes[1]):int(bboxes[3]) + 1, int(bboxes[0]):int(bboxes[2]) + 1, :]
+            # lp_image = cv2.resize(lp_image, self.lp_img_size)
+            # lp_image = lp_image.astype(np.float32) / 255.
+            # lp_image = np.transpose(lp_image, (2, 0, 1))
+            lp_img_name = self.coco.loadImgs(ids=[img_id])[0]['file_name'].split('.')[0]  # 分割图片名称，rsplit作用是去除.jpg后缀
+            lp_labels = [int(c) for c in lp_img_name.split('-')[-3].split('_')]
+            if len(lp_labels) < 8:
+                lp_labels.append(-1)
+                labels_size = 7
+                labels_class = 0
+            else:
+                labels_size = 8
+                labels_class = 1
+            lp_labels = np.array(lp_labels)
 
         out = {}
         for scale in self.test_scales:
@@ -311,6 +321,7 @@ class COCO_eval(COCO):
                           'lp_labels': lp_labels,
                           'labels_size': labels_size,
                           'labels_class': labels_class,
+                          'labels': labels,
                           # 'file_name': file_name,
                           }
 

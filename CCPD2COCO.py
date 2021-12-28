@@ -150,7 +150,6 @@ def parseImageName(image_path_list):
             bbox.append(int(bbox_coordinates[1][1]) - int(bbox_coordinates[0][1]))
             if bbox[2] <= 10 or bbox[3] <= 10:
                 print('bbox: ' + str(current_image_id))
-
             vertices_locations = f.split('-')[3].split('_')
             vertices_locations = [list(map(int, x.split('&'))) for x in vertices_locations]
             segmentation = []
@@ -162,7 +161,7 @@ def parseImageName(image_path_list):
             bbox = [0, 0, 0, 0]
             vertices_locations = [[0, 0], [0, 0], [0, 0], [0, 0]]
             addAnnoItem(current_image_id, current_category_id, bbox, vertices_locations)
-            print('xxxxxxxxxxxxxxxxxxxxx')
+            # print('xxxxxxxxxxxxxxxxxxxxx')
         if n % 10000 == 0:
             print(n)
         # print(image_file)
@@ -175,7 +174,7 @@ if __name__ == '__main__':
     image_path_challenge = 'E:\CodeDownload\数据集\CCPD2019\ccpd_challenge'
     image_path_db = 'E:\CodeDownload\数据集\CCPD2019\ccpd_db'
     image_path_fn = 'E:\CodeDownload\数据集\CCPD2019\ccpd_fn'
-    # image_path_np = 'F:\code_download\CCPD2019\ccpd_np'
+    image_path_np = 'E:\CodeDownload\数据集\CCPD2019\ccpd_np'
     image_path_rotate = 'E:\CodeDownload\数据集\CCPD2019\ccpd_rotate'
     image_path_tilt = 'E:\CodeDownload\数据集\CCPD2019\ccpd_tilt'
     image_path_weather = 'E:\CodeDownload\数据集\CCPD2019\ccpd_weather'
@@ -193,6 +192,7 @@ if __name__ == '__main__':
     val_tilt_json_file = './ccpd_tilt_val2020.json'
     val_weather_json_file = './ccpd_weather_val2020.json'
     val_green_json_file = './ccpd_green_val2020.json'
+    val_np_json_file = './ccpd_np_val2020.json'
     # './pascal_trainval0712.json'
 
     image_path_list_base = os.listdir(image_path_base)
@@ -200,7 +200,7 @@ if __name__ == '__main__':
     image_path_list_challenge = os.listdir(image_path_challenge)
     image_path_list_db = os.listdir(image_path_db)
     image_path_list_fn = os.listdir(image_path_fn)
-    # image_path_list_np = os.listdir(image_path_np)
+    image_path_list_np = os.listdir(image_path_np)
     image_path_list_rotate = os.listdir(image_path_rotate)
     image_path_list_tilt = os.listdir(image_path_tilt)
     image_path_list_weather = os.listdir(image_path_weather)
@@ -211,7 +211,7 @@ if __name__ == '__main__':
     train_number_challenge = int(len(image_path_list_challenge) * 0.8)
     train_number_db = int(len(image_path_list_db) * 0.8)
     train_number_fn = int(len(image_path_list_fn) * 0.8)
-    # train_number_np = int(len(image_path_list_np) * 0.8)
+    train_number_np = int(len(image_path_list_np) * 0.8)
     train_number_rotate = int(len(image_path_list_rotate) * 0.8)
     train_number_tilt = int(len(image_path_list_tilt) * 0.8)
     train_number_weather = int(len(image_path_list_weather) * 0.8)
@@ -222,7 +222,7 @@ if __name__ == '__main__':
     train_list_challenge = random.sample(image_path_list_challenge, train_number_challenge)
     train_list_db = random.sample(image_path_list_db, train_number_db)
     train_list_fn = random.sample(image_path_list_fn, train_number_fn)
-    # train_list_np = random.sample(image_path_list_np, train_number_np)
+    train_list_np = random.sample(image_path_list_np, train_number_np)
     train_list_rotate = random.sample(image_path_list_rotate, train_number_rotate)
     train_list_tilt = random.sample(image_path_list_tilt, train_number_tilt)
     train_list_weather = random.sample(image_path_list_weather, train_number_weather)
@@ -233,25 +233,27 @@ if __name__ == '__main__':
     test_list_challenge = list(set(image_path_list_challenge).difference(set(train_list_challenge)))
     test_list_db = list(set(image_path_list_db).difference(set(train_list_db)))
     test_list_fn = list(set(image_path_list_fn).difference(set(train_list_fn)))
-    # test_list_np = list(set(image_path_list_np).difference(set(train_list_np)))
+    test_list_np = list(set(image_path_list_np).difference(set(train_list_np)))
     test_list_rotate = list(set(image_path_list_rotate).difference(set(train_list_rotate)))
     test_list_tilt = list(set(image_path_list_tilt).difference(set(train_list_tilt)))
     test_list_weather = list(set(image_path_list_weather).difference(set(train_list_weather)))
     test_list_green = list(set(image_path_list_green).difference(set(train_list_green)))
 
-    train_list = train_list_base + train_list_blur + train_list_challenge + train_list_db + train_list_fn + train_list_rotate + train_list_tilt + train_list_weather + train_list_green
-    test_list = test_list_base + test_list_blur + test_list_challenge + test_list_db + test_list_fn + test_list_rotate + test_list_tilt + test_list_weather + test_list_green
+    train_list = train_list_base + train_list_blur + train_list_challenge + train_list_db + train_list_fn + train_list_rotate + train_list_tilt + train_list_weather + train_list_green + train_list_np
+    test_list = test_list_base + test_list_blur + test_list_challenge + test_list_db + test_list_fn + test_list_rotate + test_list_tilt + test_list_weather + test_list_green + test_list_np
     all_list = train_list + test_list
 
     parseImageName(all_list)
     json.dump(coco, open(all_json_file, 'w'))
 
     print('init coco: train')
+    init_image_set()
     init_coco()
     parseImageName(train_list)
     json.dump(coco, open(train_json_file, 'w'))
 
     print('init coco: val')
+    init_image_set()
     init_coco()
     parseImageName(test_list)
     json.dump(coco, open(val_json_file, 'w'))
@@ -300,3 +302,8 @@ if __name__ == '__main__':
     init_coco()
     parseImageName(test_list_green)
     json.dump(coco, open(val_green_json_file, 'w'))
+    print('init coco:np val')
+    init_image_set()
+    init_coco()
+    parseImageName(test_list_np)
+    json.dump(coco, open(val_np_json_file, 'w'))
