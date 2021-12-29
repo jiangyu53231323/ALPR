@@ -51,7 +51,7 @@ parser.add_argument('--split_ratio', type=float, default=1.0)
 
 parser.add_argument('--lr', type=float, default=1.25e-4)
 parser.add_argument('--lr_step', type=str, default='2,4,6')
-parser.add_argument('--batch_size', type=int, default=6)
+parser.add_argument('--batch_size', type=int, default=24)
 parser.add_argument('--num_epochs', type=int, default=20)
 
 parser.add_argument('--test_topk', type=int, default=10)
@@ -192,7 +192,7 @@ def main():
             b_loss = bboxes_loss(w_h_, batch['bboxes_map'], batch['reg_mask'], batch['ind_masks'])
             # 进行 loss 加权，得到最终 loss
             # loss = hmap_loss + 0.1 * corner_loss + 0.2 * w_h_loss
-            loss = hmap_loss + 1 * b_loss + 1 * corner_loss
+            loss = hmap_loss + 5 * b_loss + 0.1 * corner_loss
 
             optimizer.zero_grad()
             loss.backward()
