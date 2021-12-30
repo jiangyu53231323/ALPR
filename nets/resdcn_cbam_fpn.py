@@ -343,24 +343,24 @@ def get_pose_net(num_layers, head_conv=64, num_classes=1):
 
 
 def test():
-    mode = mobilenet_v3_large()
-    # mode = get_pose_net(num_layers=18, num_classes=1)
+    # mode = mobilenet_v3_large()
+    mode = get_pose_net(num_layers=18, num_classes=1)
     x = torch.randn(1, 3, 384, 256)
-    flops, params = profile(mode, inputs=(x,))
-    # net.eval()
-    # y = net(x)
-    # print(y[0][0].size())
+    mode.eval()
+    y = mode(x)
+    print(y[0][2].size())
     # print(y.size())
 
+    flops, params = profile(mode, inputs=(x,))
     stat(mode, (3, 384, 256))
     print('FLOPs = ' + str(flops / 1000 ** 3) + 'G')
     print('Params = ' + str(params / 1000 ** 2) + 'M')
     total = sum([param.nelement() for param in mode.parameters()])  # 计算总参数量
     print("Number of parameter: %.6f" % (total))  # 输出
 
-    flops = FlopCountAnalysis(mode, x)
-    print('FLOPs = ' + str(flops.total() / 1000 ** 3) + 'G')
-    print(flop_count_table(flops))
+    # flops = FlopCountAnalysis(mode, x)
+    # print('FLOPs = ' + str(flops.total() / 1000 ** 3) + 'G')
+    # print(flop_count_table(flops))
 
 
 if __name__ == '__main__':

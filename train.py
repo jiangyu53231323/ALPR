@@ -20,8 +20,6 @@ from datasets.my_coco import COCO, COCO_eval
 from datasets.yolo import YOLO, YOLO_eval
 
 from nets.hourglass import get_hourglass
-# from nets.resdcn import get_pose_net
-# from nets.resdcn_cbam import get_pose_net
 from nets.resdcn_cbam_fpn import get_pose_net
 
 from utils.utils import _tranpose_and_gather_feature, load_model
@@ -40,11 +38,11 @@ parser.add_argument('--dist', action='store_true')  # 多GPU
 
 parser.add_argument('--root_dir', type=str, default='./')
 parser.add_argument('--data_dir', type=str, default='E:\CodeDownload\data')
-parser.add_argument('--log_name', type=str, default='coco_mobilenet_large_384_se_fpn_centerness')
+parser.add_argument('--log_name', type=str, default='coco_resdcn_18_384_fpn_centerness')
 parser.add_argument('--pretrain_name', type=str, default='pretrain')
 
 parser.add_argument('--dataset', type=str, default='coco', choices=['coco', 'yolo'])
-parser.add_argument('--arch', type=str, default='mobilenet')
+parser.add_argument('--arch', type=str, default='resdcn_18')
 
 parser.add_argument('--img_size', type=int, default=384)
 parser.add_argument('--split_ratio', type=float, default=1.0)
