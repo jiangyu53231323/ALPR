@@ -1,4 +1,6 @@
 import math
+import time
+
 import torch.nn as nn
 import torch
 import torch.utils.model_zoo as model_zoo
@@ -351,16 +353,23 @@ def test():
     print(y[0][2].size())
     # print(y.size())
 
-    flops, params = profile(mode, inputs=(x,))
-    stat(mode, (3, 384, 256))
-    print('FLOPs = ' + str(flops / 1000 ** 3) + 'G')
-    print('Params = ' + str(params / 1000 ** 2) + 'M')
-    total = sum([param.nelement() for param in mode.parameters()])  # 计算总参数量
-    print("Number of parameter: %.6f" % (total))  # 输出
+    # flops, params = profile(mode, inputs=(x,))
+    # stat(mode, (3, 384, 256))
+    # print('FLOPs = ' + str(flops / 1000 ** 3) + 'G')
+    # print('Params = ' + str(params / 1000 ** 2) + 'M')
+    # total = sum([param.nelement() for param in mode.parameters()])  # 计算总参数量
+    # print("Number of parameter: %.6f" % (total))  # 输出
 
     # flops = FlopCountAnalysis(mode, x)
     # print('FLOPs = ' + str(flops.total() / 1000 ** 3) + 'G')
     # print(flop_count_table(flops))
+
+    # time_start = time.time()
+    # for i in range(200):
+    #     x = torch.randn(1, 3, 384, 256)
+    #     y = mode(x)
+    # time_end = time.time()
+    # print("time = " + str(time_end - time_start))
 
 
 if __name__ == '__main__':
