@@ -688,12 +688,20 @@ class SCRNet(nn.Module):
         # self.deconv_layer3 = _make_deconv_layer(128, 64, 4)
         # self.deconv_layer2 = _make_deconv_layer(64, 32, 4)
 
-        self.conv_fuse = nn.Conv2d(160, 96, kernel_size=1, stride=1, padding=0, bias=False)
-
         self.up4 = upsampling(128, 96, 4)
         self.up3 = upsampling(96, 64, 4)
 
-        self.conv2 = nn.Sequential(
+        self.conv_fuse = nn.Sequential(
+            nn.Conv2d(160, 96, kernel_size=3, stride=1, padding=1, bias=False),
+            nn.BatchNorm2d(96),
+            hswish(),
+        )
+        self.up = nn.Sequential(
+            upsampling(160, 96, 4),
+            nn.BatchNorm2d(96),
+            hswish(),
+        )
+        self.down = nn.Sequential(
             DP_Conv(64, 96, 3, hswish(), stride=2),
             nn.BatchNorm2d(96),
             hswish(),
@@ -730,8 +738,7 @@ class SCRNet(nn.Module):
         p4 = self.conv_fpn4(out4)
         p3 = self.up4(p4) + self.conv_fpn3(out3)
         p2 = self.up3(p3) + self.conv_fpn2(out2)
-        out5 = self.conv2(p2)
-        out = out5 + self.conv_fuse(out3)
+        out = self.down(p2) + self.conv_fuse(out3) + self.up(out4)
         out = self.conv3(out)
 
         # province = self.province(out)

@@ -48,7 +48,7 @@ parser.add_argument('--dist', action='store_true')  # 多GPU
 
 parser.add_argument('--root_dir', type=str, default='./')
 parser.add_argument('--data_dir', type=str, default='E:\CodeDownload\data')
-parser.add_argument('--log_name', type=str, default='scr_coco_ml_64x224_se_fpn_rectify')
+parser.add_argument('--log_name', type=str, default='scr_coco_ml_64x224_se_cfp_rectify')
 parser.add_argument('--pretrain_name', type=str, default='scr_pretrain')
 
 parser.add_argument('--dataset', type=str, default='coco', choices=['coco', 'yolo'])
