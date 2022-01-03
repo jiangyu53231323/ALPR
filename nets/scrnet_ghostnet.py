@@ -380,42 +380,42 @@ class SCRNet_ghost(nn.Module):
         self.conv1 = nn.Conv2d(3, 16, kernel_size=3, stride=1, padding=1, bias=False)
         self.bn1 = nn.BatchNorm2d(16)
         self.hs1 = hswish()
-        w = 1.1
+        w = 1.3
 
         block = GhostBottleneck
         self.bneck1 = nn.Sequential(
-            block(16, _c(16 * w), _c(16 * w), dw_kernel_size=3, stride=2, se_ratio=0),
-            block(_c(16 * w), _c(48 * w), _c(24 * w), dw_kernel_size=3, stride=1, se_ratio=0),
+            block(16, _c(16 * w), _c(16 * w), dw_kernel_size=3, stride=1, se_ratio=0),
+            block(_c(16 * w), _c(48 * w), _c(24 * w), dw_kernel_size=3, stride=2, se_ratio=0),
             block(_c(24 * w), _c(72 * w), _c(24 * w), dw_kernel_size=3, stride=1, se_ratio=0),
             # block(_c(24 * w), _c(72 * w), _c(24 * w), dw_kernel_size=3, stride=1, se_ratio=0),
         )
         self.bneck2 = nn.Sequential(
             block(_c(24 * w), _c(72 * w), _c(40 * w), dw_kernel_size=5, stride=2, se_ratio=0),
             block(_c(40 * w), _c(120 * w), _c(40 * w), dw_kernel_size=5, stride=1, se_ratio=0.25),
-            block(_c(40 * w), _c(240 * w), _c(80 * w), dw_kernel_size=3, stride=1, se_ratio=0.25),
-            block(_c(80 * w), _c(200 * w), _c(80 * w), dw_kernel_size=3, stride=1, se_ratio=0.25),
-            block(_c(80 * w), _c(200 * w), _c(80 * w), dw_kernel_size=3, stride=1, se_ratio=0.25),
+            # block(_c(40 * w), _c(240 * w), _c(80 * w), dw_kernel_size=3, stride=1, se_ratio=0.25),
+            # block(_c(80 * w), _c(200 * w), _c(80 * w), dw_kernel_size=3, stride=1, se_ratio=0.25),
+            # block(_c(80 * w), _c(200 * w), _c(80 * w), dw_kernel_size=3, stride=1, se_ratio=0.25),
         )
         self.bneck3 = nn.Sequential(
-            # block(_c(40 * w), _c(240 * w), _c(80 * w), dw_kernel_size=3, stride=2, se_ratio=0),
-            # block(_c(80 * w), _c(200 * w), _c(80 * w), dw_kernel_size=3, stride=1, se_ratio=0),
-            block(_c(80 * w), _c(184 * w), _c(80 * w), dw_kernel_size=3, stride=2, se_ratio=0),
+            block(_c(40 * w), _c(240 * w), _c(80 * w), dw_kernel_size=3, stride=2, se_ratio=0),
+            block(_c(80 * w), _c(200 * w), _c(80 * w), dw_kernel_size=3, stride=1, se_ratio=0),
+            block(_c(80 * w), _c(184 * w), _c(80 * w), dw_kernel_size=3, stride=1, se_ratio=0),
             block(_c(80 * w), _c(184 * w), _c(80 * w), dw_kernel_size=3, stride=1, se_ratio=0.25),
             block(_c(80 * w), _c(480 * w), _c(112 * w), dw_kernel_size=3, stride=1, se_ratio=0.25),
             block(_c(112 * w), _c(672 * w), _c(112 * w), dw_kernel_size=3, stride=1, se_ratio=0.25),
-            block(_c(112 * w), _c(672 * w), _c(112 * w), dw_kernel_size=3, stride=1, se_ratio=0.25),
-            block(_c(112 * w), _c(672 * w), _c(112 * w), dw_kernel_size=3, stride=1, se_ratio=0.25),
+            # block(_c(112 * w), _c(672 * w), _c(112 * w), dw_kernel_size=3, stride=1, se_ratio=0.25),
+            # block(_c(112 * w), _c(672 * w), _c(112 * w), dw_kernel_size=3, stride=1, se_ratio=0.25),
         )
         self.bneck4 = nn.Sequential(
             block(_c(112 * w), _c(672 * w), _c(160 * w), dw_kernel_size=5, stride=2, se_ratio=0.25),
             block(_c(160 * w), _c(960 * w), _c(160 * w), dw_kernel_size=5, stride=1, se_ratio=0.25),
             block(_c(160 * w), _c(960 * w), _c(160 * w), dw_kernel_size=5, stride=1, se_ratio=0.25),
-            # block(_c(160 * w), _c(960 * w), _c(160 * w), dw_kernel_size=5, stride=1, se_ratio=0.25),
-            # block(_c(160 * w), _c(960 * w), _c(160 * w), dw_kernel_size=5, stride=1, se_ratio=0.25),
+            block(_c(160 * w), _c(960 * w), _c(160 * w), dw_kernel_size=5, stride=1, se_ratio=0.25),
+            block(_c(160 * w), _c(960 * w), _c(160 * w), dw_kernel_size=5, stride=1, se_ratio=0.25),
         )
 
         # self.conv_fpn1 = nn.Conv2d(24, 64, kernel_size=1, stride=1, padding=0, bias=False)
-        self.conv_fpn2 = nn.Conv2d(_c(80 * w), 96, kernel_size=1, stride=1, padding=0, bias=False)
+        self.conv_fpn2 = nn.Conv2d(_c(40 * w), 96, kernel_size=1, stride=1, padding=0, bias=False)
         self.conv_fpn3 = nn.Conv2d(_c(112 * w), 128, kernel_size=1, stride=1, padding=0, bias=False)
         self.conv_fpn4 = nn.Conv2d(_c(160 * w), 256, kernel_size=1, stride=1, padding=0, bias=False)
 
@@ -429,18 +429,20 @@ class SCRNet_ghost(nn.Module):
         self.conv2 = nn.Sequential(
             DP_Conv(96, 96, 3, hswish(), stride=2),
             nn.BatchNorm2d(96),
-            hswish(),
+            nn.ReLU(inplace=True),
         )
 
         self.conv3 = nn.Sequential(
             DP_Conv(96, 64, 3, nn.ReLU(inplace=True), stride=1),
             nn.BatchNorm2d(64),
             nn.ReLU(inplace=True),
-
-            nn.Conv2d(64, 64, kernel_size=(8, 1), stride=1, padding=0, groups=64, bias=False),
-            nn.BatchNorm2d(64),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(64, 64, kernel_size=1, stride=1, padding=0, bias=False),
+            # nn.Conv2d(64, 64, kernel_size=(8, 1), stride=1, padding=0, groups=64, bias=False),
+            # nn.BatchNorm2d(64),
+            # nn.ReLU(inplace=True),
+            # nn.Conv2d(64, 64, kernel_size=1, stride=1, padding=0, bias=False),
+            # nn.BatchNorm2d(64),
+            # nn.ReLU(inplace=True),
+            nn.Conv2d(64, 64, kernel_size=(8, 1), stride=1, padding=0, bias=False),
             nn.BatchNorm2d(64),
             nn.ReLU(inplace=True),
         )

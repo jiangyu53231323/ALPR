@@ -48,7 +48,7 @@ parser.add_argument('--dist', action='store_true')  # 多GPU
 
 parser.add_argument('--root_dir', type=str, default='./')
 parser.add_argument('--data_dir', type=str, default='E:\CodeDownload\data')
-parser.add_argument('--log_name', type=str, default='scr_coco_ml_64x224_se_cfp_rectify')
+parser.add_argument('--log_name', type=str, default='scr_coco_ghostnet_64x224_se_cfp_rectify')
 parser.add_argument('--pretrain_name', type=str, default='scr_pretrain')
 
 parser.add_argument('--dataset', type=str, default='coco', choices=['coco', 'yolo'])
@@ -58,8 +58,8 @@ parser.add_argument('--img_size', type=int, default=(224, 64))  # 长×宽
 parser.add_argument('--split_ratio', type=float, default=1.0)
 
 parser.add_argument('--lr', type=float, default=1.25e-4)
-parser.add_argument('--lr_step', type=str, default='2,4,6')
-parser.add_argument('--batch_size', type=int, default=40)
+parser.add_argument('--lr_step', type=str, default='3,6,9')
+parser.add_argument('--batch_size', type=int, default=48)
 parser.add_argument('--num_epochs', type=int, default=20)
 
 parser.add_argument('--test_topk', type=int, default=10)
@@ -141,7 +141,7 @@ def main():
     # 网络模型建立
     print('Creating model...')
     if 'scrnet' in cfg.arch:
-        model = SCRNet()
+        model = SCRNet_ghost()
     else:
         raise NotImplementedError
 
