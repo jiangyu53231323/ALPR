@@ -662,13 +662,13 @@ class SCRNet(nn.Module):
             Block(3, 24, 72, 40, nn.ReLU(inplace=True), None, 2),
             Block(3, 40, 120, 40, nn.ReLU(inplace=True), SeModule, 1),
             Block(3, 40, 120, 40, nn.ReLU(inplace=True), SeModule, 1),
-            Block(3, 40, 240, 80, hswish(), SeModule, 1),
+            Block(3, 40, 200, 80, hswish(), SeModule, 1),
         )
         self.bneck3 = nn.Sequential(
             Block(3, 80, 240, 80, hswish(), None, 2),
-            Block(3, 80, 200, 80, hswish(), None, 1),
-            Block(3, 80, 184, 80, hswish(), None, 1),
-            Block(3, 80, 184, 80, hswish(), SeModule, 1),
+            # Block(3, 80, 200, 80, hswish(), None, 1),
+            # Block(3, 80, 184, 80, hswish(), None, 1),
+            # Block(3, 80, 184, 80, hswish(), SeModule, 1),
             Block(3, 80, 480, 112, hswish(), SeModule, 1),
             Block(3, 112, 672, 112, hswish(), SeModule, 1),
             Block(5, 112, 672, 160, hswish(), SeModule, 1),
@@ -688,27 +688,39 @@ class SCRNet(nn.Module):
         # self.deconv_layer3 = _make_deconv_layer(128, 64, 4)
         # self.deconv_layer2 = _make_deconv_layer(64, 32, 4)
 
-        self.up4 = upsampling(128, 96, 4)
-        self.up3 = upsampling(96, 64, 4)
-
+        self.up4 = nn.Sequential(
+            # upsampling(128, 96, 4),
+            nn.UpsamplingBilinear2d(scale_factor=2),
+            nn.Conv2d(128, 96, kernel_size=1, stride=1, padding=0, bias=False),
+            hswish(),
+        )
+        self.up3 = nn.Sequential(
+            # upsampling(96, 64, 4),
+            nn.UpsamplingBilinear2d(scale_factor=2),
+            nn.Conv2d(96, 64, kernel_size=1, stride=1, padding=0, bias=False),
+            hswish(),
+        )
         self.conv_fuse = nn.Sequential(
-            nn.Conv2d(160, 96, kernel_size=3, stride=1, padding=1, bias=False),
-            nn.BatchNorm2d(96),
+            # nn.Conv2d(160, 96, kernel_size=3, stride=1, padding=1, bias=False),
+            DP_Conv(160, 96, 3, hswish(), stride=1),
+            # nn.BatchNorm2d(96),
             hswish(),
         )
         self.up = nn.Sequential(
-            upsampling(160, 96, 4),
-            nn.BatchNorm2d(96),
+            # upsampling(160, 96, 4),
+            # nn.BatchNorm2d(96),
+            nn.UpsamplingBilinear2d(scale_factor=2),
+            nn.Conv2d(160, 96, kernel_size=1, stride=1, padding=0, bias=False),
             hswish(),
         )
         self.down = nn.Sequential(
             DP_Conv(64, 96, 3, hswish(), stride=2),
-            nn.BatchNorm2d(96),
+            # nn.BatchNorm2d(96),
             hswish(),
         )
         self.conv3 = nn.Sequential(
             DP_Conv(96, 64, 3, hswish(), stride=1),
-            nn.BatchNorm2d(64),
+            # nn.BatchNorm2d(64),
             hswish(),
             # nn.Conv2d(96, 96, kernel_size=(8, 1), stride=1, padding=0, groups=96, bias=False),
             # nn.BatchNorm2d(96),
@@ -729,8 +741,8 @@ class SCRNet(nn.Module):
         # self.ctc_ocr = CTC_orc(64)
 
     def forward(self, x):
-        out = self.hs1(self.bn1(self.conv1(x)))  # out:64,192  out:64,224
-        out1 = self.bneck1(out)  # out:32,96  out:32,112
+        x = self.hs1(self.bn1(self.conv1(x)))  # out:64,192  out:64,224
+        out1 = self.bneck1(x)  # out:32,96  out:32,112
         out2 = self.bneck2(out1)  # out:16,48  out:16,56
         out3 = self.bneck3(out2)  # out:8,24  out:8,28
         out4 = self.bneck4(out3)  # out:4,12  out:4,14

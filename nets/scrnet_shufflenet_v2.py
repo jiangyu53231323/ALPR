@@ -266,16 +266,17 @@ def test():
     # print(y[0][0].size())
     print(y.size())
 
-    flops, params = profile(net, inputs=(x,))
+    # flops, params = profile(net, inputs=(x,))
     stat(net, (3, 384, 256))
-    print('FLOPs = ' + str(flops / 1000 ** 3) + 'G')
-    print('Params = ' + str(params / 1000 ** 2) + 'M')
+    # print('FLOPs = ' + str(flops / 1000 ** 3) + 'G')
+    # print('Params = ' + str(params / 1000 ** 2) + 'M')
     total = sum([param.nelement() for param in net.parameters()])  # 计算总参数量
     print("Number of parameter: %.6f" % (total))  # 输出
 
     # flops = FlopCountAnalysis(net, x)
     # print('FLOPs = ' + str(flops.total() / 1000 ** 3) + 'G')
     # print(flop_count_table(flops))
+
 
 if __name__ == '__main__':
     test()
