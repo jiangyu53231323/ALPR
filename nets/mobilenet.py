@@ -155,20 +155,21 @@ def _make_deconv_layer(inplanes, filter, kernel):
     #         padding=1, dilation=1, bias=False)
     # fill_fc_weights(fc)
     # 转置卷积（逆卷积、反卷积）
-    up = nn.ConvTranspose2d(in_channels=planes,
-                            out_channels=planes,
-                            kernel_size=kernel,
-                            stride=2,
-                            padding=padding,
-                            output_padding=output_padding,
-                            bias=False)
-    fill_up_weights(up)
+    # up = nn.ConvTranspose2d(in_channels=planes,
+    #                         out_channels=planes,
+    #                         kernel_size=kernel,
+    #                         stride=2,
+    #                         padding=padding,
+    #                         output_padding=output_padding,
+    #                         bias=False)
+    up = nn.UpsamplingBilinear2d(scale_factor=2)
+    # fill_up_weights(up)
     layers.append(fc)
     layers.append(nn.BatchNorm2d(planes, momentum=BN_MOMENTUM))
     layers.append(hswish())
-    # 上采样，最终将特征图恢复到layer1层之前的大小
+    # 上采样，最终将特征图恢复到layer1层的大小
     layers.append(up)
-    layers.append(nn.BatchNorm2d(planes, momentum=BN_MOMENTUM))
+    # layers.append(nn.BatchNorm2d(planes, momentum=BN_MOMENTUM))
     layers.append(hswish())
     return nn.Sequential(*layers)
 
@@ -205,16 +206,16 @@ class MobileNetV3_Large(nn.Module):
             Block(3, 16, 16, 16, nn.ReLU(inplace=True), None, 1),
             Block(3, 16, 64, 24, nn.ReLU(inplace=True), None, 2),
             Block(3, 24, 72, 24, nn.ReLU(inplace=True), None, 1),
+            Block(5, 24, 72, 40, nn.ReLU(inplace=True), SeModule, 1),
         )
         self.bneck2 = nn.Sequential(
-            Block(5, 24, 72, 40, nn.ReLU(inplace=True), SeModule, 2),
+            Block(5, 40, 72, 40, nn.ReLU(inplace=True), SeModule, 2),
             Block(5, 40, 120, 40, nn.ReLU(inplace=True), SeModule, 1),
             Block(5, 40, 120, 40, nn.ReLU(inplace=True), SeModule, 1),
-
-            # Block(3, 40, 200, 80, hswish(), SeModule, 1),
+            Block(3, 40, 200, 80, hswish(), SeModule, 1),
         )
         self.bneck3 = nn.Sequential(
-            Block(3, 40, 240, 80, hswish(), None, 2),
+            Block(3, 80, 240, 80, hswish(), None, 2),
             Block(3, 80, 200, 80, hswish(), None, 1),
             Block(3, 80, 184, 80, hswish(), None, 1),
             Block(3, 80, 184, 80, hswish(), None, 1),
@@ -225,17 +226,56 @@ class MobileNetV3_Large(nn.Module):
         self.bneck4 = nn.Sequential(
             Block(5, 160, 672, 160, hswish(), SeModule, 2),
             Block(5, 160, 960, 160, hswish(), SeModule, 1),
-            # Block(5, 160, 960, 160, hswish(), SeModule, 1),
+            Block(5, 160, 960, 160, hswish(), SeModule, 1),
         )
 
-        self.conv_fpn2 = nn.Conv2d(40, 64, kernel_size=1, stride=1, padding=0, bias=False)
-        self.conv_fpn3 = nn.Conv2d(160, 128, kernel_size=1, stride=1, padding=0, bias=False)
-        self.conv_fpn4 = nn.Conv2d(160, 256, kernel_size=1, stride=1, padding=0, bias=False)
+        self.conv_fpn1 = nn.Sequential(
+            nn.Conv2d(40, 64, kernel_size=1, stride=1, padding=0, bias=False),
+            hswish(),
+        )
+        self.conv_fpn2 = nn.Sequential(
+            nn.Conv2d(80, 64, kernel_size=1, stride=1, padding=0, bias=False),
+            hswish(),
+        )
+        self.conv_fpn3 = nn.Sequential(
+            nn.Conv2d(160, 64, kernel_size=1, stride=1, padding=0, bias=False),
+            hswish(),
+        )
+        self.conv_fpn4 = nn.Sequential(
+            nn.Conv2d(160, 64, kernel_size=1, stride=1, padding=0, bias=False),
+            hswish(),
+        )
+        # self.conv_fpn2 = nn.Conv2d(80, 64, kernel_size=1, stride=1, padding=0, bias=False)
+        # self.conv_fpn3 = nn.Conv2d(160, 64, kernel_size=1, stride=1, padding=0, bias=False)
+        # self.conv_fpn4 = nn.Conv2d(160, 64, kernel_size=1, stride=1, padding=0, bias=False)
+        self.up4 = nn.Sequential(
+            # upsampling(96, 64, 4),
+            nn.UpsamplingBilinear2d(scale_factor=2),
+            # nn.Conv2d(64, 64, kernel_size=1, stride=1, padding=0, bias=False),
+            # hswish(),
+        )
+        self.up3 = nn.Sequential(
+            # upsampling(96, 64, 4),
+            nn.UpsamplingBilinear2d(scale_factor=2),
+            # nn.Conv2d(64, 64, kernel_size=1, stride=1, padding=0, bias=False),
+            # hswish(),
+        )
+        self.up2 = nn.Sequential(
+            # upsampling(96, 64, 4),
+            nn.UpsamplingBilinear2d(scale_factor=2),
+            # nn.Conv2d(64, 64, kernel_size=1, stride=1, padding=0, bias=False),
+            # hswish(),
+        )
         # used for deconv layers 可形变卷积
         # 将主干网最终输出channel控制在64
-        self.deconv_layer3 = _make_deconv_layer(256, 128, 4)
-        self.deconv_layer2 = _make_deconv_layer(128, 64, 4)
-        self.deconv_layer1 = _make_deconv_layer(64, 64, 4)
+        self.deconv_layer3 = _make_deconv_layer(160, 128, 4)
+        self.deconv_layer2 = _make_deconv_layer(128, 96, 4)
+        self.deconv_layer1 = _make_deconv_layer(96, 64, 4)
+
+        self.conv_fuse = nn.Sequential(
+            nn.Conv2d(128, 64, kernel_size=1, stride=1, padding=0, bias=False),
+            hswish(),
+        )
         # 融合特征图的逐点卷积
         # self.fuse3 = nn.Conv2d(256, 128, kernel_size=1, stride=1, padding=0, bias=False)
         # self.fuse2 = nn.Conv2d(128, 64, kernel_size=1, stride=1, padding=0, bias=False)
@@ -287,14 +327,20 @@ class MobileNetV3_Large(nn.Module):
         c3 = self.bneck3(c2)
         c4 = self.bneck4(c3)
 
-        p4 = self.conv_fpn4(c4)
+        p4_1 = self.conv_fpn4(c4)
+        p3_1 = self.conv_fpn3(c3) + self.up4(p4_1)
+        p2_1 = self.conv_fpn2(c2) + self.up3(p3_1)
+        p1_1 = self.conv_fpn1(c1) + self.up2(p2_1)
         # p3 = torch.cat([self.deconv_layer3(p4), self.conv_fpn3(c3)], dim=1)
         # p3 = self.fuse3(p3)
         # p2 = torch.cat([self.deconv_layer2(p3), self.conv_fpn2(c2)], dim=1)
         # p2 = self.fuse2(p2)
-        p3 = self.deconv_layer3(p4) + self.conv_fpn3(c3)
-        p2 = self.deconv_layer2(p3) + self.conv_fpn2(c2)
-        p1 = self.deconv_layer1(p2)
+        p3_2 = self.deconv_layer3(c4)
+        p2_2 = self.deconv_layer2(p3_2)
+        p1_2 = self.deconv_layer1(p2_2)
+
+        p1 = self.conv_fuse(torch.cat((p1_1, p1_2), 1))
+        # p1 = p1_1
 
         out = [[self.hmap(p1), self.cors(p1), self.w_h_(p1)]]
 
@@ -429,19 +475,19 @@ def test():
     # print(y[0][0].size())
     # print(y.size())
 
-    # flops, params = profile(net, inputs=(x,))
-    # stat(net, (3, 384, 256))
-    # print('FLOPs = ' + str(flops / 1000 ** 3) + 'G')
-    # print('Params = ' + str(params / 1000 ** 2) + 'M')
-    # total = sum([param.nelement() for param in net.parameters()])  # 计算总参数量
-    # print("Number of parameter: %.6f" % (total))  # 输出
+    flops, params = profile(net, inputs=(x,))
+    stat(net, (3, 384, 256))
+    print('FLOPs = ' + str(flops / 1000 ** 3) + 'G')
+    print('Params = ' + str(params / 1000 ** 2) + 'M')
+    total = sum([param.nelement() for param in net.parameters()])  # 计算总参数量
+    print("Number of parameter: %.6f" % (total))  # 输出
 
-    time_start = time.time()
-    for i in range(200):
-        x = torch.randn(1, 3, 384, 256)
-        y = net(x)
-    time_end = time.time()
-    print("time = " + str(time_end - time_start))
+    # time_start = time.time()
+    # for i in range(200):
+    #     x = torch.randn(1, 3, 384, 256)
+    #     y = net(x)
+    # time_end = time.time()
+    # print("time = " + str(time_end - time_start))
 
 
 if __name__ == '__main__':
