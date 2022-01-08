@@ -481,16 +481,16 @@ if __name__ == '__main__':
     y = model(input)
     # print(y[0][0].size())
 
-    flops, params = profile(model, inputs=(input,))
-    stat(model, (3, 384, 256))
-    print('FLOPs = ' + str(flops / 1000 ** 3) + 'G')
-    print('Params = ' + str(params / 1000 ** 2) + 'M')
-    total = sum([param.nelement() for param in model.parameters()])  # 计算总参数量
-    print("Number of parameter: %.6f" % (total))  # 输出
+    # flops, params = profile(model, inputs=(input,))
+    # stat(model, (3, 384, 256))
+    # print('FLOPs = ' + str(flops / 1000 ** 3) + 'G')
+    # print('Params = ' + str(params / 1000 ** 2) + 'M')
+    # total = sum([param.nelement() for param in model.parameters()])  # 计算总参数量
+    # print("Number of parameter: %.6f" % (total))  # 输出
 
-    # time_start = time.time()
-    # for i in range(200):
-    #     x = torch.randn(1, 3, 384, 256)
-    #     y = model(x)
-    # time_end = time.time()
-    # print("time = " + str(time_end - time_start))
+    time_start = time.time()
+    for i in range(200):
+        x = torch.randn(1, 3, 384, 256)
+        y = model(x)
+    time_end = time.time()
+    print("time = " + str(time_end - time_start))

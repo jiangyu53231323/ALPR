@@ -48,7 +48,7 @@ parser.add_argument('--img_size', type=int, default=384)
 parser.add_argument('--split_ratio', type=float, default=1.0)
 
 parser.add_argument('--lr', type=float, default=1.25e-4)
-parser.add_argument('--lr_step', type=str, default='2,4,6')
+parser.add_argument('--lr_step', type=str, default='3,6,9')
 parser.add_argument('--batch_size', type=int, default=24)
 parser.add_argument('--num_epochs', type=int, default=20)
 
