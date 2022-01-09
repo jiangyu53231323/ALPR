@@ -38,11 +38,11 @@ parser.add_argument('--dist', action='store_true')  # 多GPU
 
 parser.add_argument('--root_dir', type=str, default='./')
 parser.add_argument('--data_dir', type=str, default='E:\CodeDownload\data')
-parser.add_argument('--log_name', type=str, default='coco_mobilenet_large_384_fpn_centerness')
+parser.add_argument('--log_name', type=str, default='coco_ghostnet_1.3_384_fpn_centerness')
 parser.add_argument('--pretrain_name', type=str, default='pretrain')
 
 parser.add_argument('--dataset', type=str, default='coco', choices=['coco', 'yolo'])
-parser.add_argument('--arch', type=str, default='mobilenet')
+parser.add_argument('--arch', type=str, default='ghostnet')
 
 parser.add_argument('--img_size', type=int, default=384)
 parser.add_argument('--split_ratio', type=float, default=1.0)
@@ -143,7 +143,7 @@ def main():
     elif 'mobilenet' in cfg.arch:
         model = MobileNetV3_Large(num_classes=train_dataset.num_classes)
     elif 'ghostnet' in cfg.arch:
-        model = My_GhostNet(num_classes=1, w=1.1)
+        model = My_GhostNet(num_classes=1, w=1.3)
     else:
         raise NotImplementedError
 

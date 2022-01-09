@@ -153,14 +153,15 @@ def _make_deconv_layer(inplanes, filter, kernel):
     #         padding=1, dilation=1, bias=False)
     # fill_fc_weights(fc)
     # 转置卷积（逆卷积、反卷积）
-    up = nn.ConvTranspose2d(in_channels=planes,
-                            out_channels=planes,
-                            kernel_size=kernel,
-                            stride=2,
-                            padding=padding,
-                            output_padding=output_padding,
-                            bias=False)
-    fill_up_weights(up)
+    # up = nn.ConvTranspose2d(in_channels=planes,
+    #                         out_channels=planes,
+    #                         kernel_size=kernel,
+    #                         stride=2,
+    #                         padding=padding,
+    #                         output_padding=output_padding,
+    #                         bias=False)
+    up = nn.UpsamplingBilinear2d(scale_factor=2)
+    # fill_up_weights(up)
     layers.append(fc)
     layers.append(nn.BatchNorm2d(planes, momentum=BN_MOMENTUM))
     layers.append(hswish())
@@ -394,14 +395,25 @@ class My_GhostNet(nn.Module):
             block(_c(160 * w), _c(960 * w), _c(160 * w), dw_kernel_size=5, stride=1, se_ratio=0.25),
         )
 
-        self.conv_fpn2 = nn.Conv2d(_c(40 * w), 64, kernel_size=1, stride=1, padding=0, bias=False)
-        self.conv_fpn3 = nn.Conv2d(_c(112 * w), 128, kernel_size=1, stride=1, padding=0, bias=False)
-        self.conv_fpn4 = nn.Conv2d(_c(160 * w), 256, kernel_size=1, stride=1, padding=0, bias=False)
-
+        # self.conv_fpn2 = nn.Conv2d(_c(40 * w), 64, kernel_size=1, stride=1, padding=0, bias=False)
+        # self.conv_fpn3 = nn.Conv2d(_c(112 * w), 96, kernel_size=1, stride=1, padding=0, bias=False)
+        # self.conv_fpn4 = nn.Conv2d(_c(160 * w), 128, kernel_size=1, stride=1, padding=0, bias=False)
+        self.conv_fpn2 = nn.Sequential(
+            nn.Conv2d(_c(40 * w), 64, kernel_size=1, stride=1, padding=0, bias=False),
+            hswish(),
+        )
+        self.conv_fpn3 = nn.Sequential(
+            nn.Conv2d(_c(112 * w), 96, kernel_size=1, stride=1, padding=0, bias=False),
+            hswish(),
+        )
+        self.conv_fpn4 = nn.Sequential(
+            nn.Conv2d(_c(160 * w), 128, kernel_size=1, stride=1, padding=0, bias=False),
+            hswish(),
+        )
         # used for deconv layers 可形变卷积
         # 将主干网最终输出channel控制在64
-        self.deconv_layer3 = _make_deconv_layer(256, 128, 4)
-        self.deconv_layer2 = _make_deconv_layer(128, 64, 4)
+        self.deconv_layer3 = _make_deconv_layer(128, 96, 4)
+        self.deconv_layer2 = _make_deconv_layer(96, 64, 4)
         self.deconv_layer1 = _make_deconv_layer(64, 64, 4)
 
         self.hmap = nn.Sequential(nn.Conv2d(64, 64, kernel_size=3, padding=1, bias=True),
@@ -474,7 +486,7 @@ def ghostnet(**kwargs):
 
 if __name__ == '__main__':
     input = torch.randn(1, 3, 384, 256)
-    model = My_GhostNet(num_classes=1, w=1.1)
+    model = My_GhostNet(num_classes=1, w=1.3)
     model.eval()
     # print(model)
 
