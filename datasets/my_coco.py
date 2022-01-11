@@ -265,67 +265,79 @@ class COCO_eval(COCO):
             lp_labels = np.array(lp_labels)
 
         out = {}
-        for scale in self.test_scales:
-            new_height = int(height * scale)
-            new_width = int(width * scale)
-            new_bboxes = bboxes * scale
-            new_segmentation = segmentation * scale
+        scale = 1
+        # for scale in self.test_scales:
+        new_height = int(height * scale)
+        new_width = int(width * scale)
+        new_bboxes = bboxes * scale
+        new_segmentation = segmentation * scale
+        if self.fix_size:
+            img_height, img_width = self.img_size['h'], self.img_size['w']
+            # center = np.array([new_width / 2., new_height / 2.], dtype=np.float32)
+            # scaled_size = max(height, width) * 1.0
+            # scaled_size = np.array([scaled_size, scaled_size], dtype=np.float32)
+        else:
+            img_height = (new_height | self.padding) + 1
+            img_width = (new_width | self.padding) + 1
+            # center = np.array([new_width // 2, new_height // 2], dtype=np.float32)
+            # scaled_size = np.array([img_width, img_height], dtype=np.float32)
+        resize_out = resize_and_padding(img_origin, max(img_height, img_width), new_bboxes, new_segmentation)
+        img = resize_out['new_image']
+        img_scale = resize_out['scale']
+        new_bboxes = resize_out['bboxes']
+        new_segmentation = resize_out['segmentation']
+        padding_h = resize_out['padding_h']
+        padding_w = resize_out['padding_w']
+        # img, img_scale, new_bboxes, new_segmentation = resize_and_padding(image, max(img_height, img_width),
+        #                                                                   new_bboxes, new_segmentation)
+        img_height = img.shape[0]
+        img_width = img.shape[1]
+        # trans_img = get_affine_transform(center, scaled_size, 0, [img_width, img_height])
+        # img = cv2.warpAffine(img, trans_img, (img_width, img_height))
 
-            if self.fix_size:
-                img_height, img_width = self.img_size['h'], self.img_size['w']
-                # center = np.array([new_width / 2., new_height / 2.], dtype=np.float32)
-                # scaled_size = max(height, width) * 1.0
-                # scaled_size = np.array([scaled_size, scaled_size], dtype=np.float32)
-            else:
-                img_height = (new_height | self.padding) + 1
-                img_width = (new_width | self.padding) + 1
-                # center = np.array([new_width // 2, new_height // 2], dtype=np.float32)
-                # scaled_size = np.array([img_width, img_height], dtype=np.float32)
-
-            resize_out = resize_and_padding(img_origin, max(img_height, img_width), new_bboxes, new_segmentation)
-            img = resize_out['new_image']
-            img_scale = resize_out['scale']
-            new_bboxes = resize_out['bboxes']
-            new_segmentation = resize_out['segmentation']
-            padding_h = resize_out['padding_h']
-            padding_w = resize_out['padding_w']
-            # img, img_scale, new_bboxes, new_segmentation = resize_and_padding(image, max(img_height, img_width),
-            #                                                                   new_bboxes, new_segmentation)
-            img_height = img.shape[0]
-            img_width = img.shape[1]
-            # trans_img = get_affine_transform(center, scaled_size, 0, [img_width, img_height])
-            # img = cv2.warpAffine(img, trans_img, (img_width, img_height))
-
-            img = img.astype(np.float32) / 255.
-            img -= self.mean
-            img /= self.std
-            img = img.transpose(2, 0, 1)[None, :, :, :]  # from [H, W, C] to [1, C, H, W]
-
-            img_origin = img_origin.astype(np.float32) / 255.
-            img_origin -= self.mean
-            img_origin /= self.std
-            # img_origin = img_origin.transpose(2, 0, 1)[None, :, :, :]  # from [H, W, C] to [1, C, H, W]
-
-            if self.test_flip:  # 翻转图片
-                img = np.concatenate((img, img[:, :, :, ::-1].copy()), axis=0)
-
-            out[scale] = {'image': img,
-                          'image_origin': img_origin,
-                          'fmap_h': img_height // self.down_ratio,
-                          'fmap_w': img_width // self.down_ratio,
-                          'bboxes': new_bboxes,
-                          'segmentation': new_segmentation,
-                          'image_scale': img_scale,
-                          'padding_w': padding_w,
-                          'padding_h': padding_h,
-                          'lp_labels': lp_labels,
-                          'labels_size': labels_size,
-                          'labels_class': labels_class,
-                          'labels': labels,
-                          # 'file_name': file_name,
-                          }
-
-        return img_id, out
+        img = img.astype(np.float32) / 255.
+        img -= self.mean
+        img /= self.std
+        img = img.transpose(2, 0, 1)#[None, :, :, :]  # from [H, W, C] to [1, C, H, W]
+        img_origin = img_origin.astype(np.float32) / 255.
+        img_origin -= self.mean
+        img_origin /= self.std
+        # img_origin = img_origin.transpose(2, 0, 1)[None, :, :, :]  # from [H, W, C] to [1, C, H, W]
+        if self.test_flip:  # 翻转图片
+            # img = np.concatenate((img, img[:, :, :, ::-1].copy()), axis=0)
+            img = np.concatenate((img, img[:, :, ::-1].copy()), axis=0)
+        # out[scale] = {'image': img,
+        #               'image_origin': img_origin,
+        #               'fmap_h': img_height // self.down_ratio,
+        #               'fmap_w': img_width // self.down_ratio,
+        #               'bboxes': new_bboxes,
+        #               'segmentation': new_segmentation,
+        #               'image_scale': img_scale,
+        #               'padding_w': padding_w,
+        #               'padding_h': padding_h,
+        #               'lp_labels': lp_labels,
+        #               'labels_size': labels_size,
+        #               'labels_class': labels_class,
+        #               'labels': labels,
+        #               # 'file_name': file_name,
+        #               }
+        # return img_id, out
+        return {'img_id': img_id,
+                'image': img,
+                'image_origin': img_origin,
+                'fmap_h': img_height // self.down_ratio,
+                'fmap_w': img_width // self.down_ratio,
+                'bboxes': new_bboxes,
+                'segmentation': new_segmentation,
+                'image_scale': img_scale,
+                'padding_w': padding_w,
+                'padding_h': padding_h,
+                'lp_labels': lp_labels,
+                'labels_size': labels_size,
+                'labels_class': labels_class,
+                'labels': labels,
+                # 'file_name': file_name,
+                }
 
     def convert_eval_format(self, all_bboxes):
         # all_bboxes: num_samples x num_classes x 5
@@ -391,11 +403,11 @@ class COCO_eval(COCO):
 
         return coco_eval.stats
 
-    @staticmethod
-    def collate_fn(batch):
-        out = []
-        for img_id, sample in batch:
-            # 将image从array转换为tensor
-            out.append((img_id, {s: {k: torch.from_numpy(sample[s][k]).float()
-            if k == 'image' else np.array(sample[s][k]) for k in sample[s]} for s in sample}))
-        return out
+    # @staticmethod
+    # def collate_fn(batch):
+    #     out = []
+    #     for img_id, sample in batch:
+    #         # 将image从array转换为tensor
+    #         out.append((img_id, {s: {k: torch.from_numpy(sample[s][k]).float()
+    #         if k == 'image' else np.array(sample[s][k]) for k in sample[s]} for s in sample}))
+    #     return out

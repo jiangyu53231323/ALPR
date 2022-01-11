@@ -36,7 +36,7 @@ def _topk(scores, K=40):
     return topk_score, topk_inds, topk_clses, topk_ys, topk_xs
 
 
-def ctdet_decode(hmap, cors, bbs, padding, down_ratio=4, image_scale=1, K=100):
+def ctdet_decode(hmap, cors, bbs, padding, image_scale, down_ratio=4, K=100):
     '''
     hmap 提取中心点位置为 xs,ys
     cors 保存的是角点，是相对于中心点的坐标
@@ -64,6 +64,8 @@ def ctdet_decode(hmap, cors, bbs, padding, down_ratio=4, image_scale=1, K=100):
     padding是在my_image.py中resize_and_padding()后对图片的填充值，填充后会影响corner和bboxes的坐标
     image_scale是resize后图片与原始图片的比值，利用coco api计算iou是与原始图片的标注进行计算，而不是resize后的图片
     '''
+    padding[0] = padding[0].unsqueeze(-1).unsqueeze(-1).repeat(1,K,1)
+    padding[1] = padding[1].unsqueeze(-1).unsqueeze(-1).repeat(1, K, 1)
     x1 = (xs.view(batch, K, 1) - cors[:, :, 0:1] * 1) * down_ratio - (padding[0] // 2)
     y1 = (ys.view(batch, K, 1) - cors[:, :, 1:2] * 1) * down_ratio - (padding[1] // 2)
     x2 = (xs.view(batch, K, 1) - cors[:, :, 2:3] * 1) * down_ratio - (padding[0] // 2)
@@ -73,6 +75,8 @@ def ctdet_decode(hmap, cors, bbs, padding, down_ratio=4, image_scale=1, K=100):
     x4 = (xs.view(batch, K, 1) + cors[:, :, 6:7] * 1) * down_ratio - (padding[0] // 2)
     y4 = (ys.view(batch, K, 1) - cors[:, :, 7:8] * 1) * down_ratio - (padding[1] // 2)
     corners = torch.cat([x1, y1, x2, y2, x3, y3, x4, y4], dim=2)
+    image_scale = image_scale.unsqueeze(-1).unsqueeze(-1)
+    # image_scale = image_scale.repeat(1,K,8)
     corners = corners * image_scale
     # bboxes坐标
     bx1 = (xs.view(batch, K, 1) - bbs[:, :, 0:1] * 1) * down_ratio - (padding[0] // 2)

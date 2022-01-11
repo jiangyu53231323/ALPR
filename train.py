@@ -55,8 +55,8 @@ parser.add_argument('--num_epochs', type=int, default=20)
 parser.add_argument('--test_topk', type=int, default=10)
 
 parser.add_argument('--log_interval', type=int, default=1000)
-parser.add_argument('--val_interval', type=int, default=2)
-parser.add_argument('--num_workers', type=int, default=4)
+parser.add_argument('--val_interval', type=int, default=1)
+parser.add_argument('--num_workers', type=int, default=1)
 
 cfg = parser.parse_args()
 
@@ -129,11 +129,11 @@ def main():
     val_dataset = dataset_eval(cfg.data_dir, 'val', test_scales=[1.], test_flip=False)
     # collate_fn 将一个list的sample组成一个mini-batch的函数
     val_loader = torch.utils.data.DataLoader(val_dataset,
-                                             batch_size=1,
+                                             batch_size=16,
                                              shuffle=False,
-                                             num_workers=1,
-                                             pin_memory=True,
-                                             collate_fn=val_dataset.collate_fn)
+                                             num_workers=4,
+                                             pin_memory=True, )
+    # collate_fn=val_dataset.collate_fn)
     # 网络模型建立
     print('Creating model...')
     if 'hourglass' in cfg.arch:
@@ -219,41 +219,45 @@ def main():
         results = {}
         with torch.no_grad():  # 不跟踪梯度，减少内存占用
             for inputs in val_loader:
-                img_id, inputs = inputs[0]
+                # img_id, inputs = inputs[0]
+                img_id = inputs['img_id'].detach().cpu().numpy()
+                input = inputs['image'].to(cfg.device)
+                image_scale = inputs['image_scale'].to(cfg.device)
+                padding_w = inputs['padding_w'].to(cfg.device)
+                padding_h = inputs['padding_h'].to(cfg.device)
                 detections = []
-                # 不同的图片缩放比例
-                for scale in inputs:  # 多个尺度如0.5,,0.75,1,1.25等
-                    inputs[scale]['image'] = inputs[scale]['image'].to(cfg.device)
-                    image_scale = torch.from_numpy(inputs[scale]['image_scale'])
-                    padding_w = torch.from_numpy(inputs[scale]['padding_w'])
-                    padding_h = torch.from_numpy(inputs[scale]['padding_h'])
-                    output = model(inputs[scale]['image'])[-1]
-                    # 对检测结果进行后处理， *output表示列表元素作为多个元素传入
-                    dets = ctdet_decode(*output, [padding_w, padding_h], image_scale=image_scale, K=cfg.test_topk)
-                    dets = dets.detach().cpu().numpy().reshape(1, -1, dets.shape[2])[0]
+                scale = 1
 
-                    top_preds = {}
-                    # 合并同类
-                    clses = dets[:, -1]
-                    for j in range(val_dataset.num_classes):
-                        inds = (clses == j)
-                        top_preds[j + 1] = dets[inds, 0:13].astype(np.float32)  # 提取bboxes和scores
-                        top_preds[j + 1][:, :12] /= scale  # 恢复缩放
+                output = model(input)[-1]
+                # 对检测结果进行后处理， *output表示列表元素作为多个元素传入
+                dets = ctdet_decode(*output, [padding_w, padding_h], image_scale=image_scale, K=cfg.test_topk)
+                dets = dets.detach().cpu().numpy()  # .reshape(1, -1, dets.shape[2])[0]
 
-                    detections.append(top_preds)
+                for b in range(dets.shape[0]):
+                    # top_preds = {}
+                    # # 合并同类
+                    # clses = dets[b, :, -1]
+                    # for j in range(val_dataset.num_classes):
+                    #     inds = (clses == j)
+                    #     top_preds[j + 1] = dets[b, inds, 0:13].astype(np.float32)  # 提取bboxes和scores
+                    #     top_preds[j + 1][:, :12] /= scale  # 恢复缩放
+                    #
+                    # detections.append(top_preds)
+                    #
+                    # corner_bbox_scores = {j: np.concatenate([d[j] for d in detections], axis=0)
+                    #                       for j in range(1, val_dataset.num_classes + 1)}
+                    # # hstack为横向上的拼接，等效与沿第二轴的串联
+                    # scores = np.hstack([corner_bbox_scores[j][:, 12] for j in range(1, val_dataset.num_classes + 1)])
+                    # if len(scores) > max_per_image:
+                    #     kth = len(scores) - max_per_image
+                    #     thresh = np.partition(scores, kth)[kth]
+                    #     for j in range(1, val_dataset.num_classes + 1):
+                    #         keep_inds = (corner_bbox_scores[j][:, 4] >= thresh)
+                    #         corner_bbox_scores[j] = corner_bbox_scores[j][keep_inds]
 
-                corner_bbox_scores = {j: np.concatenate([d[j] for d in detections], axis=0)
-                                   for j in range(1, val_dataset.num_classes + 1)}
-                # hstack为横向上的拼接，等效与沿第二轴的串联
-                scores = np.hstack([corner_bbox_scores[j][:, 12] for j in range(1, val_dataset.num_classes + 1)])
-                if len(scores) > max_per_image:
-                    kth = len(scores) - max_per_image
-                    thresh = np.partition(scores, kth)[kth]
-                    for j in range(1, val_dataset.num_classes + 1):
-                        keep_inds = (corner_bbox_scores[j][:, 4] >= thresh)
-                        corner_bbox_scores[j] = corner_bbox_scores[j][keep_inds]
+                    corner_bbox_scores = {j: dets[b, :, :13] for j in range(1, val_dataset.num_classes + 1)}
 
-                results[img_id] = corner_bbox_scores
+                    results[img_id[b]] = corner_bbox_scores
 
         eval_results = val_dataset.run_eval(results, save_dir=cfg.ckpt_dir)
         print(eval_results)
@@ -262,7 +266,7 @@ def main():
     print('Starting training...')
     for epoch in range(1, cfg.num_epochs + 1):
         train_sampler.set_epoch(epoch)
-        train(epoch)
+        # train(epoch)
         if cfg.val_interval > 0 and epoch % cfg.val_interval == 0:
             val_map(epoch)
         print(saver.save(model.module.state_dict(), 'checkpoint'))
