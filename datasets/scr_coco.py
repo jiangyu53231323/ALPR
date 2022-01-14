@@ -40,15 +40,17 @@ class SCR_COCO(Dataset):
         img_id = self.images[index]
         img_name = self.coco.loadImgs(ids=[img_id])[0]['file_name']
         img_path = get_image_path(self.data_dir, self.coco.loadImgs(ids=[img_id])[0]['file_name'])
-        # 根据image id 获取 annotion id
-        ann_ids = self.coco.getAnnIds(imgIds=[img_id])
-        annotations = self.coco.loadAnns(ids=ann_ids)
 
-        bboxes = np.array([anno['bbox'] for anno in annotations], dtype=np.float32).squeeze()  # 降维
-        segmentation = np.array([anno['segmentation'] for anno in annotations], dtype=np.float32).squeeze()  # 降维
-        # lpd_result = self.lpd_results[img_name]
-        # bboxes = np.array(lpd_result['bbox'], dtype=np.float32)
-        # segmentation = np.array(lpd_result['segmentation'], dtype=np.float32)
+        # 根据image id 获取 annotion id
+        # ann_ids = self.coco.getAnnIds(imgIds=[img_id])
+        # annotations = self.coco.loadAnns(ids=ann_ids)
+        # bboxes = np.array([anno['bbox'] for anno in annotations], dtype=np.float32).squeeze()  # 降维
+        # segmentation = np.array([anno['segmentation'] for anno in annotations], dtype=np.float32).squeeze()  # 降维
+
+        # 使用lpd的检测结果进行训练
+        lpd_result = self.lpd_results[img_name]
+        bboxes = np.array(lpd_result['bbox'], dtype=np.float32)
+        segmentation = np.array(lpd_result['segmentation'], dtype=np.float32)
 
         if len(bboxes) == 0:
             bboxes = np.array([[0., 0., 0., 0.]], dtype=np.float32)
@@ -73,7 +75,7 @@ class SCR_COCO(Dataset):
 
         # image = image[int(bboxes[1]):int(bboxes[3]) + 1, int(bboxes[0]):int(bboxes[2]) + 1, :]
         # image = cv2.resize(image, self.img_size)
-        image = resize_rectify(image, bboxes, segmentation, is_rectify=True)
+        image = resize_rectify(image, bboxes, segmentation, is_rectify=False)
 
         image = np.transpose(image, (2, 0, 1))
         image = image.astype('float32') / 255.
