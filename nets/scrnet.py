@@ -679,7 +679,7 @@ class SCRNet(nn.Module):
             Block(5, 160, 960, 160, hswish(), SeModule, 1),
         )
 
-        # self.conv_fpn1 = nn.Conv2d(24, 64, kernel_size=1, stride=1, padding=0, bias=False)
+        self.conv_fpn1 = nn.Conv2d(24, 64, kernel_size=1, stride=1, padding=0, bias=False)
         self.conv_fpn2 = nn.Conv2d(80, 64, kernel_size=1, stride=1, padding=0, bias=False)
         self.conv_fpn3 = nn.Conv2d(160, 96, kernel_size=1, stride=1, padding=0, bias=False)
         self.conv_fpn4 = nn.Conv2d(160, 128, kernel_size=1, stride=1, padding=0, bias=False)
@@ -700,19 +700,19 @@ class SCRNet(nn.Module):
             nn.Conv2d(96, 64, kernel_size=1, stride=1, padding=0, bias=False),
             hswish(),
         )
-        self.conv_fuse = nn.Sequential(
-            # nn.Conv2d(160, 96, kernel_size=3, stride=1, padding=1, bias=False),
-            DP_Conv(160, 96, 3, hswish(), stride=1),
-            # nn.BatchNorm2d(96),
-            hswish(),
-        )
-        self.up = nn.Sequential(
-            # upsampling(160, 96, 4),
-            # nn.BatchNorm2d(96),
-            nn.UpsamplingBilinear2d(scale_factor=2),
-            nn.Conv2d(160, 96, kernel_size=1, stride=1, padding=0, bias=False),
-            hswish(),
-        )
+        # self.conv_fuse = nn.Sequential(
+        #     # nn.Conv2d(160, 96, kernel_size=3, stride=1, padding=1, bias=False),
+        #     DP_Conv(160, 96, 3, hswish(), stride=1),
+        #     # nn.BatchNorm2d(96),
+        #     hswish(),
+        # )
+        # self.up = nn.Sequential(
+        #     # upsampling(160, 96, 4),
+        #     # nn.BatchNorm2d(96),
+        #     nn.UpsamplingBilinear2d(scale_factor=2),
+        #     nn.Conv2d(160, 96, kernel_size=1, stride=1, padding=0, bias=False),
+        #     hswish(),
+        # )
         self.down = nn.Sequential(
             DP_Conv(64, 96, 3, hswish(), stride=2),
             # nn.BatchNorm2d(96),
@@ -750,7 +750,7 @@ class SCRNet(nn.Module):
         p4 = self.conv_fpn4(out4)
         p3 = self.up4(p4) + self.conv_fpn3(out3)
         p2 = self.up3(p3) + self.conv_fpn2(out2)
-        out = self.down(p2) + self.conv_fuse(out3) + self.up(out4)
+        out = self.down(p2)# + self.conv_fuse(out3) + self.up(out4)
         out = self.conv3(out)
 
         # province = self.province(out)
