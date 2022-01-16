@@ -62,8 +62,8 @@ class COCO(data.Dataset):
         if split == 'train':
             self.annot_path = os.path.join(self.data_dir, 'annotations', 'ccpd_%s2020.json' % split)
         else:
-            # self.annot_path = os.path.join(self.data_dir, 'annotations', 'ccpd_%s2020.json' % split)
-            self.annot_path = os.path.join(self.data_dir, 'annotations', 'ccpd_all2020.json')
+            self.annot_path = os.path.join(self.data_dir, 'annotations', 'ccpd_%s2020.json' % split)
+            # self.annot_path = os.path.join(self.data_dir, 'annotations', 'ccpd_all2020.json')
         # self.annot_path = os.path.join('./', 'ccpd_%s2020.json' % split)
 
         self.max_objs = 1  # 最大检测目标数

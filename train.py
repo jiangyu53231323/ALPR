@@ -104,22 +104,22 @@ def main():
     train_dataset = dataset(cfg.data_dir, 'train', split_ratio=cfg.split_ratio, img_size=cfg.img_size)
     # 样本分发器，num_replicas为worker总数，rank为当前worker编号
     # 调用 train_dataset.__len__()
-    # train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset,
-    #                                                                 num_replicas=num_gpus,
-    #                                                                 rank=cfg.local_rank)
+    train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset,
+                                                                    num_replicas=num_gpus,
+                                                                    rank=cfg.local_rank)
     # shuffle打乱数据集
     # sampler自定义从数据集中取样本的策略，如果指定则shuffle必须为False
     # pin_memory为True，data loader将会在返回它们之前，将tensors拷贝到CUDA中的固定内存（CUDA pinned memory）中
     # drop_last为True，在最后一个不满batch_size的batch将会丢弃
-    # train_loader = torch.utils.data.DataLoader(train_dataset,
-    #                                            batch_size=cfg.batch_size // num_gpus
-    #                                            if cfg.dist else cfg.batch_size,
-    #                                            shuffle=not cfg.dist,
-    #                                            num_workers=cfg.num_workers,
-    #                                            pin_memory=True,
-    #                                            drop_last=True,
-    #                                            sampler=train_sampler if cfg.dist else None
-    #                                            )
+    train_loader = torch.utils.data.DataLoader(train_dataset,
+                                               batch_size=cfg.batch_size // num_gpus
+                                               if cfg.dist else cfg.batch_size,
+                                               shuffle=not cfg.dist,
+                                               num_workers=cfg.num_workers,
+                                               pin_memory=True,
+                                               drop_last=True,
+                                               sampler=train_sampler if cfg.dist else None
+                                               )
     # train_loader = MultiEpochsDataLoader(train_dataset,
     #                                      batch_size=cfg.batch_size // num_gpus if cfg.dist else cfg.batch_size,
     #                                      shuffle=not cfg.dist, num_workers=cfg.num_workers,
@@ -130,7 +130,7 @@ def main():
     val_dataset = dataset_eval(cfg.data_dir, 'val', test_scales=[1.], test_flip=False)
     # collate_fn 将一个list的sample组成一个mini-batch的函数
     val_loader = torch.utils.data.DataLoader(val_dataset,
-                                             batch_size=32,
+                                             batch_size=24,
                                              shuffle=False,
                                              num_workers=6,
                                              pin_memory=True, )
@@ -166,50 +166,55 @@ def main():
     optimizer = torch.optim.Adam(model.parameters(), cfg.lr)
     lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, cfg.lr_step, gamma=0.1)
 
-    # def train(epoch):
-    #     print('\n Epoch: %d' % epoch)
-    #     model.train()
-    #     print(' learning rate: %e' % optimizer.param_groups[0]['lr'])
-    #     # perf_counter() 返回性能计数器的值（以分秒为单位），即具有最高可用分辨率的时钟，以测量短持续时间。
-    #     # 返回值的参考点未定义，因此只有连续调用结果之间的差异有效
-    #     tic = time.perf_counter()
-    #     for batch_idx, batch in enumerate(train_loader):
-    #         for k in batch:
-    #             if k != 'meta':
-    #                 # 数据送入GPU
-    #                 batch[k] = batch[k].to(device=cfg.device, non_blocking=True)
-    #
-    #         outputs = model(batch['image'])
-    #
-    #         '''------------------------------------------------------------'''
-    #         # 得到 heat map, reg, wh 三个变量
-    #         hmap, corner, w_h_ = zip(*outputs)
-    #         # 分别计算 loss
-    #         hmap_loss = _heatmap_loss(hmap, batch['heat_map'])
-    #         corner_loss = _corner_loss(corner, batch['corner_map'], batch['reg_mask'], batch['ind_masks'])
-    #         # w_h_loss = _w_h_loss(w_h_, batch['bboxes_map'], batch['reg_mask'])
-    #         b_loss = bboxes_loss(w_h_, batch['bboxes_map'], batch['reg_mask'], batch['ind_masks'])
-    #         # 进行 loss 加权，得到最终 loss
-    #         # loss = hmap_loss + 0.1 * corner_loss + 0.2 * w_h_loss
-    #         loss = hmap_loss + 5 * b_loss + 0.1 * corner_loss
-    #
-    #         optimizer.zero_grad()
-    #         loss.backward()
-    #         optimizer.step()
-    #
-    #         if batch_idx % cfg.log_interval == 0:
-    #             duration = time.perf_counter() - tic
-    #             tic = time.perf_counter()
-    #             print('[%d/%d-%d/%d] ' % (epoch, cfg.num_epochs, batch_idx, len(train_loader)) +
-    #                   ' hmap_loss= %.5f corner_loss= %.5f w_h_loss= %.5f' %
-    #                   (hmap_loss.item(), corner_loss.item(), b_loss.item()) +
-    #                   ' (%d samples/sec)' % (cfg.batch_size * cfg.log_interval / duration))
-    #             step = len(train_loader) * epoch + batch_idx
-    #             summary_writer.add_scalar('hmap_loss', hmap_loss.item(), step)
-    #             summary_writer.add_scalar('corner_loss', corner_loss.item(), step)
-    #             summary_writer.add_scalar('w_h_loss', b_loss.item(), step)
-    #
-    #     return
+    def train(epoch):
+        print('\n Epoch: %d' % epoch)
+        model.train()
+        print(' learning rate: %e' % optimizer.param_groups[0]['lr'])
+        # perf_counter() 返回性能计数器的值（以分秒为单位），即具有最高可用分辨率的时钟，以测量短持续时间。
+        # 返回值的参考点未定义，因此只有连续调用结果之间的差异有效
+        tic = time.perf_counter()
+        for batch_idx, batch in enumerate(train_loader):
+            for k in batch:
+                if k != 'meta':
+                    # 数据送入GPU
+                    batch[k] = batch[k].to(device=cfg.device, non_blocking=True)
+
+            outputs = model(batch['image'])
+
+            '''------------------------------------------------------------'''
+            # 得到 heat map, reg, wh 三个变量
+            hmap, corner, w_h_ = zip(*outputs)
+            # hmap, w_h_ = zip(*outputs)
+            # 分别计算 loss
+            hmap_loss = _heatmap_loss(hmap, batch['heat_map'])
+            corner_loss = _corner_loss(corner, batch['corner_map'], batch['reg_mask'], batch['ind_masks'])
+            # w_h_loss = _w_h_loss(w_h_, batch['bboxes_map'], batch['reg_mask'])
+            b_loss = bboxes_loss(w_h_, batch['bboxes_map'], batch['reg_mask'], batch['ind_masks'])
+            # 进行 loss 加权，得到最终 loss
+            # loss = hmap_loss + 0.1 * corner_loss + 0.2 * w_h_loss
+            loss = hmap_loss + 5 * b_loss + 0.1 * corner_loss
+
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+
+            if batch_idx % cfg.log_interval == 0:
+                duration = time.perf_counter() - tic
+                tic = time.perf_counter()
+                print('[%d/%d-%d/%d] ' % (epoch, cfg.num_epochs, batch_idx, len(train_loader)) +
+                      ' hmap_loss= %.5f corner_loss= %.5f w_h_loss= %.5f' %
+                      (hmap_loss.item(), corner_loss.item(), b_loss.item()) +
+                      ' (%d samples/sec)' % (cfg.batch_size * cfg.log_interval / duration))
+                # print('[%d/%d-%d/%d] ' % (epoch, cfg.num_epochs, batch_idx, len(train_loader)) +
+                #       ' hmap_loss= %.5f  w_h_loss= %.5f' %
+                #       (hmap_loss.item(), b_loss.item()) +
+                #       ' (%d samples/sec)' % (cfg.batch_size * cfg.log_interval / duration))
+                step = len(train_loader) * epoch + batch_idx
+                summary_writer.add_scalar('hmap_loss', hmap_loss.item(), step)
+                summary_writer.add_scalar('corner_loss', corner_loss.item(), step)
+                summary_writer.add_scalar('w_h_loss', b_loss.item(), step)
+
+        return
 
     def val_map(epoch):
         print('\n Val@Epoch: %d' % epoch)
@@ -266,8 +271,8 @@ def main():
 
     print('Starting training...')
     for epoch in range(1, cfg.num_epochs + 1):
-        # train_sampler.set_epoch(epoch)
-        # train(epoch)
+        train_sampler.set_epoch(epoch)
+        train(epoch)
         if cfg.val_interval > 0 and epoch % cfg.val_interval == 0:
             val_map(epoch)
         now_time = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M')
