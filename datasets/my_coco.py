@@ -77,7 +77,7 @@ class COCO(data.Dataset):
         self.rand_scales = np.arange(0.6, 1.4, 0.1)  # [0.6,0.7,0.8,...,1.2,1.3]
         self.gaussian_iou = 0.7  #
 
-        print('==> initializing CCPD 2019 %s data.' % split)
+        print('==> initializing CCPD 2020 %s data.' % split)
         self.coco = coco.COCO(self.annot_path)
         self.images = self.coco.getImgIds()
 
@@ -157,11 +157,11 @@ class COCO(data.Dataset):
         image /= self.std
         image = image.transpose(2, 0, 1)  # from [H, W, C] to [C, H, W]
 
-        fmap_h = image.shape[1]
-        fmap_w = image.shape[2]
+        img_h = image.shape[1]
+        img_w = image.shape[2]
         # heatmap
-        heat_map = np.zeros((self.num_classes, math.ceil(fmap_h / self.down_ratio),
-                             math.ceil(fmap_w / self.down_ratio)), dtype=np.float32)
+        heat_map = np.zeros((self.num_classes, math.ceil(img_h / self.down_ratio),
+                             math.ceil(img_w / self.down_ratio)), dtype=np.float32)
         '''
         corner是四个角点的标注，按照【max_objs,h,w,8】格式，则网络输出与之无法对应，因为网络输出的格式为【c,8,h,w】，
         这时max_objs就是一个多余的维度，所以需要去掉。
@@ -169,9 +169,9 @@ class COCO(data.Dataset):
         这样做的好处是如果物体间有重合的地方，则能够保留较小目标的全部特征。
         '''
         # 角点坐标
-        corner_map = np.zeros((8, math.ceil(fmap_h / self.down_ratio), math.ceil(fmap_w / self.down_ratio)),
+        corner_map = np.zeros((8, math.ceil(img_h / self.down_ratio), math.ceil(img_w / self.down_ratio)),
                               dtype=np.float32)
-        bboxes_map = np.zeros((4, math.ceil(fmap_h / self.down_ratio), math.ceil(fmap_w / self.down_ratio)),
+        bboxes_map = np.zeros((4, math.ceil(img_h / self.down_ratio), math.ceil(img_w / self.down_ratio)),
                               dtype=np.float32)
 
         # 目标中心点在特征图上的序号，行优先排列
@@ -195,6 +195,7 @@ class COCO(data.Dataset):
 
         # 设置角点和边界框loss计算的的mask
         reg_mask = copy.deepcopy(heat_map)
+        reg_mask[reg_mask != 1] = 0  # 无旋转高斯核和中心度损失
         # reg_mask[reg_mask != 0] = 1
         # corner_mask = np.zeros((8, math.ceil(fmap_h / self.down_ratio), math.ceil(fmap_w / self.down_ratio)),
         #                        dtype=np.float32)

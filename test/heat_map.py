@@ -176,9 +176,11 @@ sigma_x = 0.54 * l_side / 24
 sigma_y = 0.54 * s_side / 24
 # 旋转矩阵
 rotation_matrix = np.array([[math.cos(angle), -(math.sin(angle))], [math.sin(angle), math.cos(angle)]])
+rotation_matrix = np.array([[1, 0], [0, 1]])
 # rotation_matrix_I = np.linalg.inv(rotation_matrix)
 # 缩放矩阵,对角线元素为长短轴长度×比例
 scaling_matrix = np.array([[0.54 * l_side / 4, 0], [0, 0.54 * s_side / 4]])
+scaling_matrix = np.array([[0.54 * s_side, 0], [0, 0.54 * s_side]])
 # 协方差矩阵
 sigma = np.dot(rotation_matrix, scaling_matrix)
 sigma = np.linalg.inv(np.dot(sigma, sigma.T))

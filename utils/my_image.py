@@ -304,9 +304,11 @@ def draw_heatmap_gaussian(heatmap, seg, scale, down_ratio):
     top, bottom = math.floor(min(y1, y4)), math.ceil(max(y2, y3))
     x, y = np.ogrid[left - center_x:right - center_x + 1, top - center_y:bottom - center_y + 1]
     # 旋转矩阵
-    rotation_matrix = np.array([[math.cos(angle), -(math.sin(angle))], [math.sin(angle), math.cos(angle)]])
+    # rotation_matrix = np.array([[math.cos(angle), -(math.sin(angle))], [math.sin(angle), math.cos(angle)]])
+    rotation_matrix = np.array([[1, 0], [0, 1]])  # 无旋转高斯核
     # 缩放矩阵,对角线元素为长短轴长度×比例
-    scaling_matrix = np.array([[scale * l_side, 0], [0, scale * s_side]])
+    # scaling_matrix = np.array([[scale * l_side, 0], [0, scale * s_side]])
+    scaling_matrix = np.array([[scale * s_side, 0], [0, scale * s_side]])  # 无旋转高斯核
     # 协方差矩阵
     sigma = np.dot(rotation_matrix, scaling_matrix)
     sigma = np.linalg.inv(np.dot(sigma, sigma.T))
@@ -334,7 +336,8 @@ def draw_heatmap_gaussian(heatmap, seg, scale, down_ratio):
         masked_gaussian = masked_gaussian[0:masked_heatmap.shape[0], 0:masked_heatmap.shape[1]]  # 数据对齐
         np.maximum(masked_heatmap, masked_gaussian * 1, out=masked_heatmap)
         # np.maximum(mask, masked_gaussian * 1, out=mask)
-    masked_gaussian[masked_gaussian != 0] = 1
+    # masked_gaussian[masked_gaussian != 0] = 1
+    masked_gaussian[masked_gaussian != 1] = 0  # 无旋转高斯核
     masked_gaussian = np.expand_dims(masked_gaussian, axis=0)
     return masked_gaussian, center
 
