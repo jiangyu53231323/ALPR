@@ -60,9 +60,9 @@ class COCO(data.Dataset):
         self.data_dir = os.path.join(data_dir, 'CCPD2019')
         self.img_dir = os.path.join(self.data_dir, 'ccpd')
         if split == 'train':
-            self.annot_path = os.path.join(self.data_dir, 'annotations', 'ccpd_%s2020.json' % split)
+            self.annot_path = os.path.join(self.data_dir, 'annotations', 'ccpd_base_%s2020.json' % split)
         else:
-            self.annot_path = os.path.join(self.data_dir, 'annotations', 'ccpd_blur_%s2020.json' % split)
+            self.annot_path = os.path.join(self.data_dir, 'annotations', 'ccpd_%s2020.json' % split)
             # self.annot_path = os.path.join(self.data_dir, 'annotations', 'ccpd_all2020.json')
         # self.annot_path = os.path.join('./', 'ccpd_%s2020.json' % split)
 

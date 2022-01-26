@@ -39,7 +39,7 @@ parser.add_argument('--dist', action='store_true')  # 多GPU
 
 parser.add_argument('--root_dir', type=str, default='./')
 parser.add_argument('--data_dir', type=str, default='E:\CodeDownload\data')
-parser.add_argument('--log_name', type=str, default='coco_ghostnet_1.3_384_dfp_centerness')
+parser.add_argument('--log_name', type=str, default='coco_ghostnet_1.3_384_dfp_centerness_base')
 parser.add_argument('--pretrain_name', type=str, default='pretrain')
 
 parser.add_argument('--dataset', type=str, default='coco', choices=['coco', 'yolo'])
@@ -51,7 +51,7 @@ parser.add_argument('--split_ratio', type=float, default=1.0)
 parser.add_argument('--lr', type=float, default=1.25e-4)
 parser.add_argument('--lr_step', type=str, default='3,6,9')
 parser.add_argument('--batch_size', type=int, default=24)
-parser.add_argument('--num_epochs', type=int, default=1)
+parser.add_argument('--num_epochs', type=int, default=20)
 
 parser.add_argument('--test_topk', type=int, default=1)
 

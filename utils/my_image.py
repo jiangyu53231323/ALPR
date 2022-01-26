@@ -336,8 +336,8 @@ def draw_heatmap_gaussian(heatmap, seg, scale, down_ratio):
         masked_gaussian = masked_gaussian[0:masked_heatmap.shape[0], 0:masked_heatmap.shape[1]]  # 数据对齐
         np.maximum(masked_heatmap, masked_gaussian * 1, out=masked_heatmap)
         # np.maximum(mask, masked_gaussian * 1, out=mask)
-    # masked_gaussian[masked_gaussian != 0] = 1
-    masked_gaussian[masked_gaussian != 1] = 0  # 无旋转高斯核
+    masked_gaussian[masked_gaussian != 0] = 1
+    # masked_gaussian[masked_gaussian != 1] = 0  # 无旋转高斯核
     masked_gaussian = np.expand_dims(masked_gaussian, axis=0)
     return masked_gaussian, center
 
