@@ -195,16 +195,7 @@ class COCO(data.Dataset):
 
         # 设置角点和边界框loss计算的的mask
         reg_mask = copy.deepcopy(heat_map)
-        reg_mask[reg_mask != 1] = 0  # 无旋转高斯核和中心度损失
-        # reg_mask[reg_mask != 0] = 1
-        # corner_mask = np.zeros((8, math.ceil(fmap_h / self.down_ratio), math.ceil(fmap_w / self.down_ratio)),
-        #                        dtype=np.float32)
-        # bboxes_mask = np.zeros((4, math.ceil(fmap_h / self.down_ratio), math.ceil(fmap_w / self.down_ratio)),
-        #                        dtype=np.float32)
-        # for ind in range(8):
-        #     corner_mask[ind] = reg_mask[0]
-        # for ind in range(4):
-        #     bboxes_mask[ind] = reg_mask[0]
+        # reg_mask[reg_mask != 1] = 0  # 无旋转高斯核和中心度损失
 
         return {'image': image, 'heat_map': heat_map, 'corner_map': corner_map, 'bboxes_map': bboxes_map, 'inds': inds,
                 'ind_masks': ind_masks, 'scale': scale, 'img_id': img_id, 'reg_mask': reg_mask, 'bboxes': bboxes,
