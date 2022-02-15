@@ -1,6 +1,10 @@
+import PIL
+from PIL import Image
+
 import albumentations as A
 import cv2
-from matplotlib import pyplot as plt
+# from matplotlib import pyplot as plt
+import matplotlib.pyplot as plt
 
 BOX_COLOR = (255, 0, 0)  # Red
 TEXT_COLOR = (255, 255, 255)  # White
@@ -63,7 +67,7 @@ def main():
         keypoint_params=A.KeypointParams(format='xy'))
 
     image = cv2.imread(
-        "F:\\code_download\\CCPD2019\\ccpd_base\\0205399904214-90_93-254&457_494&528-494&532_256&537_260&457_498&452-0_0_21_32_3_32_29-125-23.jpg")
+        "E:\\CodeDownload\\data\\CCPD2019\ccpd\\0205399904214-90_93-254&457_494&528-494&532_256&537_260&457_498&452-0_0_21_32_3_32_29-125-23.jpg")
     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
     bboxes = [[254, 457, 497, 528]]
     keypoints = [(494, 532),
