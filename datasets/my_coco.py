@@ -60,9 +60,9 @@ class COCO(data.Dataset):
         self.data_dir = os.path.join(data_dir, 'CCPD2019')
         self.img_dir = os.path.join(self.data_dir, 'ccpd')
         if split == 'train':
-            self.annot_path = os.path.join(self.data_dir, 'annotations', 'ccpd_base_%s2020.json' % split)
-        else:
             self.annot_path = os.path.join(self.data_dir, 'annotations', 'ccpd_%s2020.json' % split)
+        else:
+            self.annot_path = os.path.join(self.data_dir, 'annotations', 'ccpd_db_%s2020.json' % split)
             # self.annot_path = os.path.join(self.data_dir, 'annotations', 'ccpd_all2020.json')
         # self.annot_path = os.path.join('./', 'ccpd_%s2020.json' % split)
 
@@ -375,23 +375,23 @@ class COCO_eval(COCO):
         coco_eval.summarize()
 
         # 绘制pr曲线图
-        pr_array1 = coco_eval.eval['precision'][4, :, 0, 0, 2]
-        pr_array2 = coco_eval.eval['precision'][6, :, 0, 0, 2]
-        pr_array3 = coco_eval.eval['precision'][8, :, 0, 0, 2]
-        x = np.arange(0.0, 1.01, 0.01)
-        plt.xlabel('recall')
-        plt.ylabel('precision')
-        plt.xlim(0, 1.0)
-        plt.ylim(0, 1.01)
-        plt.grid(True)
-        plt.plot(x, pr_array1, 'b-', label='IoU=0.7')
-        plt.plot(x, pr_array2, 'c-', label='IoU=0.8')
-        plt.plot(x, pr_array3, 'y-', label='IoU=0.9')
-        plt.legend(loc="lower left")
-        if save_dir is not None:
-            pr_graph = os.path.join(save_dir, "pr_graph.png")
-            plt.savefig(pr_graph)
-        plt.show()
+        # pr_array1 = coco_eval.eval['precision'][4, :, 0, 0, 2]
+        # pr_array2 = coco_eval.eval['precision'][6, :, 0, 0, 2]
+        # pr_array3 = coco_eval.eval['precision'][8, :, 0, 0, 2]
+        # x = np.arange(0.0, 1.01, 0.01)
+        # plt.xlabel('recall')
+        # plt.ylabel('precision')
+        # plt.xlim(0, 1.0)
+        # plt.ylim(0, 1.01)
+        # plt.grid(True)
+        # plt.plot(x, pr_array1, 'b-', label='IoU=0.7')
+        # plt.plot(x, pr_array2, 'c-', label='IoU=0.8')
+        # plt.plot(x, pr_array3, 'y-', label='IoU=0.9')
+        # plt.legend(loc="lower left")
+        # if save_dir is not None:
+        #     pr_graph = os.path.join(save_dir, "pr_graph.png")
+        #     plt.savefig(pr_graph)
+        # plt.show()
 
         return coco_eval.stats
 

@@ -412,28 +412,28 @@ class My_GhostNet(nn.Module):
         )
         # used for deconv layers 可形变卷积
         # 将主干网最终输出channel控制在64
-        self.deconv_layer3 = _make_deconv_layer(128, 96, 4)
-        self.deconv_layer2 = _make_deconv_layer(96, 64, 4)
-        self.deconv_layer1 = _make_deconv_layer(64, 64, 4)
+        # self.deconv_layer3 = _make_deconv_layer(128, 96, 4)
+        # self.deconv_layer2 = _make_deconv_layer(96, 64, 4)
+        # self.deconv_layer1 = _make_deconv_layer(64, 64, 4)
 
-        # self.up4 = nn.Sequential(
-        #     # upsampling(128, 96, 4),
-        #     nn.UpsamplingBilinear2d(scale_factor=2),
-        #     nn.Conv2d(128, 96, kernel_size=1, stride=1, padding=0, bias=False),
-        #     hswish(),
-        # )
-        # self.up3 = nn.Sequential(
-        #     # upsampling(96, 64, 4),
-        #     nn.UpsamplingBilinear2d(scale_factor=2),
-        #     nn.Conv2d(96, 64, kernel_size=1, stride=1, padding=0, bias=False),
-        #     hswish(),
-        # )
-        # self.up2 = nn.Sequential(
-        #     # upsampling(96, 64, 4),
-        #     nn.UpsamplingBilinear2d(scale_factor=2),
-        #     nn.Conv2d(64, 64, kernel_size=1, stride=1, padding=0, bias=False),
-        #     hswish(),
-        # )
+        self.up4 = nn.Sequential(
+            # upsampling(128, 96, 4),
+            nn.UpsamplingBilinear2d(scale_factor=2),
+            nn.Conv2d(128, 96, kernel_size=1, stride=1, padding=0, bias=False),
+            hswish(),
+        )
+        self.up3 = nn.Sequential(
+            # upsampling(96, 64, 4),
+            nn.UpsamplingBilinear2d(scale_factor=2),
+            nn.Conv2d(96, 64, kernel_size=1, stride=1, padding=0, bias=False),
+            hswish(),
+        )
+        self.up2 = nn.Sequential(
+            # upsampling(96, 64, 4),
+            nn.UpsamplingBilinear2d(scale_factor=2),
+            nn.Conv2d(64, 64, kernel_size=1, stride=1, padding=0, bias=False),
+            hswish(),
+        )
 
         self.hmap = nn.Sequential(nn.Conv2d(64, 64, kernel_size=3, padding=1, bias=True),
                                   # hswish(),
@@ -461,13 +461,13 @@ class My_GhostNet(nn.Module):
         x5 = self.block5(x4)
 
         p5 = self.conv_fpn4(x5)
-        p4 = self.deconv_layer3(p5) + self.conv_fpn3(x4)
-        p3 = self.deconv_layer2(p4) + self.conv_fpn2(x3)
-        p2 = self.deconv_layer1(p3)
+        # p4 = self.deconv_layer3(p5) + self.conv_fpn3(x4)
+        # p3 = self.deconv_layer2(p4) + self.conv_fpn2(x3)
+        # p2 = self.deconv_layer1(p3)
 
-        # p4 = self.up4(p5) + self.conv_fpn3(x4)
-        # p3 = self.up3(p4) + self.conv_fpn2(x3)
-        # p2 = self.up2(p3)
+        p4 = self.up4(p5) + self.conv_fpn3(x4)
+        p3 = self.up3(p4) + self.conv_fpn2(x3)
+        p2 = self.up2(p3)
 
         out = [[self.hmap(p2), self.cors(p2), self.w_h_(p2)]]
         # out = [[self.hmap(p2), self.w_h_(p2)]]

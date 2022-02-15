@@ -48,7 +48,7 @@ parser.add_argument('--dist', action='store_true')  # 多GPU
 
 parser.add_argument('--root_dir', type=str, default='./')
 parser.add_argument('--data_dir', type=str, default='E:\CodeDownload\data')
-parser.add_argument('--log_name', type=str, default='scr_coco_ml_64x224_se_rectify')
+parser.add_argument('--log_name', type=str, default='scr_coco_ml_64x224_se_cfp_rectify_test')
 parser.add_argument('--pretrain_name', type=str, default='scr_pretrain')
 
 parser.add_argument('--dataset', type=str, default='coco', choices=['coco', 'yolo'])
@@ -60,7 +60,7 @@ parser.add_argument('--split_ratio', type=float, default=1.0)
 parser.add_argument('--lr', type=float, default=1.25e-4)
 parser.add_argument('--lr_step', type=str, default='3,6,9')
 parser.add_argument('--batch_size', type=int, default=48)
-parser.add_argument('--num_epochs', type=int, default=20)
+parser.add_argument('--num_epochs', type=int, default=1)
 
 parser.add_argument('--test_topk', type=int, default=10)
 
@@ -110,25 +110,25 @@ def main():
     print('Setting up data...')
 
     dataset = SCR_COCO if cfg.dataset == 'coco' else YOLO
-    train_dataset = dataset(cfg.data_dir, cfg.img_size, 'train')
+    # train_dataset = dataset(cfg.data_dir, cfg.img_size, 'train')
     # 样本分发器，num_replicas为worker总数，rank为当前worker编号
     # 调用 train_dataset.__len__()
-    train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset,
-                                                                    num_replicas=num_gpus,
-                                                                    rank=cfg.local_rank)
+    # train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset,
+    #                                                                 num_replicas=num_gpus,
+    #                                                                 rank=cfg.local_rank)
     # shuffle打乱数据集
     # sampler自定义从数据集中取样本的策略，如果指定则shuffle必须为False
     # pin_memory为True，data loader将会在返回它们之前，将tensors拷贝到CUDA中的固定内存（CUDA pinned memory）中
     # drop_last为True，在最后一个不满batch_size的batch将会丢弃
-    train_loader = torch.utils.data.DataLoader(train_dataset,
-                                               batch_size=cfg.batch_size // num_gpus
-                                               if cfg.dist else cfg.batch_size,
-                                               shuffle=not cfg.dist,
-                                               num_workers=cfg.num_workers,
-                                               pin_memory=True,
-                                               drop_last=True,
-                                               sampler=train_sampler if cfg.dist else None
-                                               )
+    # train_loader = torch.utils.data.DataLoader(train_dataset,
+    #                                            batch_size=cfg.batch_size // num_gpus
+    #                                            if cfg.dist else cfg.batch_size,
+    #                                            shuffle=not cfg.dist,
+    #                                            num_workers=cfg.num_workers,
+    #                                            pin_memory=True,
+    #                                            drop_last=True,
+    #                                            sampler=train_sampler if cfg.dist else None
+    #                                            )
     dataset_eval = SCR_COCO_eval if cfg.dataset == 'coco' else YOLO_eval
     val_dataset = dataset_eval(cfg.data_dir, cfg.img_size, 'val')
     # collate_fn 将一个list的sample组成一个mini-batch的函数
@@ -166,46 +166,46 @@ def main():
     # 损失函数  label_smoothing为标签平滑的平滑量，推荐为0.1
     crossentropyloss = nn.CrossEntropyLoss()
 
-    def train(epoch):
-        print('\n Epoch: %d' % epoch)
-        model.train()
-        print(' learning rate: %e' % optimizer.param_groups[0]['lr'])
-        # perf_counter() 返回性能计数器的值（以分秒为单位），即具有最高可用分辨率的时钟，以测量短持续时间。
-        # 返回值的参考点未定义，因此只有连续调用结果之间的差异有效
-        tic = time.perf_counter()
-        for batch_idx, targets in enumerate(train_loader):
-            # for k in batch:
-            #     # if k == 'labels':
-            #     #     batch[k] = torch.LongTensor(batch[k]).to(cfg.device)
-            #     if k == 'image':
-            #         # 数据送入GPU
-            #         batch[k] = batch[k].to(device=cfg.device, non_blocking=True)
-
-            outputs = model(targets['image'].to(device=cfg.device, non_blocking=True))
-
-            # nn.CrossEntropyLoss()中自带softmax-log 操作
-            # province_loss = cross_entropy_loss(outputs[0], targets['labels'][:, 0].to(cfg.device).long(),
-            #                                    label_smooth=0.05)
-            # ctc_loss = scr_ctc_loss(outputs, targets['labels'], targets['labels_size'], cfg)
-            # loss = 2 * province_loss + ctc_loss
-
-            loss = unify_loss(outputs, targets, cfg)
-
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
-
-            if batch_idx % cfg.log_interval == 0:
-                duration = time.perf_counter() - tic
-                tic = time.perf_counter()
-                print('[%d/%d-%d/%d] ' % (epoch, cfg.num_epochs, batch_idx, len(train_loader)) +
-                      ' loss= %.5f ' % (loss.item(),) + ' (%d samples/sec)' % (
-                              cfg.batch_size * cfg.log_interval / duration))
-
-                step = len(train_loader) * epoch + batch_idx
-                summary_writer.add_scalar('loss', loss.item(), step)
-
-        return
+    # def train(epoch):
+    #     print('\n Epoch: %d' % epoch)
+    #     model.train()
+    #     print(' learning rate: %e' % optimizer.param_groups[0]['lr'])
+    #     # perf_counter() 返回性能计数器的值（以分秒为单位），即具有最高可用分辨率的时钟，以测量短持续时间。
+    #     # 返回值的参考点未定义，因此只有连续调用结果之间的差异有效
+    #     tic = time.perf_counter()
+    #     for batch_idx, targets in enumerate(train_loader):
+    #         # for k in batch:
+    #         #     # if k == 'labels':
+    #         #     #     batch[k] = torch.LongTensor(batch[k]).to(cfg.device)
+    #         #     if k == 'image':
+    #         #         # 数据送入GPU
+    #         #         batch[k] = batch[k].to(device=cfg.device, non_blocking=True)
+    #
+    #         outputs = model(targets['image'].to(device=cfg.device, non_blocking=True))
+    #
+    #         # nn.CrossEntropyLoss()中自带softmax-log 操作
+    #         # province_loss = cross_entropy_loss(outputs[0], targets['labels'][:, 0].to(cfg.device).long(),
+    #         #                                    label_smooth=0.05)
+    #         # ctc_loss = scr_ctc_loss(outputs, targets['labels'], targets['labels_size'], cfg)
+    #         # loss = 2 * province_loss + ctc_loss
+    #
+    #         loss = unify_loss(outputs, targets, cfg)
+    #
+    #         optimizer.zero_grad()
+    #         loss.backward()
+    #         optimizer.step()
+    #
+    #         if batch_idx % cfg.log_interval == 0:
+    #             duration = time.perf_counter() - tic
+    #             tic = time.perf_counter()
+    #             print('[%d/%d-%d/%d] ' % (epoch, cfg.num_epochs, batch_idx, len(train_loader)) +
+    #                   ' loss= %.5f ' % (loss.item(),) + ' (%d samples/sec)' % (
+    #                           cfg.batch_size * cfg.log_interval / duration))
+    #
+    #             step = len(train_loader) * epoch + batch_idx
+    #             summary_writer.add_scalar('loss', loss.item(), step)
+    #
+    #     return
 
     def val(epoch):
         print('\n Val@Epoch: %d' % epoch)
@@ -241,9 +241,9 @@ def main():
                 num_c5 += char_decoder(outputs, inputs, 5)
                 num_c6 += char_decoder(outputs, inputs, 6)
                 num_c7 += char_decoder(outputs, inputs, 7)
-                n_c8, n_c8_all = c8_decoder(outputs, inputs)
-                num_c8 += n_c8
-                num_c8_all += n_c8_all
+                # n_c8, n_c8_all = c8_decoder(outputs, inputs)
+                # num_c8 += n_c8
+                # num_c8_all += n_c8_all
 
                 # num += ctc_decoder(outputs, inputs)
 
@@ -258,13 +258,13 @@ def main():
         print('accuracy c5 = %f' % (float(num_c5) / float(amount)))
         print('accuracy c6 = %f' % (float(num_c6) / float(amount)))
         print('accuracy c7 = %f' % (float(num_c7) / float(amount)))
-        print('accuracy c8 = %f' % (float(num_c8) / float(num_c8_all)))
+        # print('accuracy c8 = %f' % (float(num_c8) / float(num_c8_all)))
         summary_writer.add_scalar('val_mAP/mAP', accuracy, epoch)
 
     print('Starting training...')
     for epoch in range(1, cfg.num_epochs + 1):
-        train_sampler.set_epoch(epoch)
-        train(epoch)
+        # train_sampler.set_epoch(epoch)
+        # train(epoch)
         if cfg.val_interval > 0 and epoch % cfg.val_interval == 0:
             val(epoch)
         now_time = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M')

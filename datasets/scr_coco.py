@@ -19,7 +19,7 @@ class SCR_COCO(Dataset):
         self.data_dir = os.path.join(data_dir, 'CCPD2019')
         self.img_dir = os.path.join(self.data_dir, 'ccpd')
         # self.annot_path = os.path.join(self.data_dir, 'annotations', 'ccpd_green_val2020.json' )
-        self.annot_path = os.path.join(self.data_dir, 'annotations', 'ccpd_%s2020.json' % split)
+        self.annot_path = os.path.join(self.data_dir, 'annotations', 'ccpd_blur_%s2020.json' % split)
         self.img_size = img_size
 
         # lpd检测结果文件路径
@@ -75,6 +75,7 @@ class SCR_COCO(Dataset):
 
         # image = image[int(bboxes[1]):int(bboxes[3]) + 1, int(bboxes[0]):int(bboxes[2]) + 1, :]
         # image = cv2.resize(image, self.img_size)
+        # 是否进行校正，is_rectify
         image = resize_rectify(image, bboxes, segmentation, is_rectify=True)
 
         image = np.transpose(image, (2, 0, 1))
