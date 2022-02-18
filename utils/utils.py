@@ -198,7 +198,7 @@ def count_flops(model, input_size=384):
         h.remove()
 
 
-def scr_decoder(pre, target):
+def scr_decoder(pre, target, right_result_log, false_result_log, img_name):
     for k in target:
         target[k] = target[k].to('cpu')
     cls = pre[0].to('cpu')
@@ -216,8 +216,11 @@ def scr_decoder(pre, target):
                     isTure = 0
                     break
             if isTure == 0:
+                false_result_log(str(img_name[b])+' : '+str(pre[1][b]))
                 continue
+            # 所有字符都正确
             else:
+                right_result_log(str(img_name[b]) + ' : ' + str(pre[1][b]))
                 num = num + 1
         # green车牌检测
         else:
@@ -230,8 +233,10 @@ def scr_decoder(pre, target):
                     isTure = 0
                     break
             if isTure == 0:
+                false_result_log(str(img_name[b]) + ' : ' + str(pre[1][b]))
                 continue
             else:
+                right_result_log(str(img_name[b]) + ' : ' + str(pre[1][b]))
                 num = num + 1
     return num
 

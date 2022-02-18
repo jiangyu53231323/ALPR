@@ -1,5 +1,3 @@
-import PIL
-from PIL import Image
 
 import albumentations as A
 import cv2

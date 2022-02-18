@@ -81,7 +81,8 @@ class SCR_COCO(Dataset):
         image = np.transpose(image, (2, 0, 1))
         image = image.astype('float32') / 255.
 
-        return {'image': image, 'labels': labels, 'labels_size': labels_size, 'labels_class': labels_class}
+        return {'image': image, 'labels': labels, 'labels_size': labels_size, 'labels_class': labels_class,
+                'img_name': img_name}
 
     @staticmethod
     def collate_fn(batch):
