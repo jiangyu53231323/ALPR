@@ -198,12 +198,15 @@ def count_flops(model, input_size=384):
         h.remove()
 
 
-def scr_decoder(pre, target, right_result_log, false_result_log, img_name):
+def scr_decoder(pre, target, img_name):
     for k in target:
-        target[k] = target[k].to('cpu')
+        if k != "img_name":
+            target[k] = target[k].to('cpu')
     cls = pre[0].to('cpu')
     topk_score, topk_ind = torch.topk(cls, 1)
     num = 0
+    right_result = {}
+    false_result = {}
     for b in range(pre[0].size()[0]):
         # blue车牌检测
         if topk_ind[b] == 0:
@@ -216,11 +219,13 @@ def scr_decoder(pre, target, right_result_log, false_result_log, img_name):
                     isTure = 0
                     break
             if isTure == 0:
-                false_result_log(str(img_name[b])+' : '+str(pre[1][b]))
+                false_pre = pre[1][b].topk(1)[1].squeeze().to('cpu').numpy().tolist()
+                false_result[str(img_name[b])] = false_pre
                 continue
             # 所有字符都正确
             else:
-                right_result_log(str(img_name[b]) + ' : ' + str(pre[1][b]))
+                right_pre = pre[1][b].topk(1)[1].squeeze().to('cpu').numpy().tolist()
+                right_result[str(img_name[b])] = right_pre
                 num = num + 1
         # green车牌检测
         else:
@@ -233,11 +238,20 @@ def scr_decoder(pre, target, right_result_log, false_result_log, img_name):
                     isTure = 0
                     break
             if isTure == 0:
-                false_result_log(str(img_name[b]) + ' : ' + str(pre[1][b]))
+                false_pre = pre[1][b].topk(1)[1].squeeze().to('cpu').numpy().tolist()
+                false_result[str(img_name[b])] = false_pre
                 continue
             else:
-                right_result_log(str(img_name[b]) + ' : ' + str(pre[1][b]))
+                right_pre = pre[1][b].topk(1)[1].squeeze().to('cpu').numpy().tolist()
+                right_result[str(img_name[b])] = right_pre
                 num = num + 1
+    with open("./logs/recognition_result/false_result.json", "a") as f:
+        # json.dump(false_result, f)
+        f.write(json.dumps(false_result))
+    with open("./logs/recognition_result/right_result.json", "a") as f:
+        # json.dump(right_result, f)
+        f.write(json.dumps(right_result))
+    # print("写入json文件完成...")
     return num
 
 
@@ -282,7 +296,8 @@ def scr_decoder_unite(pre, target):
 
 def char_decoder(pre, target, ind):
     for k in target:
-        target[k] = target[k].to('cpu')
+        if k != "img_name":
+            target[k] = target[k].to('cpu')
     cls = pre[0].to('cpu')
     topk_score, topk_ind = torch.topk(cls, 1)
     num = 0
@@ -339,7 +354,8 @@ def c8_decoder(pre, target, ind=8):
 
 def cls_eval(pre, target):
     for k in target:
-        target[k] = target[k].to('cpu')
+        if k != "img_name":
+            target[k] = target[k].to('cpu')
     cls = pre[0].to('cpu')
     topk_score, topk_ind = torch.topk(cls, 1)
     num = 0
@@ -364,7 +380,8 @@ def ctc_decoder(outputs, inputs):
     outputs[1] = outputs[1].squeeze(2).transpose(1, 2).to('cpu')  # [B,W,C]
     outputs[0] = outputs[0].to('cpu')
     for k in inputs:
-        inputs[k] = inputs[k].to('cpu')
+        if k != "img_name":
+            inputs[k] = inputs[k].to('cpu')
     ctc = [torch.topk(e, 1)[1] for e in outputs[1]]
     province = [torch.topk(e, 1)[1] for e in outputs[0]]
     result = []

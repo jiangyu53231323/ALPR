@@ -93,11 +93,6 @@ def main():
     print = logger.info
     print(cfg)
 
-    right_logger = create_logger(cfg.local_rank, save_dir='recognition_right')
-    right_result_log = right_logger.info
-    false_logger = create_logger(cfg.local_rank, save_dir='recognition_false')
-    false_result_log = false_logger.info
-
     torch.manual_seed(317)  # 设置随机数种子
     # 将会让程序在开始时花费一点额外时间，为整个网络的每个卷积层搜索最适合它的卷积实现算法
     torch.backends.cudnn.benchmark = True  # disable this if OOM at beginning of training (OOM:Out Of Memory)
@@ -234,11 +229,12 @@ def main():
             for i, inputs in enumerate(val_loader):
                 # img_id, inputs = inputs[0]
                 for k in inputs:
-                    inputs[k] = inputs[k].to(cfg.device)
+                    if k != "img_name":
+                        inputs[k] = inputs[k].to(cfg.device)
                 outputs = model(inputs['image'])
                 img_name = inputs['img_name']
 
-                num += scr_decoder(outputs, inputs, right_result_log,false_result_log,img_name)
+                num += scr_decoder(outputs, inputs, img_name)
                 num_cls += cls_eval(outputs, inputs)
                 num_c1 += char_decoder(outputs, inputs, 1)
                 num_c2 += char_decoder(outputs, inputs, 2)
