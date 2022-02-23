@@ -751,7 +751,7 @@ class SCRNet(nn.Module):
         p3 = self.up4(p4) + self.conv_fpn3(out3)
         p2 = self.up3(p3) + self.conv_fpn2(out2)
         out = self.down(p2) + self.conv_fuse(out3) + self.up(out4)
-        out = self.conv3(out)
+        out = self.conv3(out)   # out:8,28
 
         # province = self.province(out)
         # ctc_orc = self.ctc_ocr(out)
