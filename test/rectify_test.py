@@ -93,18 +93,18 @@ def get_lp(lp_number):
 
 def main():
     image = cv2.imread(
-        "E:\\Project\\python_project\\ALPR\\img\\0058-8_20-275&491_361&548-361&548_285&537_275&491_351&502-0_0_20_1_24_31_29-145-72.jpg")  # [:, :, ::-1]
+        "E:\\Project\\python_project\\ALPR\\img\\0216-3_9-208&465_418&551-410&538_208&551_216&478_418&465-0_7_0_13_29_30_32-69-11.jpg")  # [:, :, ::-1]
     cv2.imshow("image", image)
 
-    lp_number = [0, 0, 20, 1, 24, 31, 29]
-    bbox = [273.9, 489.88, 86.39, 57.18]
-    segmentation = [273.67, 489.38, 280.31, 538.02, 360.03, 547.37, 353.94, 498.73]
+    lp_number = [0, 7, 0, 13, 29, 30, 32]
+    bbox = [202.34, 463.8, 208.22, 91.33]
+    segmentation = [204.55, 483.17, 202.7, 554.71, 407.62, 536.12, 409.51, 464.44]
     bbox[2] = bbox[0] + bbox[2]
     bbox[3] = bbox[1] + bbox[3]
 
     lp_image = resize_rectify(image, bbox, segmentation)
     cv2.imshow("LP", lp_image)
-    cv2.imwrite("..//img//1.jpg", lp_image)
+    cv2.imwrite("..//img//11.jpg", lp_image)
 
     lp_str = get_lp(lp_number)
     bbsoi = BoundingBoxesOnImage([
@@ -118,7 +118,7 @@ def main():
     kpsoi = KeypointsOnImage(kps, shape=image.shape)
     image1 = kpsoi.draw_on_image(image, size=8, color=(0, 0, 255))
     image2 = bbsoi.draw_on_image(image1, size=3)
-
+    # 车牌字符画框
     cv2.rectangle(image2, (int(bbox[0]), int(bbox[1]) - 43), (int(bbox[0]) + 160, int(bbox[1]) - 2), (255, 255, 255),
                   thickness=-1)
     img_PIL = Image.fromarray(cv2.cvtColor(image2, cv2.COLOR_BGR2RGB))
@@ -130,7 +130,7 @@ def main():
     image2 = cv2.cvtColor(numpy.asarray(img_PIL), cv2.COLOR_RGB2BGR)
 
     cv2.imshow("pre", image2)
-    cv2.imwrite("..//img//pre1.jpg", image2)
+    cv2.imwrite("..//img//pre11.jpg", image2)
     cv2.waitKey(0)
 
 

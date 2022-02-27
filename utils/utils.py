@@ -238,11 +238,11 @@ def scr_decoder(pre, target, img_name):
                     isTure = 0
                     break
             if isTure == 0:
-                false_pre = pre[1][b].topk(1)[1].squeeze().to('cpu').numpy().tolist()
+                false_pre = pre[2][b].topk(1)[1].squeeze().to('cpu').numpy().tolist()
                 false_result[str(img_name[b])] = false_pre
                 continue
             else:
-                right_pre = pre[1][b].topk(1)[1].squeeze().to('cpu').numpy().tolist()
+                right_pre = pre[2][b].topk(1)[1].squeeze().to('cpu').numpy().tolist()
                 right_result[str(img_name[b])] = right_pre
                 num = num + 1
     with open("./logs/recognition_result/false_result.json", "a") as f:
