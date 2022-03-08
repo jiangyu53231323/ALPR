@@ -126,7 +126,6 @@ def trainandsave():
                                               )
 
     # 神经网络结构
-
     model = SCRNet()
     # net.load_state_dict(torch.load(model_path))  # 加载已训练好的参数
     model.to(device)
